@@ -79,7 +79,7 @@
 
 <aside id="mobileSidebar" class="mobile-sidebar md:hidden">
     <div class="p-8 flex items-center justify-between border-b border-slate-800">
-        <h1 class="text-emerald-500 font-black text-2xl italic tracking-tighter">NEXO</h1>
+        <h1 class="text-emerald-500 font-black text-2xl italic tracking-tighter">Nexpro App</h1>
         <button onclick="closeMobileMenu()" class="text-white text-xl">
             <i class="fas fa-times"></i>
         </button>
@@ -106,7 +106,7 @@
 </aside>
 
     <aside class="sidebar-nexo flex flex-col hidden md:flex">
-        <div class="p-10"><h1 class="text-emerald-500 font-black text-2xl italic tracking-tighter">NEXO</h1></div>
+        <div class="p-10"><h1 class="text-emerald-500 font-black text-2xl italic tracking-tighter">Nexpro App</h1></div>
         <nav class="flex-1">
             <a onclick="renderDashboard()" id="nav-dash" class="nav-link active"><i class="fas fa-chart-line"></i> Dashboard</a>
             <a onclick="renderMercado()" id="nav-mercado" class="nav-link"><i class="fas fa-store"></i> Mercado</a>
@@ -2965,7 +2965,31 @@ async function finalizarPedido(assignmentId) {
 }
 
 async function logout() { await _sb.auth.signOut(); window.location.href = '/index.html'; }
-        window.onload = init;
+function openScreenFromUrl() {
+    try {
+        const params = new URLSearchParams(window.location.search);
+        const screen = (params.get('screen') || '').trim().toLowerCase();
+
+        if (screen !== 'pedidos') return false;
+
+        renderPedidos();
+
+        const titleEl = document.getElementById('page-title');
+        if (titleEl) titleEl.textContent = 'Pedidos';
+
+        document.querySelectorAll('.nav-link').forEach(el => el.classList.remove('active'));
+        document.getElementById('nav-pedidos')?.classList.add('active');
+
+        return true;
+    } catch (e) {
+        console.error('Erro ao abrir tela pela URL:', e);
+        return false;
+    }
+}
+    window.onload = async () => {
+  await init();
+  openScreenFromUrl();
+};
     
         // ==== CREDENCIAIS (AUTÔNOMO) ====
         function _safeParseJSON(v) { try { return JSON.parse(v); } catch(e){ return null; } }

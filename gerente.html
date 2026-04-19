@@ -321,9 +321,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     if (mpErr || !mp || mp.is_active === false) {
-      alert('Seu acesso de gerente está inativo ou não existe.');
-      return window.location.href = '/index.html';
-    }
+  alert('Seu acesso de gerente está inativo ou não existe.');
+  try {
+    await sb.auth.signOut();
+  } catch (_) {}
+  return window.location.href = '/index.html';
+}
 
     const { data: acc, error: accErr } = await sb
       .from('manager_store_access')
@@ -889,17 +892,34 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         if(!groupId) throw new Error('Não consegui criar o grupo do pedido.');
 
-        const rows = checked.map(c => ({
-          group_id: groupId,
-          reservation_id: c.dataset.res,
-          assignee_profile_id: c.value,
-          status: 'pending_acceptance'
-        }));
+const { data: insertedAssignments, error: asErr } = await sb
+  .from('order_assignments')
+  .insert(rows)
+  .select('id, assignee_profile_id');
 
-        const { error: asErr } = await sb.from('order_assignments').insert(rows);
-        if (asErr) throw asErr;
+if (asErr) throw asErr;
 
-        alert('Pedido atribuído. Aguardando aceite do(s) autônomo(s).');
+// 🔔 envia push para cada autônomo atribuído
+for (const a of (insertedAssignments || [])) {
+  try {
+    await sb.functions.invoke('send-push', {
+      body: {
+        user_id: a.assignee_profile_id,
+        title: '📦 Novo pedido atribuído',
+        body: 'Você recebeu um novo pedido. Toque para abrir.',
+        data: {
+          url: '/autonomo.html?screen=pedidos',
+          type: 'order_assigned',
+          assignment_id: a.id || null
+        }
+      }
+    });
+  } catch (pushErr) {
+    console.error('Erro ao enviar push do gerente:', pushErr);
+  }
+}
+
+alert('Pedido atribuído. Aguardando aceite do(s) autônomo(s).');
         document.getElementById('order-channel').value = '';
         document.getElementById('order-code').value = '';
         document.getElementById('order-note').value = '';
