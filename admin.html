@@ -7469,7 +7469,7 @@ if(error) throw error;
 
 // 🔔 ENVIA PUSH PARA O AUTÔNOMO
 try {
-  await _supabase.functions.invoke('send-push', {
+  const { data: pushData, error: pushErr } = await _supabase.functions.invoke('send-push', {
     body: {
       user_id: profileId,
       title: '📦 Novo pedido atribuído',
@@ -7481,6 +7481,14 @@ try {
       }
     }
   });
+
+  console.log('Resultado send-push (admin):', { pushData, pushErr });
+
+  if (pushErr) {
+    console.error('Erro ao enviar push:', pushErr);
+  } else if (pushData?.ok === false) {
+    console.warn('Push não enviada:', pushData);
+  }
 } catch (pushErr) {
   console.error('Erro ao enviar push:', pushErr);
 }
