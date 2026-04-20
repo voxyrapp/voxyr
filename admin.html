@@ -7426,6 +7426,7 @@ async function admDoCheckout(reservationId){
 }
 
 async function admAssignOrder(reservationId, storeId, profileId){
+  alert('ENTREI admAssignOrder');
   const code = (document.getElementById('assign-code-'+reservationId)?.value || '').trim();
   const platform = (document.getElementById('assign-platform-'+reservationId)?.value || '').trim();
   const msg = (document.getElementById('assign-msg-'+reservationId)?.value || '').trim();
@@ -7443,6 +7444,7 @@ async function admAssignOrder(reservationId, storeId, profileId){
         .select('id')
         .maybeSingle();
       if(error) throw error;
+      alert('PASSOU insert order_assignments. insertedAssignment=' + JSON.stringify(insertedAssignment));
       groupId = data?.id;
     }catch(e){
       const { data, error } = await _supabase.from('order_assignment_groups')
@@ -7454,6 +7456,7 @@ async function admAssignOrder(reservationId, storeId, profileId){
     }
 
     if(!groupId) throw new Error('Não consegui criar o grupo do pedido.');
+    alert('PASSOU groupId: ' + groupId);
 
 const { data: insertedAssignment, error } = await _supabase
   .from('order_assignments')
@@ -7476,6 +7479,7 @@ console.log('ADMIN antes do send-push:', {
 });
 
 try {
+  alert('VOU CHAMAR send-push');
   const { data: pushData, error: pushErr } = await _supabase.functions.invoke('send-push', {
     body: {
       user_id: insertedAssignment.assignee_profile_id,
@@ -7489,7 +7493,7 @@ try {
     }
   });
 
-  console.log('Resultado send-push (admin):', { pushData, pushErr });
+  alert('ADMIN send-push disparou: ' + JSON.stringify({ pushData, pushErr }));
 
   if (pushErr) {
     console.error('Erro ao enviar push:', pushErr);
