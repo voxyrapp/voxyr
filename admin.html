@@ -7455,29 +7455,36 @@ async function admAssignOrder(reservationId, storeId, profileId){
 
     if(!groupId) throw new Error('Não consegui criar o grupo do pedido.');
 
-    const { data: insertedAssignment, error } = await _supabase.from('order_assignments')
+const { data: insertedAssignment, error } = await _supabase
+  .from('order_assignments')
   .insert({
     group_id: groupId,
     reservation_id: reservationId,
     assignee_profile_id: profileId,
-    status:'pending_acceptance'
+    status: 'pending_acceptance'
   })
-  .select('id')
+  .select('id, assignee_profile_id')
   .single();
 
-if(error) throw error;
+if (error) throw error;
 
-// 🔔 ENVIA PUSH PARA O AUTÔNOMO
+console.log('ADMIN antes do send-push:', {
+  reservationId,
+  storeId,
+  profileId,
+  insertedAssignment
+});
+
 try {
   const { data: pushData, error: pushErr } = await _supabase.functions.invoke('send-push', {
     body: {
-      user_id: profileId,
+      user_id: insertedAssignment.assignee_profile_id,
       title: '📦 Novo pedido atribuído',
       body: 'Você recebeu um novo pedido. Toque para abrir.',
       data: {
         url: 'https://nexprotecnologia.com/autonomo.html?screen=pedidos',
         type: 'order_assigned',
-        assignment_id: insertedAssignment?.id || null
+        assignment_id: insertedAssignment.id
       }
     }
   });
@@ -7486,11 +7493,14 @@ try {
 
   if (pushErr) {
     console.error('Erro ao enviar push:', pushErr);
+    alert('Pedido atribuído, mas houve erro ao enviar a notificação.');
   } else if (pushData?.ok === false) {
     console.warn('Push não enviada:', pushData);
+    alert('Pedido atribuído, mas a push não foi enviada: ' + (pushData?.message || 'sem detalhe'));
   }
 } catch (pushErr) {
   console.error('Erro ao enviar push:', pushErr);
+  alert('Pedido atribuído, mas houve erro ao enviar a notificação.');
 }
 
     toggleAssignBox(reservationId, true);
