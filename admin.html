@@ -8285,36 +8285,54 @@ if (error) throw error;
 
 // ===== PUSH DE COMUNICADO =====
 try {
-  let targetUsers = [];
+let targetUsers = [];
 
-  if (scope === 'all') {
-    const { data: users, error: usersErr } = await _supabase
-      .from('profiles')
-      .select('id')
-      .neq('role', 'admin')
-      .neq('role', 'gerente')
-      .neq('role', 'manager');
+if (scope === 'all') {
+  const { data: users, error: usersErr } = await _supabase
+    .from('profiles')
+    .select('id, role, status')
+    .neq('status', 'bloqueado');
 
-    if (usersErr) throw usersErr;
-    targetUsers = (users || []).map(u => u.id).filter(Boolean);
-  }
+  if (usersErr) throw usersErr;
 
-  if (scope === 'store' && store_id) {
-    const { data: users, error: usersErr } = await _supabase
-      .from('profiles')
-      .select('id')
-      .eq('store_id', store_id)
-      .neq('role', 'admin')
-      .neq('role', 'gerente')
-      .neq('role', 'manager');
+  targetUsers = (users || [])
+    .filter(u => {
+      const role = String(u?.role || '').trim().toLowerCase();
+      return !['admin', 'gerente', 'manager'].includes(role);
+    })
+    .map(u => u.id)
+    .filter(Boolean);
+}
 
-    if (usersErr) throw usersErr;
-    targetUsers = (users || []).map(u => u.id).filter(Boolean);
-  }
+if (scope === 'store' && store_id) {
+  const { data: users, error: usersErr } = await _supabase
+    .from('profiles')
+    .select('id, role, status, store_id')
+    .eq('store_id', store_id)
+    .neq('status', 'bloqueado');
 
-  if (scope === 'profile' && profile_id) {
-    targetUsers = [profile_id];
-  }
+  if (usersErr) throw usersErr;
+
+  targetUsers = (users || [])
+    .filter(u => {
+      const role = String(u?.role || '').trim().toLowerCase();
+      return !['admin', 'gerente', 'manager'].includes(role);
+    })
+    .map(u => u.id)
+    .filter(Boolean);
+}
+
+if (scope === 'profile' && profile_id) {
+  targetUsers = [profile_id];
+}
+
+console.log('COMUNICADO targetUsers =>', {
+  scope,
+  store_id,
+  profile_id,
+  total: targetUsers.length,
+  targetUsers
+});
 
 const pushTitle = '📣 Atenção: novo comunicado';
 const pushBody = 'Tem uma nova mensagem para você no app. Toque para visualizar.';
