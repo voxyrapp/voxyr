@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nexpro-v32';
+const CACHE_NAME = 'nexpro-v34';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -99,7 +99,7 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
 
-  const url = event.notification.data?.url || '/autonomo.html';
+  const url = event.notification.data?.url || 'https://nexprotecnologia.com/autonomo.html';
 
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
