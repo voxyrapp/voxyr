@@ -2988,6 +2988,9 @@ function openScreenFromUrl() {
 }
     window.onload = async () => {
   await init();
+  if (window.location.hash === '#pedidos') {
+  renderPedidos();
+}
   openScreenFromUrl();
 };
     
