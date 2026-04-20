@@ -8340,14 +8340,16 @@ const pushBody = 'Tem uma nova mensagem para você no app. Toque para visualizar
   for (const uid of targetUsers) {
     try {
       const { data: pushData, error: pushErr } = await _supabase.functions.invoke('send-push', {
-        body: {
+body: {
   user_id: uid,
   title: pushTitle,
   body: pushBody,
-  url: 'https://nexprotecnologia.com/autonomo.html',
-  type: 'announcement',
-  announcement_id: insertedAnnouncement.id,
-  tag: `announcement-${insertedAnnouncement.id}-${uid}-${Date.now()}`
+  data: {
+    url: 'https://nexprotecnologia.com/autonomo.html',
+    type: 'announcement',
+    announcement_id: insertedAnnouncement.id,
+    tag: `announcement-${insertedAnnouncement.id}`
+  }
 }
       });
 

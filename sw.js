@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nexpro-v45';
+const CACHE_NAME = 'nexpro-v46';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -72,27 +72,22 @@ self.addEventListener('fetch', event => {
 });
 
 self.addEventListener('push', (event) => {
-  let raw = {};
+  let data = {};
 
   try {
-    raw = event.data ? event.data.json() : {};
+    data = event.data ? event.data.json() : {};
   } catch (_) {
-    raw = {};
+    data = {};
   }
 
-  const payload = raw?.data && typeof raw.data === 'object'
-    ? { ...raw.data, ...raw }
-    : raw;
-
-  const title = payload.title || 'Nexpro';
+  const title = data.title || 'Nexpro';
   const options = {
-    body: payload.body || 'Nova notificação',
+    body: data.body || 'Nova notificação',
     icon: '/icon-192.png',
     badge: '/icon-192.png',
-    tag: payload.tag || `push-${Date.now()}`,
-    renotify: true,
+    tag: data.tag || 'default',
     data: {
-      url: payload.url || '/autonomo.html'
+      url: data.url || '/autonomo.html'
     }
   };
 
