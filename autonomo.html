@@ -2018,7 +2018,33 @@ function onPixKeyInput() {
     keyEl.value = sanitizePixValue(typeEl.value, keyEl.value);
 }
 
-function abrirPixModal() {
+async function isPixEditLocked() {
+    try {
+        const { data, error } = await _sb
+            .from('app_settings')
+            .select('value')
+            .eq('key', 'pix_edit_control')
+            .single();
+
+        if (error) {
+            console.warn('Erro ao consultar bloqueio PIX:', error);
+            return false;
+        }
+
+        return data?.value?.locked === true;
+    } catch (err) {
+        console.warn('Falha ao consultar bloqueio PIX:', err);
+        return false;
+    }
+}
+
+async function abrirPixModal() {
+    const locked = await isPixEditLocked();
+    if (locked) {
+        alert('A alteração da chave PIX está temporariamente bloqueada pela administração.');
+        return;
+    }
+
     const modal = document.getElementById('pixUpdateModal');
     if (!modal) {
         alert('Modal PIX não encontrado.');
@@ -2174,6 +2200,15 @@ async function confirmarPixFinal() {
       return;
     }
 
+    const locked = await isPixEditLocked();
+    if (locked) {
+      showToast('A alteração da chave PIX está temporariamente bloqueada pela administração.', 'error');
+      return;
+    }
+
+    const oldPixType = window.__profile?.pix_type || null;
+    const oldPixKey = window.__profile?.pix_key || null;
+
     const { error } = await _sb
       .from('profiles')
       .update({
@@ -2186,6 +2221,25 @@ async function confirmarPixFinal() {
       console.error(error);
       showToast('Erro ao atualizar chave PIX.', 'error');
       return;
+    }
+
+    if ((oldPixType || '') !== type || (oldPixKey || '') !== value) {
+      const { error: histError } = await _sb
+        .from('pix_change_history')
+        .insert({
+          profile_id: user.id,
+          changed_by: user.id,
+          changed_by_role: 'autonomo',
+          old_pix_type: oldPixType,
+          old_pix_key: oldPixKey,
+          new_pix_type: type,
+          new_pix_key: value,
+          source: 'autonomo'
+        });
+
+      if (histError) {
+        console.warn('Erro ao gravar histórico PIX:', histError);
+      }
     }
 
     await loadProfile();

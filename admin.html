@@ -631,6 +631,34 @@ function escapeHtml(value) {
   const SUPABASE_ANON_KEY = SB_KEY;
         const _supabase = supabase.createClient(SB_URL, SB_KEY);
 
+        async function getPixEditControl() {
+  try {
+    const { data, error } = await _supabase
+      .from('app_settings')
+      .select('value')
+      .eq('key', 'pix_edit_control')
+      .single();
+
+    if (error) throw error;
+    return data?.value?.locked === true;
+  } catch (e) {
+    console.warn('Erro ao ler controle PIX:', e);
+    return false;
+  }
+}
+
+async function setPixEditControl(locked) {
+  const { error } = await _supabase
+    .from('app_settings')
+    .upsert({
+      key: 'pix_edit_control',
+      value: { locked: !!locked },
+      updated_at: new Date().toISOString()
+    });
+
+  if (error) throw error;
+}
+
 
 // ===== Gate de Acesso (Admin somente) =====
 // - admin: permanece no admin.html
@@ -943,11 +971,11 @@ const isPaid = (r) => {
           </select>
         </div>
         <div class="flex gap-2 flex-wrap">
-          <button id="finance-apply" type="button" class="px-4 py-2 rounded-lg bg-emerald-600 text-white font-bold hover:bg-emerald-700">Aplicar</button>
-          <button id="finance-clear" type="button" class="px-4 py-2 rounded-lg bg-gray-200 text-gray-900 font-bold hover:bg-gray-300">Limpar</button>
-          <button id="finance-confirm-all" type="button" class="px-4 py-2 rounded-lg bg-indigo-600 text-white font-bold hover:bg-indigo-700">Confirmar todos (visível)</button>
-          <button id="finance-export" type="button" class="px-4 py-2 rounded-lg bg-gray-900 text-white font-bold hover:bg-black">Exportar CSV</button>
-        </div>
+  <button id="finance-confirm-all" type="button" class="px-4 py-2 rounded-lg bg-indigo-600 text-white font-bold hover:bg-indigo-700">Confirmar todos</button>
+  <button id="finance-export" type="button" class="px-4 py-2 rounded-lg bg-gray-900 text-white font-bold hover:bg-black">Exportar CSV</button>
+  <button id="finance-pix-lock" type="button" class="px-4 py-2 rounded-lg bg-red-600 text-white font-bold hover:bg-red-700">🔒 Bloquear PIX</button>
+  <button id="finance-pix-unlock" type="button" class="px-4 py-2 rounded-lg bg-emerald-700 text-white font-bold hover:bg-emerald-800">🔓 Liberar PIX</button>
+</div>
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -1006,11 +1034,18 @@ const isPaid = (r) => {
     await loadFinanceData();
   };
 
-  document.getElementById('finance-apply').onclick = () => applyFilters();
-  document.getElementById('finance-clear').onclick = async () => {
+  const financeApplyBtn = document.getElementById('finance-apply');
+if (financeApplyBtn) {
+  financeApplyBtn.onclick = () => applyFilters();
+}
+
+const financeClearBtn = document.getElementById('finance-clear');
+if (financeClearBtn) {
+  financeClearBtn.onclick = async () => {
     window.__financeFilters = { start: '', end: '', status: 'pendente' };
     await renderAdminFinance();
   };
+}
 
   // Load data + render
   const loadFinanceData = async () => {
@@ -1274,6 +1309,35 @@ const isPaid = (r) => {
 }
     await renderAdminFinance();
   };
+
+const financePixLockBtn = document.getElementById('finance-pix-lock');
+const financePixUnlockBtn = document.getElementById('finance-pix-unlock');
+
+if (financePixLockBtn) {
+  financePixLockBtn.onclick = async () => {
+    try {
+      await setPixEditControl(true);
+      alert('Alteração de chave PIX bloqueada com sucesso.');
+      await renderAdminFinance();
+    } catch (e) {
+      console.error(e);
+      alert('Erro ao bloquear alteração de chave PIX.');
+    }
+  };
+}
+
+if (financePixUnlockBtn) {
+  financePixUnlockBtn.onclick = async () => {
+    try {
+      await setPixEditControl(false);
+      alert('Alteração de chave PIX liberada com sucesso.');
+      await renderAdminFinance();
+    } catch (e) {
+      console.error(e);
+      alert('Erro ao liberar alteração de chave PIX.');
+    }
+  };
+}
 
   // initial load
   await loadFinanceData();
@@ -1775,6 +1839,38 @@ if (itens.includes('Fotos')) {
               const r2 = await _supabase.from('profiles').update(payload).eq('id', currentUserId);
               error = r2.error;
             }
+
+            try {
+  const oldPixType = oldU?.pix_type || null;
+  const oldPixKey = oldU?.pix_key || null;
+
+  const newPixType = payloadBase?.pix_type ?? oldPixType;
+  const newPixKey = payloadBase?.pix_key || null;
+
+  if ((oldPixType || '') !== (newPixType || '') || (oldPixKey || '') !== (newPixKey || '')) {
+    const { data: sessData } = await _supabase.auth.getSession();
+    const adminId = sessData?.session?.user?.id || null;
+
+    const { error: histError } = await _supabase
+      .from('pix_change_history')
+      .insert({
+        profile_id: currentUserId,
+        changed_by: adminId,
+        changed_by_role: 'admin',
+        old_pix_type: oldPixType,
+        old_pix_key: oldPixKey,
+        new_pix_type: newPixType,
+        new_pix_key: newPixKey,
+        source: 'admin'
+      });
+
+    if (histError) {
+      console.warn('Erro ao gravar histórico PIX (admin):', histError);
+    }
+  }
+} catch (e) {
+  console.warn('Falha ao registrar histórico PIX (admin):', e);
+}
 
 
             if (error && String(error.message || '').toLowerCase().includes('credentials')) {
