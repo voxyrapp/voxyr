@@ -6277,7 +6277,7 @@ if (groupErr || !createdGroup?.id) {
 }
 
 // 2) cria a atribuição do pedido para a reserva selecionada
-const { error: assignErr } = await _supabase
+const { data: insertedAssignment, error: assignErr } = await _supabase
   .from('order_assignments')
   .insert({
     group_id: createdGroup.id,
@@ -6285,16 +6285,43 @@ const { error: assignErr } = await _supabase
     assignee_profile_id: slotRow.profile_id,
     status: 'pending_acceptance',
     created_at: new Date().toISOString()
-  });
+  })
+  .select('id, assignee_profile_id')
+  .single();
 
 if (assignErr) {
   throw new Error(assignErr.message || 'Erro ao criar atribuição do pedido.');
 }
 
-      if (statusEl) {
-        statusEl.textContent = 'Pedido atribuído com sucesso.';
-        statusEl.classList.add('text-emerald-700');
+try {
+  const { data: pushData, error: pushErr } = await _supabase.functions.invoke('send-push', {
+    body: {
+      user_id: insertedAssignment.assignee_profile_id,
+      title: '📦 Novo pedido atribuído',
+      body: 'Você recebeu um novo pedido. Toque para abrir.',
+      data: {
+        url: 'https://nexprotecnologia.com/autonomo.html?screen=pedidos',
+        type: 'order_assigned',
+        assignment_id: insertedAssignment.id
       }
+    }
+  });
+
+  console.log('ADM renderAtribuirAdmin send-push:', { pushData, pushErr });
+
+  if (pushErr) {
+    console.error('Erro ao enviar push no fluxo novo do ADM:', pushErr);
+  } else if (pushData?.ok === false) {
+    console.warn('Push não enviada no fluxo novo do ADM:', pushData);
+  }
+} catch (pushErr) {
+  console.error('Erro ao enviar push no fluxo novo do ADM:', pushErr);
+}
+
+if (statusEl) {
+  statusEl.textContent = 'Pedido atribuído com sucesso.';
+  statusEl.classList.add('text-emerald-700');
+}
 
       document.getElementById('adm-order-channel').value = '';
       document.getElementById('adm-order-code').value = '';
