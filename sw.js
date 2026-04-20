@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nexpro-v39';
+const CACHE_NAME = 'nexpro-v40';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -102,17 +102,25 @@ self.addEventListener('notificationclick', (event) => {
   const url = event.notification.data?.url || 'https://nexprotecnologia.com/autonomo.html';
 
   event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+    (async () => {
+      const clientList = await clients.matchAll({
+        type: 'window',
+        includeUncontrolled: true
+      });
+
       for (const client of clientList) {
-        if ('focus' in client) {
-          client.navigate(url);
-          return client.focus();
+        try {
+          await client.navigate(url);
+          await client.focus();
+          return;
+        } catch (e) {
+          console.warn('Falha ao navegar cliente existente:', e);
         }
       }
 
       if (clients.openWindow) {
-        return clients.openWindow(url);
+        await clients.openWindow(url);
       }
-    })
+    })()
   );
 });
