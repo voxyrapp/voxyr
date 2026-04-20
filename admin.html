@@ -8220,13 +8220,8 @@ try {
     targetUsers = [profile_id];
   }
 
-  const pushTitle = insertedAnnouncement?.title?.trim()
-    ? `📣 ${insertedAnnouncement.title}`
-    : '📣 Novo comunicado';
-
-  const pushBody = (insertedAnnouncement?.message || 'Você recebeu um novo comunicado.')
-    .toString()
-    .slice(0, 160);
+const pushTitle = '📣 Atenção: novo comunicado';
+const pushBody = 'Tem uma nova mensagem para você no app. Toque para visualizar.';
 
   for (const uid of targetUsers) {
     try {
