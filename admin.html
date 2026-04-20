@@ -8179,13 +8179,88 @@ async function sendAnnouncement(){
       active: true
     };
 
-    const { error } = await _supabase.from('announcements').insert(payload);
-    if (error) throw error;
+   const { data: insertedAnnouncement, error } = await _supabase
+  .from('announcements')
+  .insert(payload)
+  .select('id,title,message,scope,store_id,profile_id,require_ack,active,created_at')
+  .single();
 
-    if (st){ st.className='mt-3 text-sm font-semibold text-emerald-700'; st.textContent='Comunicado enviado.'; }
+if (error) throw error;
 
-    // limpa a tela após sucesso
-    clearAnnouncementForm();
+// ===== PUSH DE COMUNICADO =====
+try {
+  let targetUsers = [];
+
+  if (scope === 'all') {
+    const { data: users, error: usersErr } = await _supabase
+      .from('profiles')
+      .select('id')
+      .neq('role', 'admin')
+      .neq('role', 'gerente')
+      .neq('role', 'manager');
+
+    if (usersErr) throw usersErr;
+    targetUsers = (users || []).map(u => u.id).filter(Boolean);
+  }
+
+  if (scope === 'store' && store_id) {
+    const { data: users, error: usersErr } = await _supabase
+      .from('profiles')
+      .select('id')
+      .eq('store_id', store_id)
+      .neq('role', 'admin')
+      .neq('role', 'gerente')
+      .neq('role', 'manager');
+
+    if (usersErr) throw usersErr;
+    targetUsers = (users || []).map(u => u.id).filter(Boolean);
+  }
+
+  if (scope === 'profile' && profile_id) {
+    targetUsers = [profile_id];
+  }
+
+  const pushTitle = insertedAnnouncement?.title?.trim()
+    ? `📣 ${insertedAnnouncement.title}`
+    : '📣 Novo comunicado';
+
+  const pushBody = (insertedAnnouncement?.message || 'Você recebeu um novo comunicado.')
+    .toString()
+    .slice(0, 160);
+
+  for (const uid of targetUsers) {
+    try {
+      const { data: pushData, error: pushErr } = await _supabase.functions.invoke('send-push', {
+        body: {
+          user_id: uid,
+          title: pushTitle,
+          body: pushBody,
+          data: {
+            url: 'https://nexprotecnologia.com/autonomo.html',
+            type: 'announcement',
+            announcement_id: insertedAnnouncement.id,
+            tag: `announcement-${insertedAnnouncement.id}`
+          }
+        }
+      });
+
+      console.log('RETORNO send-push COMUNICADO:', { uid, pushData, pushErr });
+
+      if (pushErr) {
+        console.error('Erro push comunicado:', uid, pushErr);
+      }
+    } catch (pushErr) {
+      console.error('Falha ao enviar push de comunicado para', uid, pushErr);
+    }
+  }
+} catch (pushBlockErr) {
+  console.error('Erro no bloco de push do comunicado:', pushBlockErr);
+}
+
+if (st){ st.className='mt-3 text-sm font-semibold text-emerald-700'; st.textContent='Comunicado enviado.'; }
+
+// limpa a tela após sucesso
+clearAnnouncementForm();
 
     await loadAnnouncementsList();
   }catch(e){
