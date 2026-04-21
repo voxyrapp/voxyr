@@ -535,8 +535,21 @@
   <input type="checkbox" value="Fotos" class="opt-ref">
   Fotos (Selfie + Documento)
 </label>
-                    <label class="flex items-center gap-2 text-sm bg-gray-50 p-2 rounded border cursor-pointer hover:bg-emerald-50"><input type="checkbox" value="Dados do PIX" class="opt-ref"> Dados do PIX</label>
-                    <label class="flex items-center gap-2 text-sm bg-gray-50 p-2 rounded border cursor-pointer hover:bg-emerald-50"><input type="checkbox" value="Dados de Endereço" class="opt-ref"> Dados de Endereço</label>
+
+<label class="flex items-center gap-2 text-sm bg-gray-50 p-2 rounded border cursor-pointer hover:bg-emerald-50">
+  <input type="checkbox" value="Dados do PIX" class="opt-ref">
+  Dados do PIX
+</label>
+
+<label class="flex items-center gap-2 text-sm bg-gray-50 p-2 rounded border cursor-pointer hover:bg-emerald-50">
+  <input type="checkbox" value="Dados de Endereço" class="opt-ref">
+  Dados de Endereço
+</label>
+
+<label class="flex items-center gap-2 text-sm bg-gray-50 p-2 rounded border cursor-pointer hover:bg-emerald-50">
+  <input type="checkbox" value="Loja" class="opt-ref">
+  Loja / mercado selecionado
+</label>
                 </div>
             </div>
             <div class="mb-4">
@@ -1473,18 +1486,30 @@ async function sendNotification(userId, status, message) {
             const agora = new Date().toISOString();
             
             if (pendingStatus === 'reprovado') {
-    const itens = Array.from(
+    let itens = Array.from(
         document.querySelectorAll('.opt-ref:checked')
     ).map(c => c.value);
-                // Se marcou Fotos, obrigar selfie + documento
-if (itens.includes('Fotos')) {
-  itens.push('Foto de Perfil/Selfie');
-  itens.push('Documento (Frente/Verso)');
-}
 
-                if (itens.length === 0 && reason === "") { alert("Selecione um item ou escreva o motivo."); return; }
-                reason = (itens.length > 0 ? "CORREÇÃO: " + itens.join(", ") + ". " : "") + reason;
-            }
+    // Se marcou Fotos, detalha selfie + documento
+    if (itens.includes('Fotos')) {
+        itens = itens.filter(i => i !== 'Fotos');
+        itens.push('Foto de Perfil/Selfie');
+        itens.push('Documento (Frente/Verso)');
+    }
+
+    // Se marcou Loja, deixa o texto mais claro para o autônomo
+    if (itens.includes('Loja')) {
+        itens = itens.filter(i => i !== 'Loja');
+        itens.push('Loja / mercado selecionado');
+    }
+
+    if (itens.length === 0 && reason === "") {
+        alert("Selecione um item ou escreva o motivo.");
+        return;
+    }
+
+    reason = (itens.length > 0 ? "CORREÇÃO: " + itens.join(", ") + ". " : "") + reason;
+}
 
             const { error } = await _supabase.from('profiles').update({ 
                 status: pendingStatus, 
@@ -4656,19 +4681,41 @@ function exportFinanceCSV(){
 
 // Excluir vaga (garante que o botão funcione)
 async function deleteSlot(slotId){
-    if(!confirm('Excluir esta vaga?')) return;
-    try{
-        // tenta slots e vagas
-        const tryDel = async (t)=> await _supabase.from(t).delete().eq('id', slotId);
+    if (!slotId) return;
+
+    try {
+        const { data: linkedReservations, error: resErr } = await _supabase
+            .from('reservations')
+            .select('id, status, vacancy_id, slot_id')
+            .or(`vacancy_id.eq.${slotId},slot_id.eq.${slotId}`)
+            .limit(1);
+
+        if (resErr) throw resErr;
+
+        if (linkedReservations && linkedReservations.length > 0) {
+            alert('Não é permitido excluir esta vaga, pois já existe reserva registrada nela.');
+            return;
+        }
+
+        if (!confirm('Excluir esta vaga?')) return;
+
+        const tryDel = async (t) => await _supabase.from(t).delete().eq('id', slotId);
+
         let resp = await tryDel('slots');
-        if(resp.error) resp = await tryDel('vagas');
-        if(resp.error) return alert('Erro ao excluir: '+resp.error.message);
+        if (resp.error) resp = await tryDel('vagas');
+
+        if (resp.error) {
+            alert('Erro ao excluir: ' + resp.error.message);
+            return;
+        }
+
         alert('Vaga excluída.');
-        // Recarrega aba vagas
-        const container = document.getElementById('market-display') || document.getElementById('market-display');
-        if(container) renderSlotsTab(container);
-    }catch(e){
-        alert('Erro ao excluir: '+(e?.message||e));
+
+        const container = document.getElementById('market-display');
+        if (container) renderSlotsTab(container);
+
+    } catch (e) {
+        alert('Erro ao excluir: ' + (e?.message || e));
     }
 }
 async function runMetricsLogic() {
