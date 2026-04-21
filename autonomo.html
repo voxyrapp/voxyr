@@ -2403,24 +2403,26 @@ async function cancelar(rid, sid, qtd_param, dataVaga) {
 
         if (pErr) throw pErr;
 
-        // exclui a reserva
+// grava histórico do cancelamento
 const { error: evErr } = await _sb
-  .from('reservation_events')
-  .insert({
-    reservation_id: rid,
-    event_type: 'cancelled',
-    actor_type: 'autonomo',
-    reason: 'user_cancelled'
-  });
+    .from('reservation_events')
+    .insert({
+        reservation_id: rid,
+        event_type: 'cancelled',
+        actor_type: 'autonomo',
+        actor_id: currentUser.id,
+        reason: 'user_cancelled'
+    });
 
 if (evErr) throw evErr;
 
-        const { error: delErr } = await _sb
-            .from('reservations')
-            .delete()
-            .eq('id', rid);
+// exclui a reserva
+const { error: delErr } = await _sb
+    .from('reservations')
+    .delete()
+    .eq('id', rid);
 
-        if (delErr) throw delErr;
+if (delErr) throw delErr;
 
         // notifica o próprio autônomo
         const { data: cancelData, error: cancelErr } = await _sb.functions.invoke('notify-reservation-cancelled', {
