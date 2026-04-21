@@ -1240,17 +1240,28 @@ if (p.store_id && !needsStoreChange) {
     // ======= MODO CORREÇÃO: ABRIR SOMENTE O QUE O ADM MARCOU =======
     const rr = (p.rejection_reason || '').toLowerCase();
 
-    const needsAddress = rr.includes('dados de endereço') || rr.includes('endereco');
-    const needsPix     = rr.includes('dados do pix') || rr.includes('pix');
-    const needsSelfie  = rr.includes('foto de perfil') || rr.includes('selfie');
-    const needsDoc     = rr.includes('documento');
+const needsStore   = rr.includes('loja') || rr.includes('store');
+const needsAddress = rr.includes('dados de endereço') || rr.includes('endereco');
+const needsPix     = rr.includes('dados do pix') || rr.includes('pix');
+const needsSelfie  = rr.includes('foto de perfil') || rr.includes('selfie');
+const needsDoc     = rr.includes('documento');
+
+// guarda no window para o next.onclick usar
+window.__needsCorrection = {
+    store: needsStore,
+    address: needsAddress,
+    pix: needsPix,
+    selfie: needsSelfie,
+    doc: needsDoc
+};
 
     // steps: 1=dados pessoais | 2=endereço | 3=questionário | 4=pix | 5=docs+termos+enviar
     const allowed = [];
-    if (needsAddress) allowed.push(2);
-    if (needsPix) allowed.push(4);
-    // Sempre precisa ter a etapa final para reenviar para análise
-    allowed.push(5);
+if (needsAddress) allowed.push(2);
+if (needsStore) allowed.push(3);
+if (needsPix) allowed.push(4);
+// Sempre precisa ter a etapa final para reenviar para análise
+allowed.push(5);
 
     // Se por algum motivo o motivo não vier no padrão, cai para somente envio (etapa 5)
     window.__allowedSteps = allowed.length ? Array.from(new Set(allowed)) : [5];
@@ -1388,46 +1399,86 @@ cep.onblur=async()=>{
 
 /* NAVEGAÇÃO */
 next.onclick = async () => {
+  const isCorrection = !!window.__correctionMode;
+  const corr = window.__needsCorrection || {
+    store: false,
+    address: false,
+    pix: false,
+    selfie: false,
+    doc: false
+  };
+
   if (step === 1) {
-    if (!fullname.value.trim()) { alert('Informe o nome completo'); return; }
-    if (cpf.value.length !== 11) { alert('CPF deve conter 11 números'); return; }
-    if (!birthdate.value) { alert('Informe a data de nascimento'); return; }
-    if (!maior18()) { alert('É necessário ser maior de 18 anos'); return; }
-    if (phone.value.length !== 11) { alert('Telefone deve conter 11 números'); return; }
-    if (!emailRegex.test(email.value)) { alert('E-mail inválido'); return; }
-    if (password.value.length < 6) { alert('A senha deve ter no mínimo 6 caracteres'); return; }
-    if (password.value !== confirmPassword.value) { alert('As senhas não coincidem'); return; }
+    // etapa 1 só valida no cadastro novo
+    if (!isCorrection) {
+      if (!fullname.value.trim()) { alert('Informe o nome completo'); return; }
+      if (cpf.value.length !== 11) { alert('CPF deve conter 11 números'); return; }
+      if (!birthdate.value) { alert('Informe a data de nascimento'); return; }
+      if (!maior18()) { alert('É necessário ser maior de 18 anos'); return; }
+      if (phone.value.length !== 11) { alert('Telefone deve conter 11 números'); return; }
+      if (!emailRegex.test(email.value)) { alert('E-mail inválido'); return; }
+      if (password.value.length < 6) { alert('A senha deve ter no mínimo 6 caracteres'); return; }
+      if (password.value !== confirmPassword.value) { alert('As senhas não coincidem'); return; }
+    }
   }
 
   if (step === 2) {
-    if (cep.value.length !== 8) { alert('Informe um CEP válido'); return; }
-    if (!street.value || !neighborhood.value || !city.value || !state.value) { alert('Busque o CEP para preencher o endereço'); return; }
-    if (!number.value.trim()) { alert('Informe o número do endereço'); return; }
+    // etapa 2 só valida se endereço foi solicitado
+    if (!isCorrection || corr.address) {
+      if (cep.value.length !== 8) { alert('Informe um CEP válido'); return; }
+      if (!street.value || !neighborhood.value || !city.value || !state.value) {
+        alert('Busque o CEP para preencher o endereço');
+        return;
+      }
+      if (!number.value.trim()) { alert('Informe o número do endereço'); return; }
+    }
   }
 
   if (step === 3) {
-    if (!selectedStore) { alert('Selecione uma loja'); return; }
-    for (const q of ['q1','q2','q3','q4']) {
-      const r = document.querySelector(`input[name="${q}"]:checked`);
-      if (!r) { alert('Responda todas as perguntas da etapa 3'); return; }
-      const desc = document.getElementById(`${q}_desc`);
-      if ((r.value === 'Sim' || q === 'q4') && !desc.value.trim()) { alert('Preencha a observação obrigatória'); return; }
+    // etapa 3: se for correção só de loja, exige apenas loja
+    if (!selectedStore) {
+      alert('Selecione uma loja');
+      return;
+    }
+
+    const onlyStoreCorrection =
+      isCorrection &&
+      corr.store &&
+      !corr.address &&
+      !corr.pix &&
+      !corr.selfie &&
+      !corr.doc;
+
+    if (!onlyStoreCorrection && !isCorrection) {
+      for (const q of ['q1','q2','q3','q4']) {
+        const r = document.querySelector(`input[name="${q}"]:checked`);
+        if (!r) { alert('Responda todas as perguntas da etapa 3'); return; }
+        const desc = document.getElementById(`${q}_desc`);
+        if ((r.value === 'Sim' || q === 'q4') && !desc.value.trim()) {
+          alert('Preencha a observação obrigatória');
+          return;
+        }
+      }
     }
   }
 
   if (step === 4) {
-    const pType = document.getElementById('pixType').value;
-    const pKey = document.getElementById('pixKey').value;
-    if (!pType) { alert('Selecione o tipo de chave PIX'); return; }
-    if (pType === 'cpf' && pKey.length !== 11) { alert('CPF PIX inválido'); return; }
-    if (pType === 'phone' && pKey.length !== 11) { alert('Telefone PIX inválido'); return; }
-    if (pType === 'email' && !emailRegex.test(pKey)) { alert('E-mail PIX inválido'); return; }
-    if (pType === 'random' && pKey.length < 32) { alert('Chave aleatória inválida'); return; }
+    // etapa 4 só valida se PIX foi solicitado
+    if (!isCorrection || corr.pix) {
+      const pType = document.getElementById('pixType').value;
+      const pKey = document.getElementById('pixKey').value;
 
-    document.getElementById('displayPixType').textContent = pType.toUpperCase();
-    document.getElementById('displayPixKey').textContent = pKey;
-    document.getElementById('pixConfirmModal').classList.remove('hidden');
-    return;
+      if (!pType) { alert('Selecione o tipo de chave PIX'); return; }
+      if (pType === 'cpf' && pKey.length !== 11) { alert('CPF PIX inválido'); return; }
+      if (pType === 'phone' && pKey.length !== 11) { alert('Telefone PIX inválido'); return; }
+      if (pType === 'email' && !emailRegex.test(pKey)) { alert('E-mail PIX inválido'); return; }
+      if (pType === 'random' && pKey.length < 32) { alert('Chave aleatória inválida'); return; }
+
+      document.getElementById('displayPixType').textContent = pType.toUpperCase();
+      document.getElementById('displayPixKey').textContent = pKey;
+      document.getElementById('pixConfirmModal').classList.remove('hidden');
+      return;
+    }
   }
 
   if (step === 5) {
