@@ -1209,15 +1209,29 @@ document.getElementById('btn-fix-register').onclick = async () => {
         if (osEl) osEl.checked = true;
     }
 
-    // Loja selecionada (mantém, mas permite trocar)
-    if (p.store_id) {
-        selectedStore = { id: p.store_id };
-        const selectedStoreDiv = document.getElementById('selectedStore');
-        if (selectedStoreDiv) {
-            selectedStoreDiv.innerHTML = `<strong>Loja já selecionada</strong><br><span class="text-xs text-gray-500">Você pode trocar se necessário.</span>`;
-            selectedStoreDiv.classList.remove('hidden');
-        }
+   // Loja selecionada (corrigido com trava de reprovação)
+const needsStoreChange =
+  rr.includes('loja') || rr.includes('store');
+
+if (p.store_id && !needsStoreChange) {
+    selectedStore = { id: p.store_id };
+
+    const selectedStoreDiv = document.getElementById('selectedStore');
+    if (selectedStoreDiv) {
+        selectedStoreDiv.innerHTML = `<strong>Loja já selecionada</strong><br><span class="text-xs text-gray-500">Você pode trocar se necessário.</span>`;
+        selectedStoreDiv.classList.remove('hidden');
     }
+} else {
+    // 🔥 FORÇA escolher nova loja
+    selectedStore = null;
+
+    const selectedStoreDiv = document.getElementById('selectedStore');
+    if (selectedStoreDiv) {
+        selectedStoreDiv.innerHTML = `<span class="text-red-600 font-semibold">Selecione uma nova loja obrigatoriamente</span>`;
+        selectedStoreDiv.classList.remove('hidden');
+    }
+}
+    
 
     // Documentos: na correção NÃO são obrigatórios se já existem
     window.__existingSelfie = p.selfie_url || null;
