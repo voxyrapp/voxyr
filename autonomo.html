@@ -1050,13 +1050,16 @@ if (reservationIds.length) {
         return;
     }
 
-    // Ordenação: Próximas primeiro (por data), Concluídas depois (por data desc)
-    const withSlot = res.filter(r => r && r.slots);
-    const upcoming = withSlot.filter(r => r.status !== 'check-out');
-    const done = withSlot.filter(r => r.status === 'check-out');
+    // Ordenação: mostrar somente missões em curso ou próximas
+const withSlot = (res || []).filter(r => r && r.slots);
 
-    upcoming.sort((a,b) => String(a.slots.date||'').localeCompare(String(b.slots.date||'')));
-    done.sort((a,b) => String(b.slots.date||'').localeCompare(String(a.slots.date||'')));
+// mantém apenas status que ainda devem aparecer na agenda
+const upcoming = withSlot.filter(r => {
+    const st = String(r.status || '').trim().toLowerCase();
+    return ['confirmada', 'check-in', 'pausa'].includes(st);
+});
+
+upcoming.sort((a,b) => String(a.slots.date || '').localeCompare(String(b.slots.date || '')));
 
     function renderOne(r) {
         const s = r.slots;
@@ -1225,20 +1228,7 @@ if (r.status === 'confirmada') {
         upcomingHtml = `<p class='text-center py-10 font-black text-slate-300 uppercase'>Sem próximas missões.</p>`;
     }
 
-    if (done.length) {
-        doneHtml = `
-            <div class="mt-2">
-                <h3 class="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Missões concluídas</h3>
-                ${openGrid()}
-                ${done.map(renderOne).join('')}
-                ${closeGrid()}
-            </div>
-        `;
-    } else {
-        doneHtml = `<p class='text-center py-10 font-black text-slate-300 uppercase'>Sem missões concluídas.</p>`;
-    }
-
-    document.getElementById('view-container').innerHTML = upcomingHtml + doneHtml;
+document.getElementById('view-container').innerHTML = upcomingHtml;
     showLoading(false);
 }
 
