@@ -5887,7 +5887,7 @@ async function renderAdminPoints(){
 async function fetchPoints(){
   const { data, error } = await _supabase.from('profiles')
     .select('id,full_name,email,cpf,store_id,points,role')
-    .or('role.is.null,role.neq.admin')
+    .eq('role', 'autonomo')
     .order('points', { ascending: true });
   if(error){ 
     document.getElementById('points-results').innerHTML = `<div class="p-4 text-red-600 font-bold">Erro ao carregar pontuação: ${escapeHtml(error.message)}</div>`;
