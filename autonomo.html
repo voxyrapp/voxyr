@@ -2404,6 +2404,18 @@ async function cancelar(rid, sid, qtd_param, dataVaga) {
         if (pErr) throw pErr;
 
         // exclui a reserva
+const { error: evErr } = await _sb
+  .from('reservation_events')
+  .insert({
+    reservation_id: rid,
+    event_type: 'cancelled',
+    actor_type: 'autonomo',
+    actor_id: currentUser.id,
+    reason: 'user_cancelled'
+  });
+
+if (evErr) throw evErr;
+
         const { error: delErr } = await _sb
             .from('reservations')
             .delete()

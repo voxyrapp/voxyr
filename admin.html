@@ -772,6 +772,7 @@ let allUsers = [];
         let currentStatusTab = 'pendente';
         let allShifts = []; // Nova variável para turnos
         let pendingStatus = '';
+        let currentBookingStatusFilter = 'active';
 
 
         // ==== TRAVA ANTI-MULTICLIQUE (evita ações duplicadas e múltiplos e-mails) ====
@@ -3065,7 +3066,7 @@ async function renderShiftsTab(container) {
 
     container.innerHTML = `
         <div class="flex flex-col h-full space-y-4">
-            <div class="bg-white p-4 rounded-xl border flex flex-wrap gap-4 items-end shadow-sm">
+            <div class="bg-white p-4 rounded-xl border shadow-sm">
                 <div class="flex-1 min-w-[200px]">
                     <label class="text-[10px] font-bold uppercase text-gray-400 tracking-wider">Filtrar Turnos</label>
                     <input type="text" oninput="filterShiftsList(this.value)" placeholder="Pesquisar por turno ou mercado..." class="w-full border p-2 rounded-lg text-sm outline-none focus:ring-2 focus:ring-emerald-500">
@@ -4119,47 +4120,134 @@ async function loadShiftsForModal(storeId) {
         return;
     }
 
-    shiftSelect.innerHTML = opts.join('');
+    shiftSelect.innerHTML = opts.join('');S
 }
 
 // 4. ABA RESERVAS
 async function renderBookingsTab(container) {
     container.innerHTML = `
         <div class="flex flex-col h-full space-y-4">
-            <div class="bg-white p-4 rounded-xl border flex flex-wrap gap-4 items-end shadow-sm">
-                <div>
-                    <label class="text-[10px] font-bold uppercase text-gray-400">Início</label>
-                    <input type="date" id="book-start" class="border p-2 rounded text-sm block">
+            <div class="bg-white p-4 rounded-xl border shadow-sm">
+
+                <div class="flex flex-wrap gap-4 items-end">
+                    <div>
+                        <label class="text-[10px] font-bold uppercase text-gray-400">Início</label>
+                        <input type="date" id="book-start" class="border p-2 rounded text-sm block">
+                    </div>
+
+                    <div>
+                        <label class="text-[10px] font-bold uppercase text-gray-400">Fim</label>
+                        <input type="date" id="book-end" class="border p-2 rounded text-sm block">
+                    </div>
+
+                    <div class="flex-1">
+                        <label class="text-[10px] font-bold uppercase text-gray-400">Filtrar por Nome</label>
+                        <input type="text" id="book-name-filter" placeholder="Autônomo." class="w-full border p-2 rounded text-sm">
+                    </div>
+
+                    <div class="flex items-end">
+                        <button onclick="filterBookingsRange()" class="bg-gray-900 text-white px-6 py-2 rounded-lg font-bold uppercase text-xs">
+                            Filtrar
+                        </button>
+                    </div>
                 </div>
-                <div>
-                    <label class="text-[10px] font-bold uppercase text-gray-400">Fim</label>
-                    <input type="date" id="book-end" class="border p-2 rounded text-sm block">
+
+                <div class="border-t pt-4 mt-4">
+                    <div class="flex gap-3">
+                        <button id="book-filter-active" type="button"
+                            class="px-5 py-2 rounded-full border text-xs font-black uppercase transition bg-slate-900 text-white border-slate-900">
+                            Ativas
+                        </button>
+
+                        <button id="book-filter-cancelled" type="button"
+                            class="px-5 py-2 rounded-full border text-xs font-black uppercase transition bg-white text-slate-500 border-slate-300 hover:bg-slate-50">
+                            Canceladas
+                        </button>
+
+                        <button id="book-filter-all" type="button"
+                            class="px-5 py-2 rounded-full border text-xs font-black uppercase transition bg-white text-slate-500 border-slate-300 hover:bg-slate-50">
+                            Todas
+                        </button>
+                    </div>
                 </div>
-                <div class="flex-1">
-                    <label class="text-[10px] font-bold uppercase text-gray-400">Filtrar por Nome</label>
-                    <input type="text" id="book-name-filter" placeholder="Autônomo..." class="w-full border p-2 rounded text-sm">
-                </div>
-                <button onclick="filterBookingsRange()" class="bg-gray-900 text-white px-6 py-2 rounded-lg font-bold uppercase text-xs">Filtrar</button>
             </div>
 
             <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
                 <div class="max-h-[calc(100vh-320px)] overflow-y-auto">
-                <table class="w-full text-left text-sm">
-                    <thead class="bg-gray-50 border-b">
-                        <tr>
-                            <th class="p-4 font-bold text-gray-600">Autônomo</th>
-                            <th class="p-4 font-bold text-gray-600">Loja / Turno</th>
-                            <th class="p-4 font-bold text-gray-600">Data Reserva</th>
-                            <th class="p-4 font-bold text-gray-600">Status</th><th class="p-4 font-bold text-gray-600 text-right">Ações</th>
-                        </tr>
-                    </thead>
-                    <tbody id="bookings-list-body">
-                        </tbody>
-                </table>
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-gray-50 border-b">
+                            <tr>
+                                <th class="p-4 font-bold text-gray-600">Autônomo</th>
+                                <th class="p-4 font-bold text-gray-600">Loja / Turno</th>
+                                <th class="p-4 font-bold text-gray-600">Data Reserva</th>
+<th class="p-4 font-bold text-gray-600">Status</th>
+<th class="p-4 font-bold text-gray-600">Cancelado por</th>
+<th class="p-4 font-bold text-gray-600 text-right">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="bookings-list-body"></tbody>
+                    </table>
+                </div>
             </div>
         </div>
     `;
-    filterBookingsRange(); // Carrega inicial
+
+    const btnAll = document.getElementById('book-filter-all');
+const btnActive = document.getElementById('book-filter-active');
+const btnCancelled = document.getElementById('book-filter-cancelled');
+
+function syncBookingFilterButtons() {
+  const btnActive = document.getElementById('book-filter-active');
+  const btnCancelled = document.getElementById('book-filter-cancelled');
+  const btnAll = document.getElementById('book-filter-all');
+
+  const activeClass = 'px-5 py-2 rounded-full border text-xs font-black uppercase transition bg-slate-900 text-white border-slate-900';
+const inactiveClass = 'px-5 py-2 rounded-full border text-xs font-black uppercase transition bg-white text-slate-500 border-slate-300 hover:bg-slate-50';
+
+  [btnActive, btnCancelled, btnAll].forEach(btn => {
+    if (!btn) return;
+    btn.className = inactiveClass;
+  });
+
+  if (currentBookingStatusFilter === 'active' && btnActive) {
+    btnActive.className = activeClass;
+  }
+
+  if (currentBookingStatusFilter === 'cancelled' && btnCancelled) {
+    btnCancelled.className = activeClass;
+  }
+
+  if (currentBookingStatusFilter === 'all' && btnAll) {
+    btnAll.className = activeClass;
+  }
+}
+
+if (btnAll) {
+  btnAll.onclick = () => {
+    currentBookingStatusFilter = 'all';
+    syncBookingFilterButtons();
+    filterBookingsRange();
+  };
+}
+
+if (btnActive) {
+  btnActive.onclick = () => {
+    currentBookingStatusFilter = 'active';
+    syncBookingFilterButtons();
+    filterBookingsRange();
+  };
+}
+
+if (btnCancelled) {
+  btnCancelled.onclick = () => {
+    currentBookingStatusFilter = 'cancelled';
+    syncBookingFilterButtons();
+    filterBookingsRange();
+  };
+}
+
+syncBookingFilterButtons();
+filterBookingsRange(); // Carrega inicial
 }
 
 async function filterBookingsRange() {
@@ -4173,12 +4261,13 @@ async function filterBookingsRange() {
         const { data: resv, error: errRes } = await _supabase
             .from('reservations')
             .select(`
-                id,
-                status,
-                created_at,
-                vacancy_id,
-                profiles:profile_id (full_name, email)
-            `)
+    id,
+    status,
+    created_at,
+    vacancy_id,
+    cancelled_by,
+    profiles:profile_id (full_name, email)
+`)
             .order('created_at', { ascending: false });
 
         if (errRes) throw errRes;
@@ -4214,16 +4303,26 @@ async function filterBookingsRange() {
 
         // 4) Filtros de interface
         const start = document.getElementById('book-start')?.value;
-        const end = document.getElementById('book-end')?.value;
-        const nameFilter = (document.getElementById('book-name-filter')?.value || '').toLowerCase().trim();
+const end = document.getElementById('book-end')?.value;
+const nameFilter = (document.getElementById('book-name-filter')?.value || '').toLowerCase().trim();
+const bookingStatusFilter = currentBookingStatusFilter || 'active';
 
-        let filtered = data || [];
-        if (start) filtered = filtered.filter(res => res.slots?.date ? res.slots.date >= start : false);
-        if (end) filtered = filtered.filter(res => res.slots?.date ? res.slots.date <= end : false);
-        if (nameFilter) filtered = filtered.filter(res => (res.profiles?.full_name || '').toLowerCase().includes(nameFilter));
+let filtered = data || [];
+if (start) filtered = filtered.filter(res => res.slots?.date ? res.slots.date >= start : false);
+if (end) filtered = filtered.filter(res => res.slots?.date ? res.slots.date <= end : false);
+if (nameFilter) filtered = filtered.filter(res => (res.profiles?.full_name || '').toLowerCase().includes(nameFilter));
+
+filtered = filtered.filter(res => {
+  const statusNorm = String(res?.status || '').trim().toLowerCase();
+  const isCancelled = statusNorm === 'cancelada';
+
+  if (bookingStatusFilter === 'active') return !isCancelled;
+  if (bookingStatusFilter === 'cancelled') return isCancelled;
+  return true; // all
+});
 
         if (!filtered.length) {
-            tbody.innerHTML = '<tr><td colspan="5" class="p-4 text-center italic text-gray-500">Nenhuma reserva encontrada.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="6" class="p-4 text-center italic text-gray-500">Nenhuma reserva encontrada.</td></tr>';
             return;
         }
 
@@ -4241,6 +4340,13 @@ async function filterBookingsRange() {
             const status = res.status || '---';
 const statusNorm = String(status).trim().toLowerCase();
 
+const cancelledBy = String(res?.cancelled_by || '').trim().toLowerCase();
+
+let cancelledByLabel = '-';
+if (cancelledBy === 'admin') cancelledByLabel = 'Admin';
+else if (cancelledBy === 'autonomo') cancelledByLabel = 'Autônomo';
+else if (cancelledBy === 'sistema') cancelledByLabel = 'Sistema';
+
 const nome = res.profiles?.full_name || '---';
 
 const btn = statusNorm === 'confirmada'
@@ -4253,7 +4359,8 @@ const btn = statusNorm === 'confirmada'
                     <td class="p-4 text-gray-700">${escapeHtml(loja)}${turnoTxt ? `<span class="text-gray-400">${escapeHtml(turnoTxt)}</span>` : ''}</td>
                     <td class="p-4 font-mono font-bold">${dataExibicao}</td>
                     <td class="p-4"><span class="px-2 py-1 rounded-full bg-gray-100 text-gray-700 text-[10px] font-black uppercase">${escapeHtml(status)}</span></td>
-                    <td class="p-4 text-right">${btn}</td>
+                    <td class="p-4 text-gray-700 font-semibold">${statusNorm === 'cancelada' ? cancelledByLabel : '-'}</td>
+<td class="p-4 text-right">${btn}</td>
                 </tr>
             `;
         }).join('');
@@ -4459,6 +4566,17 @@ async function confirmDeleteReserva(mode){
   .eq('id', reservationId);
 
 if (eDel) throw eDel;
+
+const { error: eEvent } = await _supabase
+  .from('reservation_events')
+  .insert({
+    reservation_id: reservationId,
+    event_type: 'cancelled',
+    actor_type: 'admin',
+    reason: 'admin_cancelled'
+  });
+
+if (eEvent) throw eEvent;
 
   let newTotal = total;
   let newAvail = avail;
