@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nexpro-v57';
+const CACHE_NAME = 'nexpro-v58';
 const STATIC_ASSETS = [
   '/',
   '/index.html',

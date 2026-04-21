@@ -1606,43 +1606,43 @@ if (!isCorrection) {
     }
 
     // 3) Salvar perfil
-    const payload = {
-      full_name: fullname.value,
-      cpf: cpf.value,
-      email: email.value,
-      phone: phone.value,
-      birthdate: birthdate.value,
-      cep: cep.value,
-      street: street.value,
-      number: number.value,
-      neighborhood: neighborhood.value,
-      city: city.value,
-      state: state.value,
-      store_id: selectedStore?.id || null,
+const payload = {
+  full_name: fullname.value,
+  cpf: cpf.value,
+  email: email.value,
+  phone: phone.value,
+  birthdate: birthdate.value,
+  cep: cep.value,
+  street: street.value,
+  number: number.value,
+  neighborhood: neighborhood.value,
+  city: city.value,
+  state: state.value,
+  store_id: selectedStore?.id || null,
 
-      pix_type: document.getElementById('pixType').value,
-      pix_key: document.getElementById('pixKey').value,
+  pix_type: document.getElementById('pixType').value,
+  pix_key: document.getElementById('pixKey').value,
 
-      selfie_url: selfiePath,
-      doc_url: docPath,
+  selfie_url: selfiePath,
+  doc_url: docPath,
 
-      // Reenvio para análise
-      status: 'pendente',
-      rejection_reason: null,
-      updated_at: new Date().toISOString(),
+  status: 'pendente',
+  rejection_reason: null,
+  updated_at: new Date().toISOString(),
 
-      // Questionário
-      worked_in_partner_store: document.querySelector('input[name="q1"]:checked')?.value === 'Sim',
-      worked_desc: document.getElementById('q1_desc').value,
+  role: 'autonomo',
 
-      relatives_in_store: document.querySelector('input[name="q2"]:checked')?.value === 'Sim',
-      relatives_desc: document.getElementById('q2_desc').value,
+  worked_in_partner_store: document.querySelector('input[name="q1"]:checked')?.value === 'Sim',
+  worked_desc: document.getElementById('q1_desc').value,
 
-      picking_experience: document.querySelector('input[name="q3"]:checked')?.value === 'Sim',
-      experience_desc: document.getElementById('q3_desc').value,
+  relatives_in_store: document.querySelector('input[name="q2"]:checked')?.value === 'Sim',
+  relatives_desc: document.getElementById('q2_desc').value,
 
-      os_system: document.querySelector('input[name="q4"]:checked')?.value || 'Não informado'
-    };
+  picking_experience: document.querySelector('input[name="q3"]:checked')?.value === 'Sim',
+  experience_desc: document.getElementById('q3_desc').value,
+
+  os_system: document.querySelector('input[name="q4"]:checked')?.value || 'Não informado'
+};
 
     if (!isCorrection) {
       const { error: profileError } = await _supabase
