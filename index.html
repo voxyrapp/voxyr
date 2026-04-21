@@ -1210,10 +1210,7 @@ document.getElementById('btn-fix-register').onclick = async () => {
     }
 
    // Loja selecionada (corrigido com trava de reprovação)
-const needsStoreChange =
-  rr.includes('loja') || rr.includes('store');
-
-if (p.store_id && !needsStoreChange) {
+if (p.store_id && !needsStore) {
     selectedStore = { id: p.store_id };
 
     const selectedStoreDiv = document.getElementById('selectedStore');
@@ -1245,6 +1242,22 @@ const needsAddress = rr.includes('dados de endereço') || rr.includes('endereco'
 const needsPix     = rr.includes('dados do pix') || rr.includes('pix');
 const needsSelfie  = rr.includes('foto de perfil') || rr.includes('selfie');
 const needsDoc     = rr.includes('documento');
+
+window.__needsCorrection = {
+  store: needsStore,
+  address: needsAddress,
+  pix: needsPix,
+  selfie: needsSelfie,
+  doc: needsDoc
+};
+
+window.__needsCorrection = {
+  store: needsStore,
+  address: needsAddress,
+  pix: needsPix,
+  selfie: needsSelfie,
+  doc: needsDoc
+};
 
 // guarda no window para o next.onclick usar
 window.__needsCorrection = {
@@ -1317,9 +1330,39 @@ function _prevAllowed(cur){
 
 function showStep(){
 
- steps.forEach(s=>s.classList.add('hidden'));
-const current = document.querySelector(`[data-step="${step}"]`);
-if (current) current.classList.remove('hidden');
+  steps.forEach(s => s.classList.add('hidden'));
+  const current = document.querySelector(`[data-step="${step}"]`);
+  if (current) current.classList.remove('hidden');
+
+  const corr = window.__needsCorrection || {
+    store: false,
+    address: false,
+    pix: false,
+    selfie: false,
+    doc: false
+  };
+  const isCorrection = !!window.__correctionMode;
+
+    // ETAPA 3: se for correção, esconder perguntas e mostrar só loja quando necessário
+  if (step === 3) {
+    const qBlocks = ['q1','q2','q3','q4'].map(q => {
+      const input = document.querySelector(`input[name="${q}"]`);
+      return input ? input.closest('div') : null;
+    }).filter(Boolean);
+
+    const openStoreBtn = document.getElementById('openStoreSelect');
+    const selectedStoreBox = document.getElementById('selectedStore');
+
+    if (isCorrection && corr.store && !corr.address && !corr.pix && !corr.selfie && !corr.doc) {
+      qBlocks.forEach(el => el.style.display = 'none');
+      if (openStoreBtn) openStoreBtn.style.display = '';
+      if (selectedStoreBox) selectedStoreBox.style.display = '';
+    } else {
+      qBlocks.forEach(el => el.style.display = '');
+      if (openStoreBtn) openStoreBtn.style.display = '';
+      if (selectedStoreBox) selectedStoreBox.style.display = '';
+    }
+  }
 
 const first = _firstAllowed();
 const last = _lastAllowed();
@@ -1335,23 +1378,43 @@ if (step === 5) {
   const selfieLabel = selfieFile ? selfieFile.previousElementSibling : null;
   const docLabel = docFile ? docFile.previousElementSibling : null;
 
-  if (isCorrection && !req.selfie) {
-    if (selfieLabel) selfieLabel.style.display = 'none';
-    if (selfieFile) selfieFile.style.display = 'none';
-    if (selfiePreview) selfiePreview.style.display = 'none';
+  const termsBox = document.querySelector('#acceptTerms')?.closest('.mt-4') || null;
+
+  if (isCorrection) {
+    // só mostra selfie se foi pedida
+    if (req.selfie) {
+      if (selfieLabel) selfieLabel.style.display = '';
+      if (selfieFile) selfieFile.style.display = '';
+    } else {
+      if (selfieLabel) selfieLabel.style.display = 'none';
+      if (selfieFile) selfieFile.style.display = 'none';
+      if (selfiePreview) selfiePreview.style.display = 'none';
+    }
+
+    // só mostra doc se foi pedido
+    if (req.doc) {
+      if (docLabel) docLabel.style.display = '';
+      if (docFile) docFile.style.display = '';
+    } else {
+      if (docLabel) docLabel.style.display = 'none';
+      if (docFile) docFile.style.display = 'none';
+      if (docPreview) docPreview.style.display = 'none';
+    }
+
+    // se correção não pediu documento nenhum, some com o título "Documentação"
+    const docsTitle = document.querySelector('[data-step="5"] h3');
+    if (docsTitle && !req.selfie && !req.doc) {
+      docsTitle.style.display = 'none';
+    } else if (docsTitle) {
+      docsTitle.style.display = '';
+    }
   } else {
     if (selfieLabel) selfieLabel.style.display = '';
     if (selfieFile) selfieFile.style.display = '';
-    // preview só aparece quando seleciona arquivo
-  }
-
-  if (isCorrection && !req.doc) {
-    if (docLabel) docLabel.style.display = 'none';
-    if (docFile) docFile.style.display = 'none';
-    if (docPreview) docPreview.style.display = 'none';
-  } else {
     if (docLabel) docLabel.style.display = '';
     if (docFile) docFile.style.display = '';
+    const docsTitle = document.querySelector('[data-step="5"] h3');
+    if (docsTitle) docsTitle.style.display = '';
   }
 }
 }
