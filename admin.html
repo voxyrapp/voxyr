@@ -4949,7 +4949,7 @@ async function runMetricsLogic() {
     }
 
     // 2) Reservas vinculadas aos slots do mês
-    const resSelect = 'id, profile_id, vacancy_id, status, created_at, started_at, finished_at, final_value, paid_amount, paid, penalty_seconds, pause_total_seconds, expected_checkin';
+    const resSelect = 'id, profile_id, vacancy_id, status, created_at, started_at, finished_at, final_value, paid_amount, paid, penalty_seconds, pause_total_seconds, expected_checkin, cancelled_by';
     const resFallback = 'id, profile_id, vacancy_id, status, created_at, started_at, finished_at, final_value, paid_amount, paid';
     const { data: reservations } = await safeQuery(
       'reservations',
@@ -4983,18 +4983,24 @@ const isCancelled = (r) => {
 const isWorkerCancelled = (r) => {
   return isCancelled(r) && normStatus(r.cancelled_by) === 'autonomo';
 };
-    const isFinished = (r) => {
-      const st = normStatus(r.status);
-      // no seu sistema, finalizado normalmente vira "check-out"
-      return st === 'check-out' || st === 'checkout' || st === 'finalizado' || st === 'finished';
-    };
-    const hasCheckin = (r) => !!r.started_at;
 
-    // ---- Agregações gerais (mês) ----
-    const totalReservas = (reservations||[]).length;
-    const canceladas = (reservations || []).filter(isWorkerCancelled).length;
-    const checkins = (reservations||[]).filter(r => !isCancelled(r) && hasCheckin(r)).length;
-    const finalizadas = (reservations||[]).filter(r => !isCancelled(r) && isFinished(r)).length;
+const isActiveReservation = (r) => {
+  const st = normStatus(r.status);
+  return st === 'confirmada' || st === 'check-in' || st === 'checkout' || st === 'check-out' || st === 'pausa';
+};
+
+const isFinished = (r) => {
+  const st = normStatus(r.status);
+  return st === 'check-out' || st === 'checkout' || st === 'finalizado' || st === 'finished';
+};
+
+const hasCheckin = (r) => !!r.started_at;
+
+// ---- Agregações gerais (mês) ----
+const totalReservas = (reservations || []).filter(isActiveReservation).length;
+const canceladas = (reservations || []).filter(isWorkerCancelled).length;
+const checkins = (reservations || []).filter(r => !isCancelled(r) && hasCheckin(r)).length;
+const finalizadas = (reservations || []).filter(r => !isCancelled(r) && isFinished(r)).length;
 
     // No-show (heurística): slot já passou (ontem pra trás) e sem check-in e não cancelada
     const todayYMD = ymd(new Date());
@@ -5094,7 +5100,7 @@ const isWorkerCancelled = (r) => {
           <div class="bg-white p-5 rounded-2xl border shadow-sm">
             <div class="text-[10px] font-black text-gray-400 uppercase">Cancelamentos</div>
             <div class="text-3xl font-black text-gray-900">${canceladas}</div>
-            <div class="mt-2 text-xs font-semibold text-gray-600">${pct(canceladas,totalReservas)}% do total</div>
+            <div class="mt-2 text-xs font-semibold text-gray-600">${pct(canceladas, Math.max(1, totalReservas + canceladas))}% do total</div>
           </div>
 
           <div class="bg-white p-5 rounded-2xl border shadow-sm">
