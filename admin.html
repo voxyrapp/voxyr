@@ -499,7 +499,17 @@
             <div class="p-6 border-b flex justify-between items-center bg-gray-50">
                 <div>
                     <h3 class="text-xl font-bold">Análise do Candidato</h3>
-                    <p id="analysis-time" class="text-[10px] text-emerald-600 font-bold uppercase"></p>
+                    <div class="mt-2 flex flex-col gap-1 text-xs font-bold">
+
+  <span id="analysis-updated" class="text-blue-700">
+    Última atualização: -
+  </span>
+
+  <span id="analysis-created" class="text-gray-600">
+    Cadastro em: -
+  </span>
+
+</div>
                 </div>
                 <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600 text-3xl">&times;</button>
             </div>
@@ -809,6 +819,29 @@ let allUsers = [];
             return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
         }
 
+        function formatUpdatedAt(dateString) {
+    if (!dateString) return '-';
+
+    const d = new Date(dateString);
+    if (isNaN(d.getTime())) return '-';
+
+    const now = new Date();
+
+    const isToday =
+        d.getDate() === now.getDate() &&
+        d.getMonth() === now.getMonth() &&
+        d.getFullYear() === now.getFullYear();
+
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mm = String(d.getMinutes()).padStart(2, '0');
+
+    if (isToday) {
+        return `hoje às ${hh}:${mm}`;
+    }
+
+    return `${d.toLocaleDateString('pt-BR')} às ${hh}:${mm}`;
+}
+
         function setStatusTab(s) {
             currentStatusTab = s;
             document.querySelectorAll('.status-tab').forEach(t => t.classList.remove('active'));
@@ -828,11 +861,11 @@ let allUsers = [];
             document.getElementById('counter').innerText = list.length;
             document.getElementById('list-container').innerHTML = list.map(u => {
                 let rotulo = "Aguardando há";
-                let dataRef = u.created_at;
-                if (currentStatusTab !== 'pendente') {
-                    rotulo = currentStatusTab + " há";
-                    dataRef = u.updated_at || u.created_at;
-                }
+let dataRef = u.updated_at || u.created_at;
+
+if (currentStatusTab !== 'pendente') {
+    rotulo = currentStatusTab + " há";
+}
                 return `
                     <div class="bg-white p-4 rounded-xl border flex items-center justify-between hover:shadow-md transition-shadow">
                         <div>
@@ -1547,7 +1580,11 @@ async function sendNotification(userId, status, message) {
         function viewFullDetail(id) {
             currentUserId = id;
             const u = allUsers.find(x => x.id === id);
-            document.getElementById('analysis-time').innerText = "Aguardando há: " + calculateTime(u.created_at);
+            const updatedRef = u.updated_at || u.created_at;
+const createdRef = u.created_at;
+
+document.getElementById('analysis-updated').innerText = 'Última atualização: ' + formatUpdatedAt(updatedRef);
+document.getElementById('analysis-created').innerText = 'Cadastro em: ' + (createdRef ? new Date(createdRef).toLocaleDateString('pt-BR') : '-');
             const body = document.getElementById('modal-body');
             body.innerHTML = `
                 <div id="step-1" class="step-content active space-y-4">
