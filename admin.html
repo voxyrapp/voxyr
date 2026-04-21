@@ -148,8 +148,8 @@
         </div>
 
         <div class="bg-white px-8 pt-4 flex gap-8 border-b text-sm">
+          <button onclick="setStatusTab('aprovado')" id="tab-aprovado" class="status-tab pb-4 px-2 uppercase font-bold">Aprovados</button>
             <button onclick="setStatusTab('pendente')" id="tab-pendente" class="status-tab active pb-4 px-2 uppercase font-bold">Em Análise</button>
-            <button onclick="setStatusTab('aprovado')" id="tab-aprovado" class="status-tab pb-4 px-2 uppercase font-bold">Aprovados</button>
             <button onclick="setStatusTab('reprovado')" id="tab-reprovado" class="status-tab pb-4 px-2 uppercase font-bold">Reprovados</button>
             <button onclick="setStatusTab('bloqueado')" id="tab-bloqueado" class="status-tab pb-4 px-2 uppercase font-bold">Bloqueados</button>
         </div>
@@ -1606,15 +1606,15 @@ document.getElementById('analysis-created').innerText = 'Cadastro em: ' + (creat
                 </div>
                 <div id="step-3" class="step-content space-y-3">
                     <div class="p-3 bg-emerald-50 border-l-4 border-emerald-500 font-bold text-sm">
-                        Trabalhou em parceira: ${u.worked_in_partner_store ? 'SIM' : 'NÃO'}
+                        Trabalhou na loja selecionada: ${u.worked_in_partner_store ? 'SIM' : 'NÃO'}
                         ${u.worked_desc ? `<p class="text-xs font-normal mt-1 text-gray-600">${u.worked_desc}</p>` : ''}
                     </div>
                     <div class="p-3 bg-emerald-50 border-l-4 border-emerald-500 font-bold text-sm">
-                        Parentes na loja: ${u.relatives_in_store ? 'SIM' : 'NÃO'}
+                        Possui parentes na loja selecionada: ${u.relatives_in_store ? 'SIM' : 'NÃO'}
                         ${u.relatives_desc ? `<p class="text-xs font-normal mt-1 text-gray-600">${u.relatives_desc}</p>` : ''}
                     </div>
                     <div class="p-3 bg-emerald-50 border-l-4 border-emerald-500 font-bold text-sm">
-                        Experiência Picking: ${u.picking_experience ? 'SIM' : 'NÃO'}
+                        Possui experiência em picking: ${u.picking_experience ? 'SIM' : 'NÃO'}
                         ${u.experience_desc ? `<p class="text-xs font-normal mt-1 text-gray-600">${u.experience_desc}</p>` : ''}
                     </div>
                     
@@ -4448,8 +4448,17 @@ async function confirmDeleteReserva(mode){
   const total = Number(res?.slots?.total_capacity ?? res?.slots?.quantity ?? 0);
   const avail = Number(res?.slots?.available_capacity ?? 0);
 
-  const { error: eDel } = await _supabase.from('reservations').delete().eq('id', reservationId);
-  if (eDel) throw eDel;
+  const { error: eDel } = await _supabase
+  .from('reservations')
+  .update({
+    status: 'cancelada',
+    cancelled_at: new Date().toISOString(),
+    cancelled_by: 'admin',
+    cancellation_reason: 'admin_cancelled'
+  })
+  .eq('id', reservationId);
+
+if (eDel) throw eDel;
 
   let newTotal = total;
   let newAvail = avail;
@@ -4846,11 +4855,16 @@ async function runMetricsLogic() {
     }
 
     // ---- Normalizações ----
-    const normStatus = (s) => String(s||'').toLowerCase().trim();
-    const isCancelled = (r) => {
-      const st = normStatus(r.status);
-      return st === 'cancelada' || st === 'cancelado' || st === 'canceled' || st === 'cancelled' || st === 'recusado' || st === 'rejeitado';
-    };
+    const normStatus = (s) => String(s || '').toLowerCase().trim();
+
+const isCancelled = (r) => {
+  const st = normStatus(r.status);
+  return st === 'cancelada' || st === 'cancelado' || st === 'canceled' || st === 'cancelled' || st === 'recusado' || st === 'rejeitado';
+};
+
+const isWorkerCancelled = (r) => {
+  return isCancelled(r) && normStatus(r.cancelled_by) === 'autonomo';
+};
     const isFinished = (r) => {
       const st = normStatus(r.status);
       // no seu sistema, finalizado normalmente vira "check-out"
@@ -4860,7 +4874,7 @@ async function runMetricsLogic() {
 
     // ---- Agregações gerais (mês) ----
     const totalReservas = (reservations||[]).length;
-    const canceladas = (reservations||[]).filter(isCancelled).length;
+    const canceladas = (reservations || []).filter(isWorkerCancelled).length;
     const checkins = (reservations||[]).filter(r => !isCancelled(r) && hasCheckin(r)).length;
     const finalizadas = (reservations||[]).filter(r => !isCancelled(r) && isFinished(r)).length;
 
