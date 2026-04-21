@@ -2418,9 +2418,14 @@ if (evErr) throw evErr;
 
 // exclui a reserva
 const { error: delErr } = await _sb
-    .from('reservations')
-    .delete()
-    .eq('id', rid);
+  .from('reservations')
+  .update({
+    status: 'cancelada',
+    cancelled_at: new Date().toISOString(),
+    cancelled_by: 'autonomo',
+    cancellation_reason: 'user_cancelled'
+  })
+  .eq('id', rid);
 
 if (delErr) throw delErr;
 
