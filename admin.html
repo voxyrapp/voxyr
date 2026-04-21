@@ -5000,15 +5000,19 @@ const canceladas = (reservations || []).filter(isWorkerCancelled).length;
 const checkins = (reservations || []).filter(r => !isCancelled(r) && hasCheckin(r)).length;
 const finalizadas = (reservations || []).filter(r => !isCancelled(r) && isFinished(r)).length;
 
-    // No-show (heurística): slot já passou (ontem pra trás) e sem check-in e não cancelada
-    const todayYMD = ymd(new Date());
-    const noShow = (reservations||[]).filter(r => {
-      if (isCancelled(r)) return false;
-      if (hasCheckin(r)) return false;
-      const slot = slotMap[r.vacancy_id];
-      const d = String(slot?.date || '');
-      return d && d < todayYMD;
-    }).length;
+const noShow = 0;
+const worstNoShow = [];
+
+    // Vagas não preenchidas e % de não preenchimento
+const totalVagas = (slots || []).reduce((acc, s) => {
+  const cap = Number(s?.total_capacity ?? s?.quantity ?? 1);
+  return acc + Math.max(0, cap || 0);
+}, 0);
+
+const vagasNaoPreenchidas = Math.max(0, totalVagas - totalReservas);
+const naoPreenchimentoPercent = totalVagas > 0
+  ? Math.round((vagasNaoPreenchidas / totalVagas) * 100)
+  : 0;
 
     // Financeiro (somente do mês): soma do final_value, com fallback para paid_amount
     const faturamento = (reservations||[]).reduce((sum, r) => {
@@ -5022,64 +5026,226 @@ const finalizadas = (reservations || []).filter(r => !isCancelled(r) && isFinish
     const totalPenaltySec = (reservations||[]).reduce((s,r)=> s + Math.max(0, Number(r.penalty_seconds||0)), 0);
     const totalPauseSec = (reservations||[]).reduce((s,r)=> s + Math.max(0, Number(r.pause_total_seconds||0)), 0);
 
-    // ---- Performance por loja (se slots tiverem store_id) ----
-    const hasStoreInSlot = !slotsFallback && (slots||[]).some(s => 'store_id' in s);
-    const byStore = {}; // store_id -> agg
+// ---- Performance por loja (se slots tiverem store_id) ----
+const hasStoreInSlot = !slotsFallback && (slots || []).some(s => 'store_id' in s);
+const byStore = {}; // store_id -> agg
+
 if (hasStoreInSlot) {
-  (reservations||[]).forEach(r => {
+  // 1) Baseia a loja nos SLOTS do período, não nas reservas
+  (slots || []).forEach(s => {
+    const sid = s?.store_id || '__sem_loja__';
+
+    if (!byStore[sid]) {
+      byStore[sid] = {
+        store_id: sid,
+        reservas: 0,
+        cancel: 0,
+        checkin: 0,
+        vagasNaoPreenchidas: 0,
+        naoPreenchimentoPercent: 0,
+        pedidos: 0,
+        itens: 0,
+        fatur: 0,
+        totalCapacidade: 0
+      };
+    }
+
+    const cap = Number(s?.total_capacity ?? s?.quantity ?? 1);
+    byStore[sid].totalCapacidade += Math.max(0, cap || 0);
+  });
+
+  // 2) Soma reservas ativas / check-in / cancelamentos / faturamento por loja
+  (reservations || []).forEach(r => {
     const slot = slotMap[r.vacancy_id];
     const sid = slot?.store_id || '__sem_loja__';
-    if (!byStore[sid]) byStore[sid] = { store_id: sid, reservas:0, cancel:0, checkin:0, noshow:0, fatur:0 };
+
+    if (!byStore[sid]) {
+      byStore[sid] = {
+        store_id: sid,
+        reservas: 0,
+        cancel: 0,
+        checkin: 0,
+        vagasNaoPreenchidas: 0,
+        naoPreenchimentoPercent: 0,
+        pedidos: 0,
+        itens: 0,
+        fatur: 0,
+        totalCapacidade: 0
+      };
+    }
+
     const a = byStore[sid];
 
     if (isActiveReservation(r)) a.reservas += 1;
     if (isWorkerCancelled(r)) a.cancel += 1;
     if (isActiveReservation(r) && hasCheckin(r)) a.checkin += 1;
-        if (!isCancelled(r) && !hasCheckin(r)) {
-          const d = String(slot?.date || '');
-          if (d && d < todayYMD) a.noshow += 1;
-        }
-        const v = (r.final_value !== null && r.final_value !== undefined && String(r.final_value) !== '') ? Number(r.final_value) :
-                  (r.paid_amount !== null && r.paid_amount !== undefined && String(r.paid_amount) !== '') ? Number(r.paid_amount) : 0;
-        a.fatur += (Number.isFinite(v) ? v : 0);
-      });
+
+    const v =
+      (r.final_value !== null && r.final_value !== undefined && String(r.final_value) !== '')
+        ? Number(r.final_value)
+        : (r.paid_amount !== null && r.paid_amount !== undefined && String(r.paid_amount) !== '')
+          ? Number(r.paid_amount)
+          : 0;
+
+    a.fatur += (Number.isFinite(v) ? v : 0);
+  });
+
+  // 3) Calcula vagas não preenchidas por loja
+  Object.values(byStore).forEach(a => {
+  a.vagasNaoPreenchidas = Math.max(0, (a.totalCapacidade || 0) - (a.reservas || 0));
+
+  const totalLoja = (a.totalCapacidade || 0);
+
+  a.naoPreenchimentoPercent = totalLoja > 0
+    ? Math.round((a.vagasNaoPreenchidas / totalLoja) * 100)
+    : 0;
+
+  a.preenchimentoPercent = totalLoja > 0
+    ? Math.round(((a.reservas || 0) / totalLoja) * 100)
+    : 0;
+});
+
+// 4) Soma pedidos e itens por loja
+try {
+  const slotDates = (slots || [])
+  .map(s => String(s?.date || ''))
+  .filter(Boolean)
+  .sort();
+
+const now = new Date();
+const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+const currentLastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+
+const periodStart = slotDates[0] || `${currentMonth}-01`;
+const periodEnd = slotDates[slotDates.length - 1] || `${currentMonth}-${String(currentLastDay).padStart(2, '0')}`;
+
+const monthStartIso = `${periodStart}T00:00:00`;
+const monthEndIso = `${periodEnd}T23:59:59`;
+
+  let groups = [];
+
+  try {
+    const { data, error } = await _supabase
+      .from('order_assignment_groups')
+      .select('id, store_id, scheduled_at, created_at')
+      .gte('scheduled_at', monthStartIso)
+      .lte('scheduled_at', monthEndIso);
+
+    if (error) throw error;
+    groups = data || [];
+  } catch (e) {
+    const { data, error } = await _supabase
+      .from('order_assignment_groups')
+      .select('id, store_id, created_at')
+      .gte('created_at', monthStartIso)
+      .lte('created_at', monthEndIso);
+
+    if (error) throw error;
+    groups = data || [];
+  }
+
+  const groupIds = groups.map(g => g.id).filter(Boolean);
+
+  let assigns = [];
+  if (groupIds.length) {
+    try {
+      const { data, error } = await _supabase
+  .from('order_assignments')
+  .select('group_id, items_count, status')
+  .in('group_id', groupIds)
+  .eq('status', 'completed');
+
+      if (error) throw error;
+      assigns = data || [];
+    } catch (e) {
+      const { data, error } = await _supabase
+  .from('order_assignments')
+  .select('group_id, status')
+  .in('group_id', groupIds)
+  .eq('status', 'completed');
+
+if (error) throw error;
+assigns = (data || []).map(x => ({ group_id: x.group_id, items_count: 0, status: x.status }));
+    }
+  }
+
+  const idsByStore = {};
+
+  groups.forEach(g => {
+    const sid = g?.store_id || '__sem_loja__';
+
+    if (!byStore[sid]) {
+      byStore[sid] = {
+        store_id: sid,
+        reservas: 0,
+        cancel: 0,
+        checkin: 0,
+        vagasNaoPreenchidas: 0,
+        naoPreenchimentoPercent: 0,
+        pedidos: 0,
+        itens: 0,
+        fatur: 0,
+        totalCapacidade: 0
+      };
     }
 
-    const storeName = (sid) => {
-      if (!sid || sid==='__sem_loja__') return 'Sem loja';
-      const s = (window.allStores || allStores || []).find(x => x.id === sid);
-      return s?.name || sid;
-    };
+    if (!idsByStore[sid]) idsByStore[sid] = [];
+    idsByStore[sid].push(g.id);
+  });
 
-    const storeRows = hasStoreInSlot
-      ? Object.values(byStore)
-          .sort((a,b)=> (b.reservas - a.reservas))
-          .slice(0, 12)
-      : [];
+  Object.keys(idsByStore).forEach(sid => {
+    const ids = new Set(idsByStore[sid]);
 
-    // ---- Ranking autônomos (penalidades / pausas / no-show) ----
-    const byWorker = {}; // profile_id
+    const finalizados = assigns.filter(a => ids.has(a.group_id));
+
+byStore[sid].pedidos = new Set(finalizados.map(a => a.group_id)).size;
+byStore[sid].itens = finalizados
+  .reduce((sum, a) => sum + Math.max(0, Number(a.items_count || 0)), 0);
+  });
+
+  console.log('MÉTRICAS PEDIDOS/ITENS', { groups, assigns, byStore });
+
+} catch (e) {
+  console.error('Erro ao calcular pedidos/itens por loja:', e);
+}
+}
+
+const storeName = (sid) => {
+  if (!sid || sid === '__sem_loja__') return 'Sem loja';
+  const s = (window.allStores || allStores || []).find(x => x.id === sid);
+  return s?.name || sid;
+};
+
+const storeRows = hasStoreInSlot
+  ? Object.values(byStore)
+      .sort((a, b) => (b.reservas - a.reservas))
+      .slice(0, 12)
+  : [];
+
+  const totalPedidosFinalizados = Object.values(byStore)
+  .reduce((sum, x) => sum + Math.max(0, Number(x.pedidos || 0)), 0);
+
+const totalItensFinalizados = Object.values(byStore)
+  .reduce((sum, x) => sum + Math.max(0, Number(x.itens || 0)), 0);
+
+      const byWorker = {}; // profile_id
 (reservations||[]).forEach(r => {
   const pid = r.profile_id || '__sem__';
-  if (!byWorker[pid]) byWorker[pid] = { profile_id: pid, reservas:0, cancel:0, noshow:0, penalty:0, pause:0, fatur:0 };
+  if (!byWorker[pid]) byWorker[pid] = { profile_id: pid, reservas:0, cancel:0, penalty:0, pause:0, fatur:0 };
   const a = byWorker[pid];
 
   if (isActiveReservation(r)) a.reservas += 1;
   if (isWorkerCancelled(r)) a.cancel += 1;
 
-  const slot = slotMap[r.vacancy_id];
-  if (!isCancelled(r) && !hasCheckin(r)) {
-        const d = String(slot?.date || '');
-        if (d && d < todayYMD) a.noshow += 1;
-      }
-      a.penalty += Math.max(0, Number(r.penalty_seconds||0));
-      a.pause += Math.max(0, Number(r.pause_total_seconds||0));
-      const v = (r.final_value !== null && r.final_value !== undefined && String(r.final_value) !== '') ? Number(r.final_value) :
-                (r.paid_amount !== null && r.paid_amount !== undefined && String(r.paid_amount) !== '') ? Number(r.paid_amount) : 0;
-      a.fatur += (Number.isFinite(v) ? v : 0);
-    });
+  a.penalty += Math.max(0, Number(r.penalty_seconds||0));
+  a.pause += Math.max(0, Number(r.pause_total_seconds||0));
 
-    const worstNoShow = Object.values(byWorker).filter(x=>x.profile_id!=='__sem__').sort((a,b)=>b.noshow-a.noshow).slice(0, 8);
+  const v = (r.final_value !== null && r.final_value !== undefined && String(r.final_value) !== '') ? Number(r.final_value) :
+            (r.paid_amount !== null && r.paid_amount !== undefined && String(r.paid_amount) !== '') ? Number(r.paid_amount) : 0;
+  a.fatur += (Number.isFinite(v) ? v : 0);
+});
+
+    
     const worstPenalty = Object.values(byWorker).filter(x=>x.profile_id!=='__sem__').sort((a,b)=>b.penalty-a.penalty).slice(0, 8);
 
     const workerLabel = (pid) => {
@@ -5099,37 +5265,27 @@ if (hasStoreInSlot) {
           </div>
 
           <div class="bg-white p-5 rounded-2xl border shadow-sm">
-            <div class="text-[10px] font-black text-gray-400 uppercase">Cancelamentos</div>
-            <div class="text-3xl font-black text-gray-900">${canceladas}</div>
-            <div class="mt-2 text-xs font-semibold text-gray-600">${pct(canceladas, Math.max(1, totalReservas + canceladas))}% do total</div>
-          </div>
+  <div class="text-[10px] font-black text-gray-400 uppercase">Pedidos finalizados</div>
+  <div class="text-3xl font-black text-gray-900">${totalPedidosFinalizados}</div>
+  <div class="mt-2 text-xs font-semibold text-gray-600">Soma de todas as lojas</div>
+</div>
 
-          <div class="bg-white p-5 rounded-2xl border shadow-sm">
-            <div class="text-[10px] font-black text-gray-400 uppercase">Comparecimento (check-in)</div>
-            <div class="text-3xl font-black text-gray-900">${checkins}</div>
-            <div class="mt-2 text-xs font-semibold text-gray-600">${pct(checkins, Math.max(1,totalReservas-canceladas))}% (exceto canceladas)</div>
-          </div>
+<div class="bg-white p-5 rounded-2xl border shadow-sm">
+  <div class="text-[10px] font-black text-gray-400 uppercase">Itens finalizados</div>
+  <div class="text-3xl font-black text-indigo-700">${totalItensFinalizados}</div>
+  <div class="mt-2 text-xs font-semibold text-gray-600">Soma de todas as lojas</div>
+</div>
 
-          <div class="bg-white p-5 rounded-2xl border shadow-sm">
+<div class="bg-white p-5 rounded-2xl border shadow-sm">
             <div class="text-[10px] font-black text-gray-400 uppercase">Faturamento (mês)</div>
             <div class="text-3xl font-black text-gray-900">${fmtBRL(faturamento)}</div>
             <div class="mt-2 text-xs font-semibold text-gray-600">Ticket médio: ${fmtBRL(ticketMedio)}</div>
           </div>
+
         </div>
 
         <!-- Qualidade e Eficiência -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <div class="bg-white p-5 rounded-2xl border">
-            <div class="text-[10px] font-black text-gray-400 uppercase">Qualidade da operação</div>
-            <div class="mt-3 space-y-2 text-sm">
-              <div class="flex justify-between"><span class="font-bold text-gray-700">Finalizadas</span><span class="font-black text-gray-900">${finalizadas}</span></div>
-              <div class="flex justify-between"><span class="font-bold text-gray-700">No-show (heurística)</span><span class="font-black text-red-600">${noShow}</span></div>
-              <div class="flex justify-between"><span class="font-bold text-gray-700">Taxa No-show</span><span class="font-black text-gray-900">${pct(noShow, Math.max(1,totalReservas-canceladas))}%</span></div>
-            </div>
-            <div class="mt-4 text-[11px] text-gray-500 font-semibold">
-              No-show = reserva com data passada, sem check-in e não cancelada.
-            </div>
-          </div>
 
           <div class="bg-white p-5 rounded-2xl border">
             <div class="text-[10px] font-black text-gray-400 uppercase">Penalidades e pausas</div>
@@ -5165,12 +5321,14 @@ if (hasStoreInSlot) {
             <table class="min-w-full text-sm">
               <thead class="bg-gray-50">
                 <tr>
-                  <th class="text-left p-3 font-black">Loja</th>
-                  <th class="text-right p-3 font-black">Reservas</th>
-                  <th class="text-right p-3 font-black">Check-in %</th>
-                  <th class="text-right p-3 font-black">Cancel %</th>
-                  <th class="text-right p-3 font-black">No-show</th>
-                  <th class="text-right p-3 font-black">Ticket médio</th>
+                  <th>Loja</th>
+                  <th class="text-center p-3 font-black">Vagas preenchidas</th>
+<th class="text-center p-3 font-black">Vagas não preenchidas</th>
+<th class="text-center p-3 font-black">Preenchimento %</th>
+<th class="text-center p-3 font-black">Não preenchimento %</th>
+<th class="text-center p-3 font-black">Pedidos</th>
+<th class="text-center p-3 font-black">Itens</th>
+<th class="text-center p-3 font-black">Ticket médio</th>
                 </tr>
               </thead>
               <tbody>
@@ -5179,13 +5337,19 @@ if (hasStoreInSlot) {
                   const tkt = r.reservas ? (r.fatur / r.reservas) : 0;
                   return `
                     <tr class="border-t">
-                      <td class="p-3 font-bold text-gray-900">${escapeHtml(storeName(r.store_id))}</td>
-                      <td class="p-3 text-right font-black">${r.reservas}</td>
-                      <td class="p-3 text-right font-black">${pct(r.checkin, valid)}%</td>
-                      <td class="p-3 text-right font-black">${pct(r.cancel, r.reservas)}%</td>
-                      <td class="p-3 text-right font-black text-red-600">${r.noshow}</td>
-                      <td class="p-3 text-right font-black">${fmtBRL(tkt)}</td>
-                    </tr>
+  <td class="p-3 font-bold text-gray-900 text-left">
+    ${escapeHtml(storeName(r.store_id))}
+  </td>
+
+  <td class="p-3 text-center">${r.reservas}</td>
+<td class="p-3 text-center text-red-600 font-bold">${r.vagasNaoPreenchidas || 0}</td>
+<td class="p-3 text-center">${r.preenchimentoPercent || 0}%</td>
+<td class="p-3 text-center">${r.naoPreenchimentoPercent || 0}%</td>
+<td class="p-3 text-center">${r.pedidos || 0}</td>
+<td class="p-3 text-center">${r.itens || 0}</td>
+<td class="p-3 text-center font-semibold">${fmtBRL(tkt)}</td>
+  </td>
+</tr>
                   `;
                 }).join('')}
               </tbody>
@@ -5200,60 +5364,9 @@ if (hasStoreInSlot) {
             </div>
           `}
         </div>
-
         <!-- Rankings -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <div class="bg-white p-5 rounded-2xl border">
-            <div class="text-[10px] font-black text-gray-400 uppercase">Top autônomos: No-show (mês)</div>
-            <div class="mt-4 overflow-x-auto">
-              <table class="min-w-full text-sm">
-                <thead class="bg-gray-50">
-                  <tr>
-                    <th class="text-left p-3 font-black">Autônomo</th>
-                    <th class="text-right p-3 font-black">No-show</th>
-                    <th class="text-right p-3 font-black">Cancel</th>
-                    <th class="text-right p-3 font-black">Reservas</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${(worstNoShow.length ? worstNoShow : []).map(x=>`
-                    <tr class="border-t">
-                      <td class="p-3 font-bold text-gray-900">${escapeHtml(workerLabel(x.profile_id))}</td>
-                      <td class="p-3 text-right font-black text-red-600">${x.noshow}</td>
-                      <td class="p-3 text-right font-black">${x.cancel}</td>
-                      <td class="p-3 text-right font-black">${x.reservas}</td>
-                    </tr>
-                  `).join('') || `<tr><td class="p-4 text-center text-gray-500 font-semibold" colspan="4">Sem dados suficientes.</td></tr>`}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <div class="bg-white p-5 rounded-2xl border">
-            <div class="text-[10px] font-black text-gray-400 uppercase">Top autônomos: Penalidade acumulada (mês)</div>
-            <div class="mt-4 overflow-x-auto">
-              <table class="min-w-full text-sm">
-                <thead class="bg-gray-50">
-                  <tr>
-                    <th class="text-left p-3 font-black">Autônomo</th>
-                    <th class="text-right p-3 font-black">Penalidade</th>
-                    <th class="text-right p-3 font-black">Pausa</th>
-                    <th class="text-right p-3 font-black">Reservas</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${(worstPenalty.length ? worstPenalty : []).map(x=>`
-                    <tr class="border-t">
-                      <td class="p-3 font-bold text-gray-900">${escapeHtml(workerLabel(x.profile_id))}</td>
-                      <td class="p-3 text-right font-black">${fmtDur(x.penalty)}</td>
-                      <td class="p-3 text-right font-black">${fmtDur(x.pause)}</td>
-                      <td class="p-3 text-right font-black">${x.reservas}</td>
-                    </tr>
-                  `).join('') || `<tr><td class="p-4 text-center text-gray-500 font-semibold" colspan="4">Sem dados suficientes.</td></tr>`}
-                </tbody>
-              </table>
-            </div>
-          </div>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
+         </div>
         </div>
       </div>
     `;
