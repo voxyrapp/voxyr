@@ -1209,27 +1209,6 @@ document.getElementById('btn-fix-register').onclick = async () => {
         if (osEl) osEl.checked = true;
     }
 
-   // Loja selecionada (corrigido com trava de reprovação)
-if (p.store_id && !needsStore) {
-    selectedStore = { id: p.store_id };
-
-    const selectedStoreDiv = document.getElementById('selectedStore');
-    if (selectedStoreDiv) {
-        selectedStoreDiv.innerHTML = `<strong>Loja já selecionada</strong><br><span class="text-xs text-gray-500">Você pode trocar se necessário.</span>`;
-        selectedStoreDiv.classList.remove('hidden');
-    }
-} else {
-    // 🔥 FORÇA escolher nova loja
-    selectedStore = null;
-
-    const selectedStoreDiv = document.getElementById('selectedStore');
-    if (selectedStoreDiv) {
-        selectedStoreDiv.innerHTML = `<span class="text-red-600 font-semibold">Selecione uma nova loja obrigatoriamente</span>`;
-        selectedStoreDiv.classList.remove('hidden');
-    }
-}
-    
-
     // Documentos: na correção NÃO são obrigatórios se já existem
     window.__existingSelfie = p.selfie_url || null;
     window.__existingDoc = p.doc_url || null;
@@ -1243,22 +1222,6 @@ const needsPix     = rr.includes('dados do pix') || rr.includes('pix');
 const needsSelfie  = rr.includes('foto de perfil') || rr.includes('selfie');
 const needsDoc     = rr.includes('documento');
 
-window.__needsCorrection = {
-  store: needsStore,
-  address: needsAddress,
-  pix: needsPix,
-  selfie: needsSelfie,
-  doc: needsDoc
-};
-
-window.__needsCorrection = {
-  store: needsStore,
-  address: needsAddress,
-  pix: needsPix,
-  selfie: needsSelfie,
-  doc: needsDoc
-};
-
 // guarda no window para o next.onclick usar
 window.__needsCorrection = {
     store: needsStore,
@@ -1267,6 +1230,25 @@ window.__needsCorrection = {
     selfie: needsSelfie,
     doc: needsDoc
 };
+
+// ===== CONTROLE DA LOJA NO MODO CORREÇÃO =====
+if (p.store_id && !needsStore) {
+    selectedStore = { id: p.store_id };
+
+    const selectedStoreDiv = document.getElementById('selectedStore');
+    if (selectedStoreDiv) {
+        selectedStoreDiv.innerHTML = `<strong>Loja já selecionada</strong><br><span class="text-xs text-gray-500">Você pode trocar se necessário.</span>`;
+        selectedStoreDiv.classList.remove('hidden');
+    }
+} else if (needsStore) {
+    selectedStore = null;
+
+    const selectedStoreDiv = document.getElementById('selectedStore');
+    if (selectedStoreDiv) {
+        selectedStoreDiv.innerHTML = `<span class="text-red-600 font-semibold">Selecione uma nova loja obrigatoriamente</span>`;
+        selectedStoreDiv.classList.remove('hidden');
+    }
+}
 
     // steps: 1=dados pessoais | 2=endereço | 3=questionário | 4=pix | 5=docs+termos+enviar
     const allowed = [];
@@ -1512,7 +1494,7 @@ next.onclick = async () => {
       !corr.selfie &&
       !corr.doc;
 
-    if (!onlyStoreCorrection && !isCorrection) {
+    if (!onlyStoreCorrection) {
       for (const q of ['q1','q2','q3','q4']) {
         const r = document.querySelector(`input[name="${q}"]:checked`);
         if (!r) { alert('Responda todas as perguntas da etapa 3'); return; }
