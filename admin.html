@@ -4177,10 +4177,13 @@ async function filterBookingsRange() {
             const turno = res.slots?.shifts?.name || '';
             const turnoTxt = turno ? ` • ${turno}` : '';
             const status = res.status || '---';
+const statusNorm = String(status).trim().toLowerCase();
 
-            const nome = res.profiles?.full_name || '---';
+const nome = res.profiles?.full_name || '---';
 
-            const btn = `<button class="px-3 py-2 rounded-lg bg-red-600 text-white font-bold text-[10px] hover:bg-red-700" onclick="deleteReserva('${res.id}')">Excluir</button>`;
+const btn = statusNorm === 'confirmada'
+  ? `<button class="px-3 py-2 rounded-lg bg-red-600 text-white font-bold text-[10px] hover:bg-red-700" onclick="deleteReserva('${res.id}')">Excluir</button>`
+  : `<span class="px-3 py-2 rounded-lg bg-gray-100 text-gray-400 font-bold text-[10px] uppercase cursor-not-allowed">Indisponível</span>`;
 
             return `
                 <tr class="border-b hover:bg-gray-50">
@@ -4212,6 +4215,13 @@ async function deleteReserva(reservationId) {
       .eq('id', reservationId)
       .maybeSingle();
     if (eRes) throw eRes;
+
+    const statusNorm = String(res?.status || '').trim().toLowerCase();
+
+if (statusNorm !== 'confirmada') {
+  alert('Só é permitido excluir reservas com status CONFIRMADA.');
+  return;
+}
 
     const slotId = res?.vacancy_id || res?.slots?.id;
     if (!slotId) throw new Error('Reserva sem slot vinculado (vacancy_id).');
