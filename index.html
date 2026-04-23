@@ -556,7 +556,11 @@ const _supabase = supabase.createClient(
 document.addEventListener('DOMContentLoaded', async () => {
 
 const hash = window.location.hash || '';
-const isRecovery = hash.includes('type=recovery');
+const search = new URLSearchParams(window.location.search);
+
+const isRecovery =
+  hash.includes('type=recovery') ||
+  search.get('type') === 'recovery';
 
 const { data } = await _supabase.auth.getSession();
 
@@ -875,10 +879,13 @@ function showLoginUI() {
   loginPanel.classList.remove('hidden');
 }
 
-// 1) Se chegou aqui via link de recuperação do e-mail, o token vem no HASH (#...)
+// 1) Se chegou aqui via link de recuperação do e-mail
 (async () => {
   try {
     const hash = window.location.hash || '';
+    const search = new URLSearchParams(window.location.search);
+
+    // FORMATO ANTIGO: #access_token=...&refresh_token=...&type=recovery
     if (hash.includes('access_token') && hash.includes('type=recovery')) {
       const params = new URLSearchParams(hash.substring(1));
       const access_token = params.get('access_token');
@@ -890,14 +897,36 @@ function showLoginUI() {
       if (error) {
         console.error('Erro ao validar sessão de recuperação:', error);
         alert('Link de redefinição inválido ou expirado. Gere um novo link e tente novamente.');
-        // Limpa o hash para não ficar preso
-        history.replaceState(null, '', window.location.pathname + window.location.search);
+        history.replaceState(null, '', window.location.pathname);
         return;
       }
 
-      // Sessão válida: mostra tela de redefinição
       showRecoveryUI();
       document.getElementById('recovery-pass').focus();
+      return;
+    }
+
+    // FORMATO NOVO: ?token_hash=...&type=recovery
+    const type = search.get('type');
+    const token_hash = search.get('token_hash');
+
+    if (type === 'recovery' && token_hash) {
+      const { error } = await _supabase.auth.verifyOtp({
+        type: 'recovery',
+        token_hash
+      });
+
+      if (error) {
+        console.error('Erro ao validar token_hash de recuperação:', error);
+        alert('Link de redefinição inválido ou expirado. Gere um novo link e tente novamente.');
+        history.replaceState(null, '', window.location.pathname);
+        return;
+      }
+
+      showRecoveryUI();
+      document.getElementById('recovery-pass').focus();
+      history.replaceState(null, '', window.location.pathname);
+      return;
     }
   } catch (e) {
     console.error(e);
