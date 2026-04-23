@@ -628,7 +628,18 @@ document.addEventListener('DOMContentLoaded', async () => {
       </div>
     `;
 
-    const filtered = applyResFilter(reservas);
+    const isCancelledStatus = (s) => {
+  const v = String(s || '').toLowerCase().trim();
+  return [
+    'cancelada',
+    'cancelado',
+    'canceled',
+    'cancelled'
+  ].includes(v);
+};
+
+const filtered = applyResFilter(reservas)
+  .filter(r => !isCancelledStatus(r.status));
     const rows = filtered.map(r => {
       const slot = r.slots || {};
       const loja = slot.store?.name || 'Loja';
@@ -688,11 +699,25 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     view.innerHTML = '<div class="text-center text-slate-500 italic p-10">Carregando...</div>';
     let reservas = [];
-    try {
-      reservas = await fetchReservasDoDia();
-    } catch(e){
-      return view.innerHTML = `<div class="p-6 text-red-600 font-bold">Erro: ${escapeHtml(e.message)}</div>`;
-    }
+try {
+  reservas = await fetchReservasDoDia();
+
+  const isCancelledStatus = (s) => {
+    const v = String(s || '').toLowerCase().trim();
+    return [
+      'cancelada',
+      'cancelado',
+      'canceled',
+      'cancelled'
+    ].includes(v);
+  };
+
+  reservas = (reservas || []).filter(r => !isCancelledStatus(r.status));
+
+} catch(e){
+  return view.innerHTML = `<div class="p-6 text-red-600 font-bold">Erro: ${escapeHtml(e.message)}</div>`;
+}
+
 
     const presentes = reservas.filter(r => normStatus(r.status) === 'present');
     const pausados = reservas.filter(r => normStatus(r.status) === 'paused');

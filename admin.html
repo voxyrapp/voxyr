@@ -416,9 +416,9 @@
               <button id="ann-last-deactivate" class="w-full px-4 py-2 rounded-lg bg-gray-200 text-gray-800 text-sm font-bold uppercase border border-gray-300" disabled>Desativar</button>
             </div>
             <div class="md:col-span-12">
-              <div id="ann-last-preview" class="mt-2 border rounded-xl p-4 bg-gray-50 text-sm text-gray-700 whitespace-pre-wrap">
-                Selecione um comunicado para visualizar o conteúdo.
-              </div>
+              <div id="ann-last-preview" class="mt-2 border rounded-xl p-3 bg-gray-50 text-sm text-gray-700 whitespace-pre-wrap max-h-[180px] overflow-y-auto">
+  Selecione um comunicado para visualizar o conteúdo.
+</div>
             </div>
           </div>
 
@@ -7179,8 +7179,21 @@ const day = (
   const groupById = new Map(groups.map(g=>[g.id,g]));
 
   // Build rows
-  const rows = reservations
-    .map(r=>{
+
+  const isCancelledStatus = (s) => {
+  const v = String(s || '').toLowerCase().trim();
+  return [
+    'cancelada',
+    'cancelado',
+    'canceled',
+    'cancelled'
+  ].includes(v);
+};
+
+const visibleReservations = (reservations || []).filter(r => !isCancelledStatus(r.status));
+
+const rows = visibleReservations
+  .map(r=>{
       const slot = slotById.get(r.slot_id || r.vacancy_id);
       const shift = slot ? (shiftById.get(slot.shift_id) || null) : null;
       const prof = profById.get(r.profile_id) || null;
@@ -7227,12 +7240,12 @@ const day = (
   updateOrdersCounters(counts);
 
   const currentResFilter = window.__admExtras?.orders?.currentResFilter || 'all';
-
-let filteredRows = rows;
+let filteredRows = rows.filter(x => !isCancelledStatus(x.reservation?.status));
 
 if (currentResFilter !== 'all') {
   filteredRows = rows.filter(x => {
     const stNorm = normStatus(x.reservation?.status);
+    if (isCancelledStatus(stNorm)) return false;
 
     if (currentResFilter === 'late') {
       return x.statusInfo?.key === 'late';
