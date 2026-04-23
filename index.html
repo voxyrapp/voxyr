@@ -564,9 +564,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     search.get('type') === 'recovery' ||
     !!search.get('token_hash');
 
+// 🔥 PRIMEIRO: trata recovery antes de qualquer coisa
+if (isRecovery) {
+  console.log('Modo recovery detectado');
+} else {
   const { data } = await _supabase.auth.getSession();
 
-  if (data.session && !isRecovery) {
+  if (data.session) {
     console.log('Usuário já logado');
 
     const { data: profile } = await _supabase
@@ -586,7 +590,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         window.location.href = 'autonomo.html';
       }
     }
-  }
+  }}
 
 // mostrar modal automaticamente ao abrir
 setTimeout(() => {
