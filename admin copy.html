@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Redefinir senha - NexPro</title>
+
+  <!-- Tailwind (igual seu projeto usa) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+
+  <div class="bg-white rounded-2xl shadow-lg p-8 w-full max-w-md">
+
+    <!-- Logo / título -->
+    <h1 class="text-2xl font-black text-center mb-2">
+      <span class="text-blue-900">Nex</span><span class="text-green-600">Pro</span>
+    </h1>
+
+    <p class="text-center text-gray-500 text-sm mb-6">
+      Defina sua nova senha
+    </p>
+
+    <!-- Input senha -->
+    <input 
+      type="password" 
+      id="password" 
+      placeholder="Nova senha"
+      class="w-full border rounded-xl p-3 mb-4 focus:outline-none focus:ring-2 focus:ring-green-500"
+    />
+
+    <!-- Confirmar senha -->
+    <input 
+      type="password" 
+      id="confirmPassword" 
+      placeholder="Confirmar senha"
+      class="w-full border rounded-xl p-3 mb-6 focus:outline-none focus:ring-2 focus:ring-green-500"
+    />
+
+    <!-- Botão -->
+    <button 
+      onclick="resetPassword()" 
+      class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl transition"
+    >
+      Atualizar senha
+    </button>
+
+    <!-- Mensagem -->
+    <p id="msg" class="text-center text-sm mt-4"></p>
+
+  </div>
+
+  <script>
+    const supabase = window.supabase.createClient(
+      'SUA_SUPABASE_URL',
+      'SUA_ANON_KEY'
+    );
+
+    async function resetPassword() {
+      const password = document.getElementById('password').value;
+      const confirm = document.getElementById('confirmPassword').value;
+      const msg = document.getElementById('msg');
+
+      msg.innerText = '';
+      msg.className = 'text-center text-sm mt-4';
+
+      if (!password || !confirm) {
+        msg.innerText = 'Preencha todos os campos';
+        msg.classList.add('text-red-500');
+        return;
+      }
+
+      if (password !== confirm) {
+        msg.innerText = 'As senhas não coincidem';
+        msg.classList.add('text-red-500');
+        return;
+      }
+
+      if (password.length < 6) {
+        msg.innerText = 'A senha deve ter pelo menos 6 caracteres';
+        msg.classList.add('text-red-500');
+        return;
+      }
+
+      const { error } = await supabase.auth.updateUser({
+        password: password
+      });
+
+      if (error) {
+        msg.innerText = error.message;
+        msg.classList.add('text-red-500');
+      } else {
+        msg.innerText = 'Senha atualizada com sucesso!';
+        msg.classList.add('text-green-600');
+
+        setTimeout(() => {
+          window.location.href = '/login.html';
+        }, 2000);
+      }
+    }
+  </script>
+
+</body>
+</html>

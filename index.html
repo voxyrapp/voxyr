@@ -555,9 +555,12 @@ const _supabase = supabase.createClient(
 
 document.addEventListener('DOMContentLoaded', async () => {
 
-  const { data } = await _supabase.auth.getSession();
+const hash = window.location.hash || '';
+const isRecovery = hash.includes('type=recovery');
 
-if (data.session) {
+const { data } = await _supabase.auth.getSession();
+
+if (data.session && !isRecovery) {
   console.log('Usuário já logado');
 
   const { data: profile } = await _supabase
