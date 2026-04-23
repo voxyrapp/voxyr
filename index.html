@@ -555,36 +555,38 @@ const _supabase = supabase.createClient(
 
 document.addEventListener('DOMContentLoaded', async () => {
 
-const hash = window.location.hash || '';
-const search = new URLSearchParams(window.location.search);
+  const hash = window.location.hash || '';
+  const search = new URLSearchParams(window.location.search);
 
-const isRecovery =
-  hash.includes('type=recovery') ||
-  search.get('type') === 'recovery';
+  const isRecovery =
+    hash.includes('type=recovery') ||
+    hash.includes('access_token') ||
+    search.get('type') === 'recovery' ||
+    !!search.get('token_hash');
 
-const { data } = await _supabase.auth.getSession();
+  const { data } = await _supabase.auth.getSession();
 
-if (data.session && !isRecovery) {
-  console.log('Usuário já logado');
+  if (data.session && !isRecovery) {
+    console.log('Usuário já logado');
 
-  const { data: profile } = await _supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', data.session.user.id)
-    .single();
+    const { data: profile } = await _supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', data.session.user.id)
+      .single();
 
-  if (profile?.status === 'aprovado') {
-    const role = (profile.role || '').toLowerCase();
+    if (profile?.status === 'aprovado') {
+      const role = (profile.role || '').toLowerCase();
 
-    if (role === 'admin') {
-      window.location.href = 'admin.html';
-    } else if (role === 'gerente' || role === 'manager') {
-      window.location.href = 'gerente.html';
-    } else {
-      window.location.href = 'autonomo.html';
+      if (role === 'admin') {
+        window.location.href = 'admin.html';
+      } else if (role === 'gerente' || role === 'manager') {
+        window.location.href = 'gerente.html';
+      } else {
+        window.location.href = 'autonomo.html';
+      }
     }
   }
-}
 
 // mostrar modal automaticamente ao abrir
 setTimeout(() => {
