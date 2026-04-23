@@ -2850,7 +2850,31 @@ container.innerHTML = `
                     </thead>
                     <tbody id="stores-list-body">
                         ${stores.map(s => {
-                            const enderecoCompleto = `${s.address || ''}, ${s.number || ''} - ${s.city || ''}/${s.state || ''}`;
+                            const enderecoCompleto = (() => {
+  const address = String(s.address || '').trim();
+  const street = String(s.street || '').trim();
+  const number = String(s.number || '').trim();
+  const city = String(s.city || '').trim();
+  const state = String(s.state || '').trim();
+
+  let base = '';
+
+  if (street && number) {
+    base = `${street}, ${number}`;
+  } else if (street) {
+    base = street;
+  } else if (address && number) {
+    base = address.includes(number) ? address : `${address}, ${number}`;
+  } else {
+    base = address;
+  }
+
+  if (city || state) {
+    return `${base} - ${city}${city && state ? '/' : ''}${state}`;
+  }
+
+  return base || 'Endereço não disponível';
+})();
                             
                             return `
                             <tr class="border-b hover:bg-gray-50 transition-colors">
