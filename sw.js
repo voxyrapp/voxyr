@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nexpro-v90';
+const CACHE_NAME = 'nexpro-v92git add .';
 const STATIC_ASSETS = [
   '/',
   '/index.html',  
