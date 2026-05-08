@@ -1,4 +1,4 @@
-const CACHE_NAME = 'voxyr-v92git add .';
+const CACHE_NAME = 'voxyr-cache-v1';
 const STATIC_ASSETS = [
   '/',
   '/index.html',  
@@ -99,7 +99,7 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
 
-  const url = event.notification.data?.url || 'https://nexprotecnologia.com/autonomo.html';
+  const url = event.notification.data?.url || 'https://www.voxyr.com.br/autonomo.html';
 
   event.waitUntil(
     (async () => {
