@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nexpro-v92git add .';
+const CACHE_NAME = 'voxyr-v92git add .';
 const STATIC_ASSETS = [
   '/',
   '/index.html',  
@@ -80,7 +80,7 @@ self.addEventListener('push', (event) => {
     data = {};
   }
 
-  const title = data.title || 'Nexpro';
+  const title = data.title || 'Voxyr';
   const options = {
     body: data.body || 'Nova notificação',
     icon: '/icon-192.png',
