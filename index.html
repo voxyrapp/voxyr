@@ -123,11 +123,31 @@
 
 <form id="register-form">
 
+  <div class="progress-wrapper">
+
+  <div class="progress-top">
+    <span id="stepLabel">Etapa 1 de 5</span>
+    <span id="stepPercent">20%</span>
+  </div>
+
+  <div class="progress-bar">
+    <div class="progress-fill" id="progressFill"></div>
+  </div>
+
+</div>
+
 <div class="step" data-step="1">
   <input id="fullname" class="input" placeholder="Nome completo">
   <input id="cpf" class="input" placeholder="CPF" maxlength="11">
   <label for="birthdate" class="field-label">Data de nascimento</label>
-  <input id="birthdate" class="input date-input" type="date">
+  <input
+  id="birthdate"
+  class="input date-input"
+  type="text"
+  inputmode="numeric"
+  placeholder="dd/mm/aaaa"
+  maxlength="10"
+>
   <input id="phone" class="input" placeholder="Telefone" maxlength="11">
   <input id="email" class="input" placeholder="E-mail">
   <input id="password" class="input" type="password" placeholder="Senha">
@@ -144,42 +164,71 @@
 </div>
 
 <div class="step hidden" data-step="3">
-  <button type="button" id="openStoreSelect" class="btn w-full mb-3">Selecionar loja</button>
-  <div id="selectedStore" class="hidden border p-3 rounded text-sm"></div>
 
-  <div class="mt-4 space-y-4">
-    <div>
-      <p>Já trabalhou na loja selecionada? *</p>
-      <label><input type="radio" name="q1" value="Sim"> Sim</label>
-      <label class="ml-4"><input type="radio" name="q1" value="Não"> Não</label>
-      <textarea id="q1_desc" class="input hidden mt-2"
-        placeholder="Informe nome da loja, período e função."></textarea>
+  <button type="button" id="openStoreSelect" class="btn w-full mb-3">
+    Selecionar unidade operacional
+  </button>
+
+  <div id="selectedStore" class="hidden border p-3 rounded text-sm mb-6"></div>
+
+  <h2 class="text-2xl font-bold mb-2 text-gray-900">
+    Informações Complementares
+  </h2>
+
+  <p class="text-sm text-gray-500 mb-6">
+    Precisamos de algumas informações para validar sua elegibilidade nas operações disponíveis.
+  </p>
+
+  <!-- VÍNCULO -->
+  <div class="mb-6">
+    <p class="font-semibold text-gray-800 mb-3">
+      Você possui ou já possuiu vínculo com esta unidade operacional?
+    </p>
+
+    <div class="grid grid-cols-2 gap-3">
+      <label class="border rounded-2xl p-4 cursor-pointer hover:border-teal-500 transition">
+        <input type="radio" name="q1" value="Não" class="mr-2">
+        Não
+      </label>
+
+      <label class="border rounded-2xl p-4 cursor-pointer hover:border-teal-500 transition">
+        <input type="radio" name="q1" value="Sim" class="mr-2">
+        Sim, já tive vínculo
+      </label>
     </div>
 
-    <div>
-      <p>Possui parentes na loja selecionada? *</p>
-      <label><input type="radio" name="q2" value="Sim"> Sim</label>
-      <label class="ml-4"><input type="radio" name="q2" value="Não"> Não</label>
-      <textarea id="q2_desc" class="input hidden mt-2"
-        placeholder="Informe grau de parentesco e nome."></textarea>
-    </div>
-
-    <div>
-      <p>Possui experiência em apps de picking? *</p>
-      <label><input type="radio" name="q3" value="Sim"> Sim</label>
-      <label class="ml-4"><input type="radio" name="q3" value="Não"> Não</label>
-      <textarea id="q3_desc" class="input hidden mt-2"
-        placeholder="Informe a plataforma e o tempo."></textarea>
-    </div>
-
-    <div>
-      <p>Qual o sistema operacional do seu aparelho? *</p>
-      <label><input type="radio" name="q4" value="Android"> Android</label>
-      <label class="ml-4"><input type="radio" name="q4" value="IOS"> IOS</label>
-      <textarea id="q4_desc" class="input hidden mt-2"
-        placeholder="Informe modelo do aparelho."></textarea>
-    </div>
+    <textarea
+      id="q1_desc"
+      class="input mt-4 hidden"
+      placeholder="Explique brevemente sua relação com a unidade. Ex.: colaborador, terceirizado, temporário, fornecedor..."
+    ></textarea>
   </div>
+
+  <!-- PARENTESCO -->
+  <div class="mb-6">
+    <p class="font-semibold text-gray-800 mb-3">
+      Possui relacionamento familiar direto com profissionais desta unidade?
+    </p>
+
+    <div class="grid grid-cols-2 gap-3">
+      <label class="border rounded-2xl p-4 cursor-pointer hover:border-blue-500 transition">
+        <input type="radio" name="q2" value="Não" class="mr-2">
+        Não
+      </label>
+
+      <label class="border rounded-2xl p-4 cursor-pointer hover:border-blue-500 transition">
+        <input type="radio" name="q2" value="Sim" class="mr-2">
+        Sim
+      </label>
+    </div>
+
+    <textarea
+      id="q2_desc"
+      class="input mt-4 hidden"
+      placeholder="Informe o grau de parentesco e, se desejar, o setor relacionado."
+    ></textarea>
+  </div>
+
 </div>
 
 <div class="step hidden" data-step="4">
@@ -195,14 +244,63 @@
 
 <div class="step hidden" data-step="5">
   <h3 class="font-semibold mb-2 text-teal-800">Documentação</h3>
-  <p class="text-sm mb-1 text-gray-600">Selfie segurando a frente do documento (RG ou CNH):</p>
-  <input type="file" id="selfieFile" accept="image/*" class="input">
-  <img id="selfiePreview" class="hidden w-full max-h-48 object-contain border rounded mb-4 bg-gray-50">
+<p class="text-sm mb-2 text-gray-700 font-medium">
+  Selfie segurando o documento (RG ou CNH)
+</p>
 
-  <p class="text-sm mb-1 text-gray-600">Foto do verso do documento (RG ou CNH):</p>
-  <input type="file" id="docFile" accept="image/*" class="input">
-  <img id="docPreview" class="hidden w-full max-h-48 object-contain border rounded mb-4 bg-gray-50">
+<label class="block">
+  <input
+    type="file"
+    id="selfieFile"
+    accept="image/*"
+    capture="user"
+    class="hidden"
+  >
 
+  <div class="border-2 border-dashed border-teal-300 rounded-2xl p-6 text-center bg-teal-50 cursor-pointer hover:bg-teal-100 transition">
+    <div class="text-4xl mb-2">📸</div>
+    <p class="font-semibold text-teal-800">
+      Selfie segurando a frente do documento
+    </p>
+    <p class="text-xs text-gray-500 mt-1">
+      Use a câmera frontal
+    </p>
+  </div>
+</label>
+
+<img
+  id="selfiePreview"
+  class="hidden w-full max-h-72 object-contain border rounded-2xl mt-3 mb-5 bg-gray-50"
+/>
+
+<p class="text-sm mb-2 text-gray-700 font-medium">
+  Foto do documento (RG ou CNH)
+</p>
+
+<label class="block">
+  <input
+    type="file"
+    id="docFile"
+    accept="image/*"
+    capture="environment"
+    class="hidden"
+  >
+
+  <div class="border-2 border-dashed border-blue-300 rounded-2xl p-6 text-center bg-blue-50 cursor-pointer hover:bg-blue-100 transition">
+    <div class="text-4xl mb-2">🪪</div>
+    <p class="font-semibold text-blue-800">
+      Documento aberto "Frente e verso"
+    </p>
+    <p class="text-xs text-gray-500 mt-1">
+      Use a câmera traseira
+    </p>
+  </div>
+</label>
+
+<img
+  id="docPreview"
+  class="hidden w-full max-h-72 object-contain border rounded-2xl mt-3 mb-4 bg-gray-50"
+/>
   <div class="mt-4 p-3 bg-gray-50 border rounded">
     <h4 class="text-sm font-bold mb-2 uppercase text-gray-700">Termos de Uso</h4>
     <div class="text-sm text-gray-700 max-h-80 overflow-y-auto border-t pt-3 leading-relaxed space-y-3 pr-2">
@@ -448,8 +546,9 @@
     </label>
   </div>
 </div>
+</div>
 
-<div class="flex justify-between mt-6">
+<div id="registerNavButtons" class="flex justify-between mt-6">
   <button id="prev" type="button" class="btn-gray">Voltar</button>
   <button type="button" id="next" class="btn">Próximo</button>
 </div>
@@ -473,20 +572,9 @@
 .date-input{
   width:100%;
   min-height:52px;
-  -webkit-appearance:none;
-  appearance:none;
   background:#fff;
   color:#111827;
   font-size:16px;
-}
-
-input[type="date"]::-webkit-date-and-time-value{
-  text-align:left;
-}
-
-input[type="date"]::-webkit-calendar-picker-indicator{
-  opacity:1;
-  cursor:pointer;
 }
 
 .input{
@@ -501,6 +589,53 @@ input[type="date"]::-webkit-calendar-picker-indicator{
 }
 .btn{background:#0d9488;color:#fff;padding:8px 16px;border-radius:6px}
 .btn-gray{background:#ccc;padding:8px 16px;border-radius:6px}
+
+#registerNavButtons{
+  display:flex !important;
+  gap:12px;
+  position:sticky;
+  bottom:0;
+  background:white;
+  padding-top:14px;
+  padding-bottom:6px;
+  z-index:20;
+}
+
+#prev,
+#next{
+  min-height:44px;
+}
+
+.progress-wrapper{
+  margin-bottom:28px;
+}
+
+.progress-top{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:10px;
+  font-size:13px;
+  font-weight:600;
+  color:#475569;
+}
+
+.progress-bar{
+  width:100%;
+  height:10px;
+  background:#e2e8f0;
+  border-radius:999px;
+  overflow:hidden;
+}
+
+.progress-fill{
+  height:100%;
+  width:20%;
+  border-radius:999px;
+  background:linear-gradient(90deg,#065f46,#0f766e);
+  transition:all .25s ease;
+}
+
 </style>
 
 <script>
@@ -1204,14 +1339,6 @@ document.getElementById('btn-fix-register').onclick = async () => {
     setRadio('q2', p.relatives_in_store);
     document.getElementById('q2_desc').value = p.relatives_desc || '';
 
-    setRadio('q3', p.picking_experience);
-    document.getElementById('q3_desc').value = p.experience_desc || '';
-
-    // Sistema Operacional
-    if (p.os_system) {
-        const osEl = document.querySelector(`input[name="q4"][value="${p.os_system}"]`);
-        if (osEl) osEl.checked = true;
-    }
 
     // Documentos: na correção NÃO são obrigatórios se já existem
     window.__existingSelfie = p.selfie_url || null;
@@ -1353,8 +1480,16 @@ function showStep(){
 const first = _firstAllowed();
 const last = _lastAllowed();
 
-prev.style.display = (step === first) ? 'none' : 'inline-block';
-next.textContent = (step === last) ? 'Finalizar Cadastro' : 'Próximo';
+if (prev) {
+  prev.style.display = (step === first) ? 'none' : 'inline-flex';
+}
+
+if (next) {
+  next.style.display = 'inline-flex';
+  next.style.alignItems = 'center';
+  next.style.justifyContent = 'center';
+  next.textContent = (step === last) ? 'Finalizar Cadastro' : 'Próximo';
+}
 
 // No modo correção, esconde uploads que NÃO foram solicitados pelo ADM
 if (step === 5) {
@@ -1402,7 +1537,18 @@ if (step === 5) {
     const docsTitle = document.querySelector('[data-step="5"] h3');
     if (docsTitle) docsTitle.style.display = '';
   }
-}
+  }
+
+  const percent = (step / 5) * 100;
+
+document.getElementById('progressFill').style.width = `${percent}%`;
+
+document.getElementById('stepLabel').innerText =
+  `Etapa ${step} de 5`;
+
+document.getElementById('stepPercent').innerText =
+  `${percent}%`;
+
 }
 showStep();
 
@@ -1413,11 +1559,26 @@ phone.oninput=()=>phone.value=phone.value.replace(/\D/g,'').slice(0,11);
 email.oninput=()=>email.value=email.value.toLowerCase().replace(/\s/g,'');
 
 function maior18(){
- if(!birthdate.value) return false;
- const [a,m,d]=birthdate.value.split('-').map(Number);
- const h=new Date();let idade=h.getFullYear()-a;
- if((h.getMonth()+1<m)||((h.getMonth()+1===m)&&(h.getDate()<d))) idade--;
- return idade>=18;
+
+  const birthValue = birthdate.value;
+
+  if (!birthValue.includes('/')) return false;
+
+  const [day, month, year] = birthValue.split('/');
+
+  const nasc = new Date(year, month - 1, day);
+
+  const hoje = new Date();
+
+  let idade = hoje.getFullYear() - nasc.getFullYear();
+
+  const m = hoje.getMonth() - nasc.getMonth();
+
+  if (m < 0 || (m === 0 && hoje.getDate() < nasc.getDate())) {
+    idade--;
+  }
+
+  return idade >= 18;
 }
 
 document.getElementById('pixKey').oninput = function() {
@@ -1436,12 +1597,19 @@ cep.onblur=async()=>{
  city.value=d.localidade||'';state.value=d.uf||'';
 };
 
-['q1','q2','q3','q4'].forEach(q=>{
+['q1','q2'].forEach(q=>{
  document.querySelectorAll(`input[name="${q}"]`).forEach(r=>{
   r.onchange=()=>{
    const d=document.getElementById(`${q}_desc`);
-   if(r.value==='Sim'||q==='q4'){d.classList.remove('hidden');d.required=true;}
-   else{d.classList.add('hidden');d.required=false;d.value='';}
+
+   if(r.value==='Sim'){
+     d.classList.remove('hidden');
+     d.required=true;
+   } else {
+     d.classList.add('hidden');
+     d.required=false;
+     d.value='';
+   }
   };
  });
 });
@@ -1499,15 +1667,21 @@ next.onclick = async () => {
       !corr.doc;
 
     if (!onlyStoreCorrection) {
-      for (const q of ['q1','q2','q3','q4']) {
-        const r = document.querySelector(`input[name="${q}"]:checked`);
-        if (!r) { alert('Responda todas as perguntas da etapa 3'); return; }
-        const desc = document.getElementById(`${q}_desc`);
-        if ((r.value === 'Sim' || q === 'q4') && !desc.value.trim()) {
-          alert('Preencha a observação obrigatória');
-          return;
-        }
-      }
+      for (const q of ['q1','q2']) {
+  const r = document.querySelector(`input[name="${q}"]:checked`);
+
+  if (!r) {
+    alert('Responda todas as perguntas da etapa 3');
+    return;
+  }
+
+  const desc = document.getElementById(`${q}_desc`);
+
+  if (r.value === 'Sim' && !desc.value.trim()) {
+    alert('Preencha a observação obrigatória');
+    return;
+  }
+}
     }
   }
 
@@ -1615,7 +1789,10 @@ const payload = {
   cpf: cpf.value,
   email: email.value,
   phone: phone.value,
-  birthdate: birthdate.value,
+  birthdate: (() => {
+  const [day, month, year] = birthdate.value.split('/');
+  return `${year}-${month}-${day}`;
+})(),
   cep: cep.value,
   street: street.value,
   number: number.value,
@@ -1642,10 +1819,10 @@ const payload = {
   relatives_in_store: document.querySelector('input[name="q2"]:checked')?.value === 'Sim',
   relatives_desc: document.getElementById('q2_desc').value,
 
-  picking_experience: document.querySelector('input[name="q3"]:checked')?.value === 'Sim',
-  experience_desc: document.getElementById('q3_desc').value,
+  picking_experience: false,
+experience_desc: '',
 
-  os_system: document.querySelector('input[name="q4"]:checked')?.value || 'Não informado'
+os_system: 'Não informado'
 };
 
     if (!isCorrection) {
@@ -1706,8 +1883,9 @@ prev.onclick = () => {
       <p class="text-sm text-gray-600">Chave: <span id="displayPixKey" class="font-bold text-black"></span></p>
     </div>
     <div class="text-xs text-red-600 mb-6">
-      <p>A Voxyr não se responsabiliza por informações incorretas fornecidas pelo usuário, incluindo chaves PIX cadastradas de forma equivocada.</p>
-      <p>É de inteira responsabilidade do usuário assegurar que a chave informada é de sua titularidade e encontra-se ativa para recebimento de valores.</p>
+      <p>A VOXYR realiza as transferências utilizando os dados informados pelo próprio profissional no momento do cadastro.</p>
+      <p></p>
+      <p>Antes de finalizar, confirme se sua chave PIX está correta e vinculada à sua titularidade para evitar inconsistências no recebimento dos valores.</p>
     </div>
     <div class="flex gap-3">
       <button id="btnEditPix" type="button" class="btn-gray flex-1">Corrigir</button>
@@ -1784,6 +1962,22 @@ async function savePushSubscription(subscription) {
     throw new Error('Erro ao atualizar subscription: ' + updateError.message);
   }
 }
+
+const birthInput = document.getElementById('birthdate');
+
+birthInput?.addEventListener('input', (e) => {
+  let v = e.target.value.replace(/\D/g, '');
+
+  if (v.length > 2) {
+    v = v.slice(0,2) + '/' + v.slice(2);
+  }
+
+  if (v.length > 5) {
+    v = v.slice(0,5) + '/' + v.slice(5,9);
+  }
+
+  e.target.value = v;
+});
 
 </script>
 
