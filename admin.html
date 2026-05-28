@@ -1607,17 +1607,14 @@ document.getElementById('analysis-created').innerText = 'Cadastro em: ' + (creat
                 </div>
                 <div id="step-3" class="step-content space-y-3">
                     <div class="p-3 bg-emerald-50 border-l-4 border-emerald-500 font-bold text-sm">
-                        Trabalhou na loja selecionada: ${u.worked_in_partner_store ? 'SIM' : 'NÃO'}
+                        Você possui ou já possuiu vínculo com esta unidade operacional?: ${u.worked_in_partner_store ? 'SIM' : 'NÃO'}
                         ${u.worked_desc ? `<p class="text-xs font-normal mt-1 text-gray-600">${u.worked_desc}</p>` : ''}
                     </div>
                     <div class="p-3 bg-emerald-50 border-l-4 border-emerald-500 font-bold text-sm">
-                        Possui parentes na loja selecionada: ${u.relatives_in_store ? 'SIM' : 'NÃO'}
+                        Possui relacionamento familiar direto com profissionais desta unidade?: ${u.relatives_in_store ? 'SIM' : 'NÃO'}
                         ${u.relatives_desc ? `<p class="text-xs font-normal mt-1 text-gray-600">${u.relatives_desc}</p>` : ''}
                     </div>
-                    <div class="p-3 bg-emerald-50 border-l-4 border-emerald-500 font-bold text-sm">
-                        Possui experiência em picking: ${u.picking_experience ? 'SIM' : 'NÃO'}
-                        ${u.experience_desc ? `<p class="text-xs font-normal mt-1 text-gray-600">${u.experience_desc}</p>` : ''}
-                    </div>
+                  
                     
                 </div>
                 <div id="step-4" class="step-content space-y-4">
