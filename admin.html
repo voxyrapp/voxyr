@@ -123,6 +123,8 @@
     <button onclick="switchTab('pontuacao')" id="nav-pontuacao" class="w-full text-left px-4 py-3 rounded text-gray-400 hover:bg-gray-800 hover:text-white transition-colors font-bold border-l-4 border-transparent flex items-center gap-2">⭐ Pontuação</button>
     <button onclick="switchTab('pedidos')" id="nav-pedidos" class="w-full text-left px-4 py-3 rounded text-gray-400 hover:bg-gray-800 hover:text-white transition-colors font-bold border-l-4 border-transparent flex items-center gap-2">📦 Pedidos</button>
 
+    <button onclick="switchTab('configuracoes'); renderConfiguracoes();" id="nav-configuracoes" class="w-full text-left px-4 py-3 rounded text-gray-400 hover:bg-gray-800 hover:text-white transition-colors font-bold border-l-4 border-transparent flex items-center gap-2">⚙️ Configurações</button>
+
     <button onclick="switchTab('finance'); renderAdminFinance();" id="nav-finance" class="w-full text-left px-4 py-3 rounded text-gray-400 hover:bg-gray-800 hover:text-white transition-colors font-bold border-l-4 border-transparent flex items-center gap-2">💰 Financeiro</button>
     <button onclick="switchTab('comunicados'); renderAdminComunicados();" id="nav-comunicados" class="w-full text-left px-4 py-3 rounded text-gray-400 hover:bg-gray-800 hover:text-white transition-colors font-bold border-l-4 border-transparent flex items-center gap-2">📣 Comunicados</button>
     <button onclick="switchTab('atrasos')" id="nav-atrasos" class="w-full text-left px-4 py-3 rounded text-gray-400 hover:bg-gray-800 hover:text-white transition-colors font-bold border-l-4 border-transparent flex items-center gap-2">⏰ Atrasos</button>
@@ -269,6 +271,16 @@
     </div>
 
     
+    <div id="mod-configuracoes" class="module-container bg-white">
+        <header class="h-16 border-b flex items-center px-8 justify-between shrink-0">
+            <div>
+                <h2 class="text-xl font-semibold text-gray-800">Configurações da Plataforma</h2>
+                <p class="text-xs text-gray-500">Controle quais funções aparecem para novos cadastros</p>
+            </div>
+        </header>
+        <div id="configuracoes-content" class="p-8 overflow-y-auto flex-1"></div>
+    </div>
+
     <div id="mod-pedidos" class="module-container bg-gray-50">
   <header class="bg-white border-b shrink-0">
     <div class="h-16 flex items-center px-8 justify-between">
@@ -2747,6 +2759,8 @@ if (tab === 'profiles') {
     await renderAdminOrders();
 } else if (tab === 'atrasos') {
     renderDelayRequests();
+} else if (tab === 'configuracoes') {
+    renderConfiguracoes();
     }
 }
 
@@ -2993,9 +3007,15 @@ async function openStoreModal(id = null) {
         document.getElementById('m-store-num').value = data.number || '';
         document.getElementById('m-store-addr').value = data.address || '';
         document.getElementById('m-store-vis').checked = data.is_visible;
+        document.getElementById('m-has-separador').checked = data.has_separador || false;
+        document.getElementById('m-has-repositor').checked = data.has_repositor || false;
+        document.getElementById('m-has-operador').checked = data.has_operador_caixa || false;
     } else {
         document.getElementById('edit-store-id').value = '';
         document.getElementById('m-store-name').value = '';
+        document.getElementById('m-has-separador').checked = true;
+        document.getElementById('m-has-repositor').checked = false;
+        document.getElementById('m-has-operador').checked = false;
     }
 }
 
@@ -3021,6 +3041,9 @@ async function saveStore() {
         number: document.getElementById('m-store-num').value,
         address: document.getElementById('m-store-addr').value,
         is_visible: document.getElementById('m-store-vis').checked,
+        has_separador: document.getElementById('m-has-separador').checked,
+        has_repositor: document.getElementById('m-has-repositor').checked,
+        has_operador_caixa: document.getElementById('m-has-operador').checked,
         city: city,
         state: state.toUpperCase() // Garante que vá sempre em maiúsculas
     };
@@ -3331,6 +3354,7 @@ container.innerHTML = `
                         <tr>
                             <th class="p-4 font-black">Data</th>
                             <th class="p-4 font-black">Mercado / Turno</th>
+                            <th class="p-4 font-black">Função</th>
                             <th class="p-4 font-black text-center">Ocupação</th>
                             <th class="p-4 font-black">Valor</th>
                             <th class="p-4 font-black text-right">Ações</th>
@@ -3419,6 +3443,14 @@ function renderSlotRows(data) {
       ? `${String(s.shifts.start_time).slice(0,5)} — ${String(s.shifts.end_time).slice(0,5)}`
       : '';
 
+    // badge de função
+    const fnMap = {
+      separador:       { label: 'Separador',  cls: 'bg-emerald-100 text-emerald-700' },
+      repositor:       { label: 'Repositor',  cls: 'bg-blue-100 text-blue-700' },
+      operador_caixa:  { label: 'Op. Caixa',  cls: 'bg-purple-100 text-purple-700' }
+    };
+    const fn = fnMap[s?.job_function] || { label: s?.job_function || 'Separador', cls: 'bg-gray-100 text-gray-600' };
+
     // NOVO: total cadastrado vs disponíveis
     const total = Number(s?.total_capacity ?? s?.quantity ?? 0) || 0;
     const livres = Number(s?.available_capacity ?? s?.disponiveis_calc ?? 0) || 0;
@@ -3435,6 +3467,10 @@ function renderSlotRows(data) {
           <div class="font-bold text-gray-800">${storeName}</div>
           <div class="text-[10px] text-gray-500 uppercase font-black">${shiftName}</div>
           <div class="text-[10px] text-emerald-700 font-black">${shiftTime}</div>
+        </td>
+
+        <td class="p-4">
+          <span class="px-2 py-1 rounded-full text-[10px] font-black uppercase ${fn.cls}">${fn.label}</span>
         </td>
 
         <td class="p-4 text-center">
@@ -3526,6 +3562,18 @@ function ensureSlotsCsvModal() {
               <option value="">— não definir —</option>
             </select>
             <div class="text-[11px] text-gray-500 mt-1">Usado quando o CSV não trouxer <b>shift_id</b>/<b>shift_name</b>.</div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <label class="text-[10px] font-bold uppercase text-gray-400">Função padrão</label>
+            <select id="csv-default-job-function" class="w-full border p-2 rounded-lg text-sm">
+              <option value="separador">📦 Separador de Pedidos</option>
+              <option value="repositor">🛒 Repositor de Mercadorias</option>
+              <option value="operador_caixa">💳 Operador de Caixa</option>
+            </select>
+            <div class="text-[11px] text-gray-500 mt-1">Usada quando o CSV não trouxer a coluna <b>funcao</b>.</div>
           </div>
         </div>
 
@@ -3686,8 +3734,9 @@ async function importSlotsFromCSV(){
 
   // datetime-local vem sem timezone; convertendo para ISO garante timestamptz correto no banco.
   const publishAtIso = publishNow ? new Date().toISOString() : new Date(publishAtLocal).toISOString();
-const defaultStoreId = document.getElementById('csv-default-store')?.value || '';
+  const defaultStoreId = document.getElementById('csv-default-store')?.value || '';
   const defaultShiftId = document.getElementById('csv-default-shift')?.value || '';
+  const defaultJobFunction = document.getElementById('csv-default-job-function')?.value || 'separador';
 
   const fileEl = document.getElementById('csv-file');
   const f = fileEl?.files?.[0];
@@ -3755,6 +3804,22 @@ const defaultStoreId = document.getElementById('csv-default-store')?.value || ''
     const shiftName = (r.turno ?? r.shift_name ?? '').toString().trim();
     const vagasRaw = (r.vagas ?? r.quantity ?? '').toString().trim();
     const valorRaw = (r.valor ?? r.value ?? '').toString().trim();
+    const funcaoRaw = (r.funcao ?? r.job_function ?? '').toString().trim().toLowerCase();
+
+    // normaliza o valor da coluna funcao do CSV
+    const funcaoMap = {
+      'separador': 'separador',
+      'separação': 'separador',
+      'separacao': 'separador',
+      'repositor': 'repositor',
+      'reposição': 'repositor',
+      'reposicao': 'repositor',
+      'operador_caixa': 'operador_caixa',
+      'operador': 'operador_caixa',
+      'caixa': 'operador_caixa',
+      'operador de caixa': 'operador_caixa',
+    };
+    const jobFunction = funcaoMap[funcaoRaw] || defaultJobFunction;
 
     const qty = Number(vagasRaw.replace(',','.'));
     const value = Number(valorRaw.replace(',','.'));
@@ -3786,6 +3851,7 @@ const defaultStoreId = document.getElementById('csv-default-store')?.value || ''
         shift_id: shiftId,
         quantity: qty,
         value: value,
+        job_function: jobFunction,
         publish_at: publishAtIso
       });
     }
@@ -3931,6 +3997,7 @@ async function editSlot(id) {
     document.getElementById('s-slot-date').value = slot.date;
     document.getElementById('s-slot-qty').value = (slot.total_capacity ?? slot.quantity ?? 0);
     document.getElementById('s-slot-value').value = slot.value;
+    document.getElementById('s-slot-job-function').value = slot.job_function || 'separador';
 
     // Carregar lojas
     const { data: stores } = await _supabase.from('stores').select('id, name').order('name');
@@ -3955,7 +4022,8 @@ async function saveSlot() {
             store_id: document.getElementById('s-slot-store').value,
             shift_id: document.getElementById('s-slot-shift').value,
             date: document.getElementById('s-slot-date').value,
-            value: parseFloat(document.getElementById('s-slot-value').value)
+            value: parseFloat(document.getElementById('s-slot-value').value),
+            job_function: document.getElementById('s-slot-job-function').value || 'separador'
         };
 
     if (!payloadBase.store_id || !payloadBase.date) return alert("Preencha os campos obrigatórios");
@@ -4087,6 +4155,7 @@ async function openSlotModal() {
     document.getElementById('s-slot-date').value = "";
     document.getElementById('s-slot-qty').value = "1";
     document.getElementById('s-slot-value').value = "";
+    document.getElementById('s-slot-job-function').value = "separador";
     
     // 3. Mostra o modal
     document.getElementById('modal-slot').classList.remove('hidden');
@@ -8081,7 +8150,15 @@ try {
         </div>
         <div class="p-6 space-y-4">
             <input type="hidden" id="edit-slot-id">
-            
+
+            <div>
+                <label class="text-[10px] font-bold text-gray-400 uppercase">Função</label>
+                <select id="s-slot-job-function" class="w-full border p-2 rounded-lg text-sm bg-white">
+                    <option value="separador">📦 Separador de Pedidos</option>
+                    <option value="repositor">🛒 Repositor de Mercadorias</option>
+                    <option value="operador_caixa">💳 Operador de Caixa</option>
+                </select>
+            </div>
             <div>
                 <label class="text-[10px] font-bold text-gray-400 uppercase">Mercado</label>
                 <select id="s-slot-store" onchange="loadShiftsForModal(this.value)" class="w-full border p-2 rounded-lg text-sm bg-white"></select>
@@ -8142,6 +8219,23 @@ try {
                 <div class="flex items-center gap-2">
                     <input type="checkbox" id="m-store-vis" class="rounded text-emerald-600">
                     <label for="m-store-vis" class="text-sm text-gray-700 font-medium">Visível para novos usuários</label>
+                </div>
+                <div class="border-t pt-3">
+                    <p class="text-[10px] font-bold text-gray-400 uppercase mb-2">Funções disponíveis nesta loja</p>
+                    <div class="space-y-2">
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" id="m-has-separador" class="rounded text-emerald-600">
+                            <span class="text-sm text-gray-700">📦 Separador de Pedidos</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" id="m-has-repositor" class="rounded text-blue-600">
+                            <span class="text-sm text-gray-700">🛒 Repositor de Mercadorias</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" id="m-has-operador" class="rounded text-purple-600">
+                            <span class="text-sm text-gray-700">💳 Operador de Caixa</span>
+                        </label>
+                    </div>
                 </div>
                 <input type="hidden" id="m-city"><input type="hidden" id="m-state">
             </div>
@@ -9116,6 +9210,103 @@ ${scopeLabel} • ${updated.require_ack ? 'Exige confirmação' : 'Sem confirma�
     </div>
   </div>
 </div>
+<script>
+// ===== CONFIGURAÇÕES DE FUNÇÕES =====
+async function renderConfiguracoes() {
+  const container = document.getElementById('configuracoes-content');
+  if (!container) return;
+  container.innerHTML = '<div class="text-gray-400">Carregando configurações...</div>';
+
+  // Load current settings
+  const { data, error } = await _supabase
+    .from('app_settings')
+    .select('value')
+    .eq('key', 'job_functions_visible')
+    .maybeSingle();
+
+  const defaults = { separador: true, repositor: false, operador_caixa: false };
+  const current = data?.value || defaults;
+
+  container.innerHTML = `
+    <div class="max-w-lg space-y-6">
+      <div class="bg-white border rounded-2xl p-6 shadow-sm">
+        <h3 class="text-base font-black uppercase text-slate-800 mb-1">Funções visíveis no cadastro</h3>
+        <p class="text-xs text-gray-500 mb-5">Selecione quais funções aparecem para candidatos realizarem novos cadastros. Desativar uma função não afeta perfis já cadastrados.</p>
+
+        <div class="space-y-3">
+          <label class="flex items-center justify-between p-4 border rounded-xl cursor-pointer hover:bg-gray-50">
+            <div class="flex items-center gap-3">
+              <span class="text-xl">📦</span>
+              <div>
+                <p class="font-bold text-gray-800">Separador de Pedidos</p>
+                <p class="text-xs text-gray-500">Acesso à tela de separação de pedidos</p>
+              </div>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" id="cfg-separador" class="sr-only peer" ${current.separador ? 'checked' : ''}>
+              <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+            </label>
+          </label>
+
+          <label class="flex items-center justify-between p-4 border rounded-xl cursor-pointer hover:bg-gray-50">
+            <div class="flex items-center gap-3">
+              <span class="text-xl">🛒</span>
+              <div>
+                <p class="font-bold text-gray-800">Repositor de Mercadorias</p>
+                <p class="text-xs text-gray-500">Acesso à tela de reposição por corredor</p>
+              </div>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" id="cfg-repositor" class="sr-only peer" ${current.repositor ? 'checked' : ''}>
+              <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+            </label>
+          </label>
+
+          <label class="flex items-center justify-between p-4 border rounded-xl cursor-pointer hover:bg-gray-50">
+            <div class="flex items-center gap-3">
+              <span class="text-xl">💳</span>
+              <div>
+                <p class="font-bold text-gray-800">Operador de Caixa</p>
+                <p class="text-xs text-gray-500">Acesso à tela de operação de caixas</p>
+              </div>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" id="cfg-operador" class="sr-only peer" ${current.operador_caixa ? 'checked' : ''}>
+              <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+            </label>
+          </label>
+        </div>
+
+        <button onclick="saveJobFunctionSettings()" class="mt-6 w-full py-3 bg-gray-900 text-white rounded-xl font-black uppercase text-sm hover:bg-gray-700 transition">
+          Salvar configurações
+        </button>
+        <div id="cfg-save-status" class="mt-3 text-sm font-semibold text-center hidden"></div>
+      </div>
+    </div>
+  `;
+}
+
+async function saveJobFunctionSettings() {
+  const separador = document.getElementById('cfg-separador')?.checked || false;
+  const repositor = document.getElementById('cfg-repositor')?.checked || false;
+  const operador_caixa = document.getElementById('cfg-operador')?.checked || false;
+
+  const status = document.getElementById('cfg-save-status');
+  if (status) { status.classList.remove('hidden'); status.className = 'mt-3 text-sm font-semibold text-center text-gray-600'; status.textContent = 'Salvando...'; }
+
+  const { error } = await _supabase
+    .from('app_settings')
+    .upsert({ key: 'job_functions_visible', value: { separador, repositor, operador_caixa }, updated_at: new Date().toISOString() });
+
+  if (error) {
+    if (status) { status.className = 'mt-3 text-sm font-semibold text-center text-red-600'; status.textContent = 'Erro ao salvar: ' + error.message; }
+  } else {
+    if (status) { status.className = 'mt-3 text-sm font-semibold text-center text-emerald-600'; status.textContent = '✓ Configurações salvas com sucesso!'; }
+    setTimeout(() => { if (status) status.classList.add('hidden'); }, 3000);
+  }
+}
+
+</script>
 <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', async () => {

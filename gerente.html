@@ -31,6 +31,8 @@
       <button class="nav-btn w-full text-left px-4 py-3 rounded bg-gray-800 text-emerald-400 border-l-4 border-emerald-400 font-bold" data-tab="reservas">📋 Reservas do dia</button>
       <button class="nav-btn w-full text-left px-4 py-3 rounded text-gray-400 hover:bg-gray-800 hover:text-white transition-colors font-bold border-l-4 border-transparent" data-tab="atribuir">📦 Atribuir pedidos</button>
       <button class="nav-btn w-full text-left px-4 py-3 rounded text-gray-400 hover:bg-gray-800 hover:text-white transition-colors font-bold border-l-4 border-transparent" data-tab="pedidos">🧾 Pedidos</button>
+      <button class="nav-btn w-full text-left px-4 py-3 rounded text-gray-400 hover:bg-gray-800 hover:text-white transition-colors font-bold border-l-4 border-transparent" data-tab="corredores">🛒 Designar Corredores</button>
+      <button class="nav-btn w-full text-left px-4 py-3 rounded text-gray-400 hover:bg-gray-800 hover:text-white transition-colors font-bold border-l-4 border-transparent" data-tab="caixas">💳 Designar Caixas</button>
       <button id="btn-logout" class="w-full text-left px-4 py-3 rounded text-gray-400 hover:bg-gray-800 hover:text-white transition-colors font-bold border-l-4 border-transparent">🚪 Sair</button>
     </nav>
   </aside>
@@ -89,6 +91,8 @@
         <button class="tab-btn subtab-btn active" data-tab="reservas">📋 Reservas do dia</button>
         <button class="tab-btn subtab-btn" data-tab="atribuir">📦 Atribuir pedidos</button>
         <button class="tab-btn subtab-btn" data-tab="pedidos">🧾 Pedidos</button>
+        <button class="tab-btn subtab-btn" data-tab="corredores">🛒 Corredores</button>
+        <button class="tab-btn subtab-btn" data-tab="caixas">💳 Caixas</button>
       </div>
 
       <div id="view" class="flex-1 overflow-y-auto p-8"></div>
@@ -249,6 +253,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (currentTab === 'reservas') return renderReservas();
     if (currentTab === 'atribuir') return renderAtribuir();
     if (currentTab === 'pedidos') return renderPedidos();
+    if (currentTab === 'corredores') return renderCorredores();
+    if (currentTab === 'caixas') return renderCaixas();
     return renderReservas();
   }
 
@@ -1181,12 +1187,301 @@ async function renderPedidos(){
   }
 }
 
+  // ===== CORREDORES (Repositores) =====
+  async function renderCorredores() {
+    setActiveTab('corredores');
+    view.innerHTML = '<div class="text-center text-slate-500 italic p-10">Carregando...</div>';
+
+    // Busca repositores aprovados nas lojas do gerente
+    const stIds = activeStoreIds();
+    const { data: workers, error: wErr } = await sb
+      .from('profiles')
+      .select('id, full_name, store_id')
+      .in('store_id', stIds)
+      .eq('status', 'aprovado')
+      .eq('job_function', 'repositor');
+
+    if (wErr) { view.innerHTML = `<div class="p-6 text-red-600 font-bold">Erro: ${escapeHtml(wErr.message)}</div>`; return; }
+
+    const { data: assignments } = await sb
+      .from('corridor_assignments')
+      .select('*, store:store_id(name), profile:assignee_profile_id(full_name)')
+      .in('store_id', stIds)
+      .order('created_at', { ascending: false })
+      .limit(100);
+
+    const today = todayISO();
+    const recent = (assignments || []).filter(a => (a.created_at || '').slice(0, 10) === today);
+
+    const storeOptions = stIds.map(sid => {
+      const st = (access || []).find(a => a.store_id === sid || a.id === sid);
+      const name = st?.name || st?.stores?.name || sid;
+      return `<option value="${sid}">${escapeHtml(name)}</option>`;
+    }).join('');
+
+    const workerOptions = (workers || []).map(w =>
+      `<option value="${w.id}">${escapeHtml(w.full_name || w.id)}</option>`
+    ).join('');
+
+    const statusPill = (s) => {
+      const map = { pending: 'bg-amber-100 text-amber-700', in_progress: 'bg-blue-100 text-blue-700', completed: 'bg-emerald-100 text-emerald-700', refused: 'bg-red-100 text-red-700' };
+      const label = { pending: 'Aguardando', in_progress: 'Em andamento', completed: 'Concluído', refused: 'Recusado' };
+      return `<span class="px-2 py-1 rounded-full text-[10px] font-black uppercase ${map[s] || 'bg-gray-100 text-gray-600'}">${label[s] || s}</span>`;
+    };
+
+    const rows = recent.map(a => `
+      <tr class="border-b hover:bg-gray-50">
+        <td class="p-3 font-bold">${escapeHtml(a.profile?.full_name || '—')}</td>
+        <td class="p-3">${escapeHtml(a.store?.name || '—')}</td>
+        <td class="p-3 font-mono font-black text-indigo-700">${escapeHtml(a.corredor || '—')}</td>
+        <td class="p-3">${statusPill(a.status)}</td>
+        <td class="p-3 text-xs text-slate-500">${a.created_at ? new Date(a.created_at).toLocaleString('pt-BR') : '—'}</td>
+      </tr>`).join('') || `<tr><td class="p-6 text-center text-slate-400" colspan="5">Nenhuma designação hoje.</td></tr>`;
+
+    view.innerHTML = `
+      <div class="space-y-6">
+        <div class="bg-white border rounded-2xl p-6 shadow-sm">
+          <h3 class="font-black uppercase text-slate-800 mb-4">🛒 Designar Corredor para Repositor</h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div>
+              <label class="text-[10px] font-black uppercase text-slate-400">Repositor</label>
+              <select id="corr-worker" class="w-full border rounded-xl px-3 py-2 text-sm mt-1">
+                <option value="">Selecione o repositor...</option>
+                ${workerOptions}
+              </select>
+            </div>
+            <div>
+              <label class="text-[10px] font-black uppercase text-slate-400">Loja</label>
+              <select id="corr-store" class="w-full border rounded-xl px-3 py-2 text-sm mt-1">
+                <option value="">Selecione a loja...</option>
+                ${storeOptions}
+              </select>
+            </div>
+            <div>
+              <label class="text-[10px] font-black uppercase text-slate-400">Corredor / Seção</label>
+              <input type="text" id="corr-corredor" placeholder="Ex: Corredor 3 - Bebidas" class="w-full border rounded-xl px-3 py-2 text-sm mt-1">
+            </div>
+            <div>
+              <label class="text-[10px] font-black uppercase text-slate-400">Observação (opcional)</label>
+              <input type="text" id="corr-obs" placeholder="Instruções adicionais..." class="w-full border rounded-xl px-3 py-2 text-sm mt-1">
+            </div>
+          </div>
+          <button onclick="salvarCorredorDesignacao()" class="px-6 py-3 bg-emerald-600 text-white rounded-xl font-black uppercase text-sm hover:bg-emerald-700 transition">Designar Corredor</button>
+          <div id="corr-status" class="mt-3 text-sm font-semibold hidden"></div>
+        </div>
+
+        <div class="bg-white border rounded-2xl shadow-sm overflow-hidden">
+          <div class="p-4 border-b">
+            <h3 class="font-black uppercase text-slate-800">Designações de hoje</h3>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead class="bg-gray-50 text-[10px] uppercase text-gray-500 font-black">
+                <tr>
+                  <th class="p-3 text-left">Repositor</th>
+                  <th class="p-3 text-left">Loja</th>
+                  <th class="p-3 text-left">Corredor</th>
+                  <th class="p-3 text-left">Status</th>
+                  <th class="p-3 text-left">Criado em</th>
+                </tr>
+              </thead>
+              <tbody>${rows}</tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  window.salvarCorredorDesignacao = async function() {
+    const workerId = document.getElementById('corr-worker')?.value;
+    const storeId = document.getElementById('corr-store')?.value;
+    const corredor = (document.getElementById('corr-corredor')?.value || '').trim();
+    const obs = (document.getElementById('corr-obs')?.value || '').trim();
+    const statusEl = document.getElementById('corr-status');
+
+    if (!workerId || !storeId || !corredor) {
+      if (statusEl) { statusEl.className = 'mt-3 text-sm font-semibold text-red-600'; statusEl.textContent = 'Preencha todos os campos obrigatórios.'; statusEl.classList.remove('hidden'); }
+      return;
+    }
+
+    const { error } = await sb.from('corridor_assignments').insert({
+      assignee_profile_id: workerId,
+      store_id: storeId,
+      corredor,
+      observacao: obs || null,
+      status: 'pending',
+      created_by: me?.id || null
+    });
+
+    if (error) {
+      if (statusEl) { statusEl.className = 'mt-3 text-sm font-semibold text-red-600'; statusEl.textContent = 'Erro: ' + error.message; statusEl.classList.remove('hidden'); }
+    } else {
+      if (statusEl) { statusEl.className = 'mt-3 text-sm font-semibold text-emerald-600'; statusEl.textContent = '✓ Corredor designado com sucesso!'; statusEl.classList.remove('hidden'); }
+      setTimeout(() => renderCorredores(), 1500);
+    }
+  };
+
+  // ===== CAIXAS (Operadores de Caixa) =====
+  async function renderCaixas() {
+    setActiveTab('caixas');
+    view.innerHTML = '<div class="text-center text-slate-500 italic p-10">Carregando...</div>';
+
+    const stIds = activeStoreIds();
+    const { data: workers, error: wErr } = await sb
+      .from('profiles')
+      .select('id, full_name, store_id')
+      .in('store_id', stIds)
+      .eq('status', 'aprovado')
+      .eq('job_function', 'operador_caixa');
+
+    if (wErr) { view.innerHTML = `<div class="p-6 text-red-600 font-bold">Erro: ${escapeHtml(wErr.message)}</div>`; return; }
+
+    const { data: assignments } = await sb
+      .from('cashier_assignments')
+      .select('*, store:store_id(name), profile:assignee_profile_id(full_name)')
+      .in('store_id', stIds)
+      .order('created_at', { ascending: false })
+      .limit(100);
+
+    const today = todayISO();
+    const recent = (assignments || []).filter(a => (a.created_at || '').slice(0, 10) === today);
+
+    const storeOptions = stIds.map(sid => {
+      const st = (access || []).find(a => a.store_id === sid || a.id === sid);
+      const name = st?.name || st?.stores?.name || sid;
+      return `<option value="${sid}">${escapeHtml(name)}</option>`;
+    }).join('');
+
+    const workerOptions = (workers || []).map(w =>
+      `<option value="${w.id}">${escapeHtml(w.full_name || w.id)}</option>`
+    ).join('');
+
+    const fmt = (v) => v !== null && v !== undefined ? `R$ ${Number(v).toFixed(2).replace('.', ',')}` : '—';
+    const statusPill = (s) => {
+      const map = { pending: 'bg-amber-100 text-amber-700', in_progress: 'bg-blue-100 text-blue-700', completed: 'bg-emerald-100 text-emerald-700', refused: 'bg-red-100 text-red-700' };
+      const label = { pending: 'Aguardando', in_progress: 'Aberto', completed: 'Fechado', refused: 'Recusado' };
+      return `<span class="px-2 py-1 rounded-full text-[10px] font-black uppercase ${map[s] || 'bg-gray-100 text-gray-600'}">${label[s] || s}</span>`;
+    };
+
+    const rows = recent.map(a => {
+      const quebra = Number(a.quebra || 0);
+      const quebraTd = quebra > 0 ? `<span class="text-red-600 font-black">${fmt(quebra)}</span>` : `<span class="text-slate-400">—</span>`;
+      return `
+        <tr class="border-b hover:bg-gray-50">
+          <td class="p-3 font-bold">${escapeHtml(a.profile?.full_name || '—')}</td>
+          <td class="p-3">${escapeHtml(a.store?.name || '—')}</td>
+          <td class="p-3 font-mono font-black text-indigo-700">Caixa ${escapeHtml(String(a.numero_caixa || '—'))}</td>
+          <td class="p-3">${fmt(a.valor_abertura)}</td>
+          <td class="p-3">${fmt(a.valor_fechamento)}</td>
+          <td class="p-3">${quebraTd}</td>
+          <td class="p-3">${statusPill(a.status)}</td>
+        </tr>`;
+    }).join('') || `<tr><td class="p-6 text-center text-slate-400" colspan="7">Nenhuma designação hoje.</td></tr>`;
+
+    view.innerHTML = `
+      <div class="space-y-6">
+        <div class="bg-white border rounded-2xl p-6 shadow-sm">
+          <h3 class="font-black uppercase text-slate-800 mb-4">💳 Designar Caixa para Operador</h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div>
+              <label class="text-[10px] font-black uppercase text-slate-400">Operador de Caixa</label>
+              <select id="cx-worker" class="w-full border rounded-xl px-3 py-2 text-sm mt-1">
+                <option value="">Selecione o operador...</option>
+                ${workerOptions}
+              </select>
+            </div>
+            <div>
+              <label class="text-[10px] font-black uppercase text-slate-400">Loja</label>
+              <select id="cx-store" class="w-full border rounded-xl px-3 py-2 text-sm mt-1">
+                <option value="">Selecione a loja...</option>
+                ${storeOptions}
+              </select>
+            </div>
+            <div>
+              <label class="text-[10px] font-black uppercase text-slate-400">Número do Caixa</label>
+              <input type="text" id="cx-numero" placeholder="Ex: 01, 02, Caixa Rápido..." class="w-full border rounded-xl px-3 py-2 text-sm mt-1">
+            </div>
+            <div>
+              <label class="text-[10px] font-black uppercase text-slate-400">Valor de Abertura (R$)</label>
+              <input type="number" id="cx-abertura" placeholder="0.00" step="0.01" min="0" class="w-full border rounded-xl px-3 py-2 text-sm mt-1">
+            </div>
+            <div class="md:col-span-2">
+              <label class="text-[10px] font-black uppercase text-slate-400">Observação (opcional)</label>
+              <input type="text" id="cx-obs" placeholder="Instruções adicionais..." class="w-full border rounded-xl px-3 py-2 text-sm mt-1">
+            </div>
+          </div>
+          <button onclick="salvarCaixaDesignacao()" class="px-6 py-3 bg-emerald-600 text-white rounded-xl font-black uppercase text-sm hover:bg-emerald-700 transition">Designar Caixa</button>
+          <div id="cx-status" class="mt-3 text-sm font-semibold hidden"></div>
+        </div>
+
+        <div class="bg-white border rounded-2xl shadow-sm overflow-hidden">
+          <div class="p-4 border-b flex items-center justify-between">
+            <h3 class="font-black uppercase text-slate-800">Designações de hoje</h3>
+            <p class="text-xs text-slate-500">Quebras são descontadas automaticamente do saldo do operador</p>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead class="bg-gray-50 text-[10px] uppercase text-gray-500 font-black">
+                <tr>
+                  <th class="p-3 text-left">Operador</th>
+                  <th class="p-3 text-left">Loja</th>
+                  <th class="p-3 text-left">Caixa</th>
+                  <th class="p-3 text-left">Abertura</th>
+                  <th class="p-3 text-left">Fechamento</th>
+                  <th class="p-3 text-left">Quebra</th>
+                  <th class="p-3 text-left">Status</th>
+                </tr>
+              </thead>
+              <tbody>${rows}</tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  window.salvarCaixaDesignacao = async function() {
+    const workerId = document.getElementById('cx-worker')?.value;
+    const storeId = document.getElementById('cx-store')?.value;
+    const numero = (document.getElementById('cx-numero')?.value || '').trim();
+    const aberturaStr = document.getElementById('cx-abertura')?.value || '0';
+    const obs = (document.getElementById('cx-obs')?.value || '').trim();
+    const statusEl = document.getElementById('cx-status');
+
+    if (!workerId || !storeId || !numero) {
+      if (statusEl) { statusEl.className = 'mt-3 text-sm font-semibold text-red-600'; statusEl.textContent = 'Preencha todos os campos obrigatórios.'; statusEl.classList.remove('hidden'); }
+      return;
+    }
+
+    const abertura = parseFloat(aberturaStr) || 0;
+
+    const { error } = await sb.from('cashier_assignments').insert({
+      assignee_profile_id: workerId,
+      store_id: storeId,
+      numero_caixa: numero,
+      valor_abertura: abertura,
+      observacao: obs || null,
+      status: 'pending',
+      created_by: me?.id || null
+    });
+
+    if (error) {
+      if (statusEl) { statusEl.className = 'mt-3 text-sm font-semibold text-red-600'; statusEl.textContent = 'Erro: ' + error.message; statusEl.classList.remove('hidden'); }
+    } else {
+      if (statusEl) { statusEl.className = 'mt-3 text-sm font-semibold text-emerald-600'; statusEl.textContent = '✓ Caixa designado com sucesso!'; statusEl.classList.remove('hidden'); }
+      setTimeout(() => renderCaixas(), 1500);
+    }
+  };
+
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', async () => {
       const tab = btn.dataset.tab;
       if (tab === 'reservas') return renderReservas();
       if (tab === 'atribuir') return renderAtribuir();
       if (tab === 'pedidos') return renderPedidos();
+      if (tab === 'corredores') return renderCorredores();
+      if (tab === 'caixas') return renderCaixas();
     });
   });
 
@@ -1196,6 +1491,8 @@ async function renderPedidos(){
       if (tab === 'reservas') return renderReservas();
       if (tab === 'atribuir') return renderAtribuir();
       if (tab === 'pedidos') return renderPedidos();
+      if (tab === 'corredores') return renderCorredores();
+      if (tab === 'caixas') return renderCaixas();
     });
   });
 

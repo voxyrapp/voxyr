@@ -556,6 +556,18 @@ async function init() {
 
     if (userNameMobile) userNameMobile.innerText = p.full_name || "Autônomo";
     if (userPointsMobile) userPointsMobile.innerText = p.points || 0;
+
+    // Atualiza labels do menu conforme função
+    const fn = String(p.job_function || 'separador').toLowerCase();
+    const navLabels = {
+      separador: { icon: 'fas fa-box', label: 'Pedidos' },
+      repositor: { icon: 'fas fa-store', label: 'Reposição' },
+      operador_caixa: { icon: 'fas fa-cash-register', label: 'Caixas' }
+    };
+    const nl = navLabels[fn] || navLabels.separador;
+    document.querySelectorAll('#nav-pedidos, #nav-pedidos-mobile').forEach(el => {
+      if (el) el.innerHTML = `<i class="${nl.icon}"></i> ${nl.label}`;
+    });
 }
         }
 
@@ -921,10 +933,13 @@ const aReceber = pendentes.reduce((acc, r) => {
         return;
     }
 
+    const myJobFunction = String(window.__profile?.job_function || 'separador').toLowerCase();
+
     const { data: slots, error: slotsError } = await _sb
         .from('slots')
         .select('*, stores(*), shifts(*)')
         .eq('store_id', myStoreId)
+        .eq('job_function', myJobFunction)
         .gt('quantity', 0)
         .gte('date', hoje)
         .order('date');
@@ -2604,6 +2619,13 @@ async function handleIncomingAssignment(assignmentId) {
 }
 }
 async function renderPedidos() {
+    const fn = String(window.__profile?.job_function || 'separador').toLowerCase();
+    if (fn === 'repositor') {
+        return renderRepositor();
+    } else if (fn === 'operador_caixa') {
+        return renderOperadorCaixa();
+    }
+    // Default: separador
     switchTab('nav-pedidos', 'Pedidos');
     showLoading(true);
 
@@ -3027,6 +3049,269 @@ async function finalizarPedido(assignmentId) {
 }
 
 async function logout() { await _sb.auth.signOut(); window.location.href = '/index.html'; }
+
+// ===== REPOSITOR DE MERCADORIAS =====
+async function renderRepositor() {
+    switchTab('nav-pedidos', 'Reposição');
+    showLoading(true);
+    const container = document.getElementById('view-container');
+
+    // Busca designações de corredor para o autônomo
+    const { data, error } = await _sb
+        .from('corridor_assignments')
+        .select(`
+            id, status, corredor, observacao, created_at, accepted_at, completed_at,
+            store:store_id(id, name)
+        `)
+        .eq('assignee_profile_id', currentUser.id)
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+    showLoading(false);
+
+    const list = data || [];
+    const hoje = todayLocalISO();
+    const hoje_br = hoje.split('-').reverse().join('/');
+
+    const statusBadge = (s) => {
+        const map = {
+            pending: { cls: 'bg-amber-100 text-amber-700', label: '⏳ Aguardando aceite' },
+            in_progress: { cls: 'bg-blue-100 text-blue-700', label: '🔄 Em andamento' },
+            completed: { cls: 'bg-emerald-100 text-emerald-700', label: '✅ Concluído' },
+            refused: { cls: 'bg-red-100 text-red-700', label: '❌ Recusado' }
+        };
+        const m = map[s] || { cls: 'bg-gray-100 text-gray-600', label: s };
+        return `<span class="px-3 py-1 rounded-full text-[10px] font-black uppercase ${m.cls}">${m.label}</span>`;
+    };
+
+    const cards = list.map(a => {
+        const loja = a.store?.name || '—';
+        const dataCriada = a.created_at ? new Date(a.created_at).toLocaleDateString('pt-BR') : '—';
+        const corredor = a.corredor || '—';
+        const obs = a.observacao || '';
+
+        let actions = '';
+        if (a.status === 'pending') {
+            actions = `
+                <div class="flex gap-3 mt-4">
+                    <button onclick="aceitarReposicao('${a.id}')" class="flex-1 py-3 rounded-2xl bg-emerald-600 text-white font-black uppercase text-xs hover:bg-emerald-700 transition">✓ Aceitar</button>
+                    <button onclick="recusarReposicao('${a.id}')" class="flex-1 py-3 rounded-2xl bg-red-100 text-red-700 font-black uppercase text-xs hover:bg-red-200 transition">✗ Recusar</button>
+                </div>`;
+        } else if (a.status === 'in_progress') {
+            actions = `
+                <button onclick="finalizarReposicao('${a.id}')" class="w-full mt-4 py-3 rounded-2xl bg-slate-900 text-white font-black uppercase text-xs hover:bg-emerald-700 transition">Finalizar reposição</button>`;
+        }
+
+        return `
+            <div class="card-nexo border border-slate-200">
+                <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+                    <div>
+                        <div class="flex flex-wrap gap-2 mb-3">${statusBadge(a.status)}</div>
+                        <div class="text-[10px] font-black uppercase text-slate-400">Loja</div>
+                        <h3 class="text-xl font-black text-slate-900 uppercase">${loja}</h3>
+                        <div class="mt-3 flex flex-wrap gap-x-6 gap-y-1">
+                            <div>
+                                <span class="text-[10px] font-black uppercase text-slate-400 block">Corredor</span>
+                                <span class="text-lg font-black text-indigo-700">${corredor}</span>
+                            </div>
+                            <div>
+                                <span class="text-[10px] font-black uppercase text-slate-400 block">Data</span>
+                                <span class="text-sm font-bold text-slate-700">${dataCriada}</span>
+                            </div>
+                        </div>
+                        ${obs ? `<div class="mt-3 text-sm font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-2xl p-3">
+                            <span class="text-[10px] font-black uppercase text-slate-400 block mb-1">Observação</span>
+                            ${obs}
+                        </div>` : ''}
+                    </div>
+                </div>
+                ${actions}
+            </div>`;
+    }).join('');
+
+    container.innerHTML = `
+        <div class="mb-6">
+            <h3 class="text-xl font-black uppercase italic text-slate-800 mb-1">🛒 Reposição de Mercadorias</h3>
+            <p class="text-sm text-slate-500">Corredores designados para você repor hoje (${hoje_br})</p>
+        </div>
+        ${list.length ? `<div class="space-y-4">${cards}</div>` : `<div class="text-center py-20"><div class="text-5xl mb-4">🛒</div><p class="font-black text-slate-300 uppercase">Nenhum corredor designado.</p></div>`}
+    `;
+}
+
+async function aceitarReposicao(id) {
+    const { error } = await _sb.from('corridor_assignments').update({ status: 'in_progress', accepted_at: new Date().toISOString() }).eq('id', id).eq('assignee_profile_id', currentUser.id);
+    if (error) return alert('Erro: ' + error.message);
+    await renderRepositor();
+}
+
+async function recusarReposicao(id) {
+    if (!confirm('Confirmar recusa da designação?')) return;
+    const { error } = await _sb.from('corridor_assignments').update({ status: 'refused' }).eq('id', id).eq('assignee_profile_id', currentUser.id);
+    if (error) return alert('Erro: ' + error.message);
+    await renderRepositor();
+}
+
+async function finalizarReposicao(id) {
+    if (!confirm('Confirmar finalização da reposição neste corredor?')) return;
+    const { error } = await _sb.from('corridor_assignments').update({ status: 'completed', completed_at: new Date().toISOString() }).eq('id', id).eq('assignee_profile_id', currentUser.id);
+    if (error) return alert('Erro: ' + error.message);
+    alert('Reposição finalizada!');
+    await renderRepositor();
+}
+
+// ===== OPERADOR DE CAIXA =====
+async function renderOperadorCaixa() {
+    switchTab('nav-pedidos', 'Caixas');
+    showLoading(true);
+    const container = document.getElementById('view-container');
+
+    // Busca designações de caixa para o operador
+    const { data, error } = await _sb
+        .from('cashier_assignments')
+        .select(`
+            id, status, numero_caixa, valor_abertura, valor_fechamento, quebra,
+            observacao, created_at, accepted_at, completed_at,
+            store:store_id(id, name)
+        `)
+        .eq('assignee_profile_id', currentUser.id)
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+    showLoading(false);
+
+    const list = data || [];
+    const hoje_br = new Date().toLocaleDateString('pt-BR');
+
+    const fmt = (v) => v !== null && v !== undefined ? `R$ ${Number(v).toFixed(2).replace('.', ',')}` : '—';
+
+    const statusBadge = (s) => {
+        const map = {
+            pending: { cls: 'bg-amber-100 text-amber-700', label: '⏳ Aguardando aceite' },
+            in_progress: { cls: 'bg-blue-100 text-blue-700', label: '🔄 Caixa aberto' },
+            completed: { cls: 'bg-emerald-100 text-emerald-700', label: '✅ Caixa fechado' },
+            refused: { cls: 'bg-red-100 text-red-700', label: '❌ Recusado' }
+        };
+        const m = map[s] || { cls: 'bg-gray-100 text-gray-600', label: s };
+        return `<span class="px-3 py-1 rounded-full text-[10px] font-black uppercase ${m.cls}">${m.label}</span>`;
+    };
+
+    const cards = list.map(a => {
+        const loja = a.store?.name || '—';
+        const dataCriada = a.created_at ? new Date(a.created_at).toLocaleDateString('pt-BR') : '—';
+        const caixa = a.numero_caixa ? `Caixa ${a.numero_caixa}` : '—';
+        const quebra = Number(a.quebra || 0);
+        const quebraBadge = quebra > 0
+            ? `<span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-black bg-red-100 text-red-700">⚠️ Quebra: ${fmt(quebra)} (desconto no saldo)</span>`
+            : '';
+
+        let actions = '';
+        if (a.status === 'pending') {
+            actions = `
+                <div class="flex gap-3 mt-4">
+                    <button onclick="aceitarCaixa('${a.id}')" class="flex-1 py-3 rounded-2xl bg-emerald-600 text-white font-black uppercase text-xs hover:bg-emerald-700 transition">✓ Aceitar caixa</button>
+                    <button onclick="recusarCaixa('${a.id}')" class="flex-1 py-3 rounded-2xl bg-red-100 text-red-700 font-black uppercase text-xs hover:bg-red-200 transition">✗ Recusar</button>
+                </div>`;
+        } else if (a.status === 'in_progress') {
+            actions = `
+                <button onclick="fecharCaixa('${a.id}')" class="w-full mt-4 py-3 rounded-2xl bg-slate-900 text-white font-black uppercase text-xs hover:bg-emerald-700 transition">Registrar fechamento de caixa</button>`;
+        }
+
+        return `
+            <div class="card-nexo border border-slate-200">
+                <div class="flex flex-col gap-4">
+                    <div>
+                        <div class="flex flex-wrap gap-2 mb-3">${statusBadge(a.status)}</div>
+                        <div class="text-[10px] font-black uppercase text-slate-400">Loja</div>
+                        <h3 class="text-xl font-black text-slate-900 uppercase">${loja}</h3>
+                        <p class="text-lg font-black text-indigo-700 mt-1">💳 ${caixa}</p>
+                    </div>
+
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <div class="bg-slate-50 rounded-xl p-3">
+                            <p class="text-[10px] font-black text-slate-400 uppercase">Abertura</p>
+                            <p class="text-base font-black text-slate-800">${fmt(a.valor_abertura)}</p>
+                        </div>
+                        <div class="bg-slate-50 rounded-xl p-3">
+                            <p class="text-[10px] font-black text-slate-400 uppercase">Fechamento</p>
+                            <p class="text-base font-black text-slate-800">${fmt(a.valor_fechamento)}</p>
+                        </div>
+                        <div class="bg-slate-50 rounded-xl p-3">
+                            <p class="text-[10px] font-black text-slate-400 uppercase">Quebra</p>
+                            <p class="text-base font-black ${quebra > 0 ? 'text-red-600' : 'text-slate-800'}">${fmt(quebra)}</p>
+                        </div>
+                        <div class="bg-slate-50 rounded-xl p-3">
+                            <p class="text-[10px] font-black text-slate-400 uppercase">Data</p>
+                            <p class="text-sm font-bold text-slate-700">${dataCriada}</p>
+                        </div>
+                    </div>
+
+                    ${quebraBadge}
+                    ${a.observacao ? `<div class="text-sm font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-2xl p-3">
+                        <span class="text-[10px] font-black uppercase text-slate-400 block mb-1">Observação</span>${a.observacao}
+                    </div>` : ''}
+                    ${actions}
+                </div>
+            </div>`;
+    }).join('');
+
+    container.innerHTML = `
+        <div class="mb-6">
+            <h3 class="text-xl font-black uppercase italic text-slate-800 mb-1">💳 Operação de Caixas</h3>
+            <p class="text-sm text-slate-500">Caixas designados para você hoje (${hoje_br})</p>
+        </div>
+        ${list.length ? `<div class="space-y-4">${cards}</div>` : `<div class="text-center py-20"><div class="text-5xl mb-4">💳</div><p class="font-black text-slate-300 uppercase">Nenhum caixa designado.</p></div>`}
+    `;
+}
+
+async function aceitarCaixa(id) {
+    const { error } = await _sb.from('cashier_assignments').update({ status: 'in_progress', accepted_at: new Date().toISOString() }).eq('id', id).eq('assignee_profile_id', currentUser.id);
+    if (error) return alert('Erro: ' + error.message);
+    await renderOperadorCaixa();
+}
+
+async function recusarCaixa(id) {
+    if (!confirm('Confirmar recusa do caixa?')) return;
+    const { error } = await _sb.from('cashier_assignments').update({ status: 'refused' }).eq('id', id).eq('assignee_profile_id', currentUser.id);
+    if (error) return alert('Erro: ' + error.message);
+    await renderOperadorCaixa();
+}
+
+async function fecharCaixa(id) {
+    const valorStr = prompt('Informe o valor de fechamento do caixa (ex: 1500.00):');
+    if (valorStr === null) return;
+    const valor = parseFloat(valorStr.replace(',', '.'));
+    if (!isFinite(valor) || valor < 0) return alert('Valor inválido.');
+
+    // Busca valor de abertura para calcular quebra
+    const { data: assign } = await _sb.from('cashier_assignments').select('valor_abertura').eq('id', id).maybeSingle();
+    const abertura = Number(assign?.valor_abertura || 0);
+    const quebra = Math.max(0, abertura - valor);
+    const quebraMsg = quebra > 0 ? `\n\n⚠️ Quebra de R$ ${quebra.toFixed(2)} detectada.\nEste valor será descontado do seu saldo.` : '\n\n✅ Caixa sem quebra.';
+
+    if (!confirm(`Confirmar fechamento com R$ ${valor.toFixed(2)}?${quebraMsg}`)) return;
+
+    const { error } = await _sb.from('cashier_assignments').update({
+        status: 'completed',
+        valor_fechamento: valor,
+        quebra: quebra,
+        completed_at: new Date().toISOString()
+    }).eq('id', id).eq('assignee_profile_id', currentUser.id);
+
+    if (error) return alert('Erro: ' + error.message);
+
+    // Desconta quebra do saldo se houver
+    if (quebra > 0) {
+        await _sb.rpc('deduct_points_amount', { user_id: currentUser.id, amount: quebra }).catch(e => console.warn('Erro ao descontar quebra:', e));
+        // Tenta também debitar do saldo financeiro via rpc dedicada
+        await _sb.rpc('apply_cashier_shortfall', { user_id: currentUser.id, shortfall: quebra }).catch(() => {});
+    }
+
+    alert('Fechamento registrado com sucesso!');
+    await loadProfile();
+    await renderOperadorCaixa();
+}
+
+
 function openScreenFromUrl() {
     try {
         const params = new URLSearchParams(window.location.search);
