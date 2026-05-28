@@ -274,7 +274,7 @@
 />
 
 <p class="text-sm mb-2 text-gray-700 font-medium">
-  RG ou CNH
+  
 </p>
 
 <label class="block">
@@ -301,7 +301,7 @@
   id="docPreview"
   class="hidden w-full max-h-72 object-contain border rounded-2xl mt-3 mb-4 bg-gray-50"
 />
-  <div id="termsStep" class="mt-4 p-3 bg-gray-50 border rounded hidden">
+  <div id="termsStep" class="mt-4 p-3 bg-gray-50 border rounded">
     <h4 class="text-sm font-bold mb-2 uppercase text-gray-700">Termos de Uso</h4>
     <div class="text-sm text-gray-700 max-h-80 overflow-y-auto border-t pt-3 leading-relaxed space-y-3 pr-2">
       <p> <!-- TERMOS Voxyr (HTML ESTRUTURADO) — basta colar no lugar do conteúdo antigo -->
@@ -709,10 +709,8 @@ o usuário poderá entrar em contato pelos canais oficiais disponibilizados pela
 Ao acessar ou utilizar a plataforma Voxyr, o usuário declara possuir capacidade legal,
 concordar integralmente com estes Termos e responsabilizar-se por todas as ações realizadas em sua conta.
 </p>
-  </div>
-</div>
 
-<div class="mt-6 flex items-start gap-3">
+    <div class="mt-6 flex items-start gap-3">
   <input
     type="checkbox"
     id="acceptTerms"
@@ -733,16 +731,16 @@ concordar integralmente com estes Termos e responsabilizar-se por todas as açõ
   </label>
 </div>
 
+  </div>
+</div>
+</div>
+
 <div id="registerNavButtons" class="flex justify-between mt-6">
   <button id="prev" type="button" class="btn-gray">Voltar</button>
   <button
   type="button"
   id="next"
   class="btn"
-  onclick="
-    document.getElementById('termsStep').classList.remove('hidden');
-    this.style.display='none';
-  "
 >
   Próximo
 </button>
@@ -2085,6 +2083,7 @@ prev.onclick = () => {
     <div class="flex gap-3">
       <button id="btnEditPix" type="button" class="btn-gray flex-1">Corrigir</button>
       <button id="btnConfirmPix" type="button" class="btn flex-1">Confirmar</button>
+
     </div>
   </div>
 </div>
