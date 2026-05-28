@@ -301,7 +301,7 @@
   id="docPreview"
   class="hidden w-full max-h-72 object-contain border rounded-2xl mt-3 mb-4 bg-gray-50"
 />
-  <div class="mt-4 p-3 bg-gray-50 border rounded">
+  <div id="termsStep" class="mt-4 p-3 bg-gray-50 border rounded hidden">
     <h4 class="text-sm font-bold mb-2 uppercase text-gray-700">Termos de Uso</h4>
     <div class="text-sm text-gray-700 max-h-80 overflow-y-auto border-t pt-3 leading-relaxed space-y-3 pr-2">
       <p> <!-- TERMOS Voxyr (HTML ESTRUTURADO) — basta colar no lugar do conteúdo antigo -->
@@ -736,7 +736,17 @@ concordar integralmente com estes Termos e responsabilizar-se por todas as açõ
 
 <div id="registerNavButtons" class="flex justify-between mt-6">
   <button id="prev" type="button" class="btn-gray">Voltar</button>
-  <button type="button" id="next" class="btn">Próximo</button>
+  <button
+  type="button"
+  id="next"
+  class="btn"
+  onclick="
+    document.getElementById('termsStep').classList.remove('hidden');
+    this.style.display='none';
+  "
+>
+  Próximo
+</button>
 </div>
 
 </form>
