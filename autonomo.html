@@ -87,10 +87,12 @@
 
     <nav class="flex-1 pt-4">
         <a onclick="navigateMobile(renderDashboard, 'Dashboard')" class="nav-link active"><i class="fas fa-chart-line"></i> Dashboard</a>
+        <a onclick="navigateMobile(renderAcademiaAutonomo, 'Academia')" class="nav-link"><i class="fas fa-graduation-cap"></i> Academia</a>
         <a onclick="navigateMobile(renderMercado, 'Mercado')" class="nav-link"><i class="fas fa-store"></i> Mercado</a>
         <a onclick="navigateMobile(renderAgenda, 'Minha Agenda')" class="nav-link"><i class="fas fa-calendar-alt"></i> Minha Agenda</a>
         <a onclick="navigateMobile(renderPedidos, 'Pedidos')" class="nav-link"><i class="fas fa-box"></i> Pedidos</a>
         <a onclick="navigateMobile(renderFinanceiro, 'Financeiro')" class="nav-link"><i class="fas fa-wallet"></i> Financeiro</a>
+        <a onclick="navigateMobile(renderSuporteAutonomo, 'Suporte')" class="nav-link"><i class="fas fa-headset"></i> Suporte</a>
     </nav>
 
     <div class="p-8 bg-slate-900/50 mt-auto">
@@ -109,10 +111,12 @@
         <div class="p-10"><h1 class="text-emerald-500 font-black text-2xl italic tracking-tighter">Voxyr App</h1></div>
         <nav class="flex-1">
             <a onclick="renderDashboard()" id="nav-dash" class="nav-link active"><i class="fas fa-chart-line"></i> Dashboard</a>
+            <a onclick="renderAcademiaAutonomo()" id="nav-academia" class="nav-link"><i class="fas fa-graduation-cap"></i> Academia</a>
             <a onclick="renderMercado()" id="nav-mercado" class="nav-link"><i class="fas fa-store"></i> Mercado</a>
             <a onclick="renderAgenda()" id="nav-agenda" class="nav-link"><i class="fas fa-calendar-alt"></i> Minha Agenda</a>
             <a onclick="renderPedidos()" id="nav-pedidos" class="nav-link"><i class="fas fa-box"></i> Pedidos</a>
             <a onclick="renderFinanceiro()" id="nav-financeiro" class="nav-link"><i class="fas fa-wallet"></i> Financeiro</a>
+            <a onclick="renderSuporteAutonomo()" id="nav-suporte" class="nav-link"><i class="fas fa-headset"></i> Suporte</a>
         </nav>
         <div class="p-8 bg-slate-900/50 mt-auto">
             <div class="mb-4">
@@ -568,6 +572,9 @@ async function init() {
     document.querySelectorAll('#nav-pedidos, #nav-pedidos-mobile').forEach(el => {
       if (el) el.innerHTML = `<i class="${nl.icon}"></i> ${nl.label}`;
     });
+
+    // Verifica academia pendente para mostrar banner
+    checkAcademiaOnboarding();
 }
         }
 
@@ -881,6 +888,20 @@ const aReceber = pendentes.reduce((acc, r) => {
             const agendadas = res?.filter(r => ['confirmada','check-in','pausa'].includes(normStatus(r.status))).length || 0;
 
             document.getElementById('view-container').innerHTML = `
+
+            <!-- BANNER ACADEMIA -->
+            <div id="academy-onboarding-banner" class="hidden mb-6 bg-gradient-to-r from-emerald-600 to-teal-600 rounded-2xl p-5 flex items-center justify-between gap-4 shadow-lg">
+                <div class="flex items-center gap-4">
+                    <span class="text-4xl">🎓</span>
+                    <div>
+                        <p class="font-black text-white text-base">Complete a Academia Voxyr!</p>
+                        <p class="text-emerald-100 text-sm">Conclua seu treinamento para desbloquear as missões disponíveis.</p>
+                    </div>
+                </div>
+                <button onclick="renderAcademiaAutonomo()" class="bg-white text-emerald-700 px-5 py-2 rounded-xl font-black text-sm hover:bg-emerald-50 transition flex-shrink-0">
+                    Iniciar →
+                </button>
+            </div>
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
                     <div class="card-nexo bg-slate-900 text-white border-none">
                         <p class="text-[10px] font-black text-slate-500 uppercase mb-2">Ganhos totais</p>
@@ -929,6 +950,22 @@ const aReceber = pendentes.reduce((acc, r) => {
     if (myPoints < 60) {
         document.getElementById('view-container').innerHTML =
             "<p class='text-center py-20 font-black text-slate-300 uppercase'>Você precisa ter pelo menos 60 pontos para visualizar missões.</p>";
+        showLoading(false);
+        return;
+    }
+
+    // Verifica se há etapas da academia pendentes
+    const academyBlocked = await checkAcademyPending();
+    if (academyBlocked) {
+        document.getElementById('view-container').innerHTML = `
+            <div class="text-center py-16 px-6 max-w-md mx-auto">
+                <div class="text-6xl mb-5">🎓</div>
+                <h3 class="text-2xl font-black text-slate-800 uppercase italic mb-3">Academia pendente</h3>
+                <p class="text-slate-500 mb-6">Você precisa concluir todas as etapas da Academia Voxyr antes de acessar as missões.</p>
+                <button onclick="renderAcademiaAutonomo()" class="bg-emerald-600 text-white px-8 py-3 rounded-2xl font-black uppercase text-sm hover:bg-emerald-700 transition">
+                    Ir para a Academia →
+                </button>
+            </div>`;
         showLoading(false);
         return;
     }
@@ -3048,7 +3085,554 @@ async function finalizarPedido(assignmentId) {
     await renderPedidos();
 }
 
+// ============================================================
+// 🎧 SUPORTE — AUTÔNOMO (com chat em tempo real)
+// ============================================================
+
+let _autonomoChatSub = null;
+let _autonomoActiveTicketId = null;
+
+async function renderSuporteAutonomo() {
+    switchTab('nav-suporte', 'Suporte');
+    // Cancela sub anterior
+    if (_autonomoChatSub) { _sb.removeChannel(_autonomoChatSub); _autonomoChatSub = null; }
+    _autonomoActiveTicketId = null;
+
+    showLoading(true);
+    const container = document.getElementById('view-container');
+
+    const [{ data: faqs }, { data: tickets }] = await Promise.all([
+        _sb.from('support_faqs').select('*').order('category').order('created_at'),
+        _sb.from('support_tickets').select('*').eq('profile_id', currentUser.id)
+            .order('created_at', { ascending: false }),
+    ]);
+    showLoading(false);
+
+    const activeTicket = (tickets||[]).find(t => t.status === 'open' || t.status === 'in_progress');
+    const hasActive = !!activeTicket;
+
+    const statusBadge = (s) => ({
+        open:        '<span class="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-amber-100 text-amber-700">Aberto</span>',
+        in_progress: '<span class="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-blue-100 text-blue-700">Em atendimento</span>',
+        resolved:    '<span class="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-100 text-emerald-700">Resolvido</span>',
+    }[s] || s);
+
+    const faqItems = (faqs||[]).map(f => `
+        <div class="faq-item border-b border-slate-100 last:border-0">
+            <button onclick="toggleFaq('faq-${f.id}')" class="w-full flex items-center justify-between py-4 text-left gap-4">
+                <span class="font-bold text-slate-800 text-sm">${escapeHtml(f.question)}</span>
+                <span id="faq-icon-${f.id}" class="text-slate-400 flex-shrink-0 text-lg">+</span>
+            </button>
+            <div id="faq-${f.id}" class="hidden pb-4">
+                <p class="text-slate-600 text-sm leading-relaxed">${escapeHtml(f.answer)}</p>
+            </div>
+        </div>`).join('');
+
+    const resolvedTickets = (tickets||[]).filter(t => t.status === 'resolved');
+    const ticketItems = resolvedTickets.map(t => `
+        <div class="bg-white rounded-2xl border border-slate-200 px-5 py-4 flex items-center justify-between gap-3 cursor-pointer hover:border-emerald-400 transition" onclick="openAutonomoChat('${t.id}')">
+            <div class="min-w-0">
+                <p class="font-bold text-slate-800 text-sm truncate">${escapeHtml(t.subject||'Chamado')}</p>
+                <p class="text-xs text-slate-400 mt-0.5">${new Date(t.created_at).toLocaleDateString('pt-BR', {day:'2-digit',month:'short'})}</p>
+            </div>
+            <div class="flex items-center gap-2 flex-shrink-0">${statusBadge(t.status)}<span class="text-slate-400">→</span></div>
+        </div>`).join('');
+
+    container.innerHTML = `
+        <div class="max-w-2xl mx-auto space-y-6">
+
+            <!-- FAQ -->
+            <div>
+                <h3 class="text-xl font-black uppercase italic text-slate-800 mb-1">🎧 Suporte</h3>
+                <p class="text-sm text-slate-500 mb-5">Encontre respostas rápidas ou abra um chamado.</p>
+                <div class="relative mb-4">
+                    <input type="text" id="faq-search" oninput="filterFaqs()" placeholder="Buscar dúvida..."
+                        class="w-full border-2 border-slate-200 focus:border-emerald-500 rounded-2xl px-5 py-3 pr-12 text-sm outline-none transition">
+                    <span class="absolute right-4 top-3.5 text-slate-400 text-lg">🔍</span>
+                </div>
+                ${(faqs||[]).length
+                    ? `<div id="faq-list" class="bg-white rounded-2xl border border-slate-200 px-5 divide-y divide-slate-100">${faqItems}</div>`
+                    : `<div class="bg-white rounded-2xl border border-slate-200 p-6 text-center"><p class="text-slate-400 text-sm">Nenhuma pergunta disponível ainda.</p></div>`}
+            </div>
+
+            <!-- Chamado ativo ou formulário -->
+            ${hasActive ? `
+                <div class="bg-blue-50 border-2 border-blue-200 rounded-2xl p-5">
+                    <div class="flex items-start justify-between gap-3 mb-3">
+                        <div>
+                            <p class="font-black text-slate-800">Chamado em andamento</p>
+                            <p class="text-xs text-slate-500 mt-0.5">${escapeHtml(activeTicket.subject||'')}</p>
+                        </div>
+                        ${statusBadge(activeTicket.status)}
+                    </div>
+                    <p class="text-xs text-slate-500 mb-4">Você já tem um chamado aberto. Converse com o suporte antes de abrir um novo.</p>
+                    <button onclick="openAutonomoChat('${activeTicket.id}')"
+                        class="w-full py-3 bg-slate-900 text-white rounded-2xl font-black uppercase text-sm hover:bg-emerald-600 transition">
+                        💬 Abrir conversa →
+                    </button>
+                </div>` : `
+                <div class="bg-white rounded-2xl border border-slate-200 p-6">
+                    <h4 class="font-black text-slate-800 mb-1">Não encontrou o que precisava?</h4>
+                    <p class="text-sm text-slate-500 mb-4">Abra um chamado e responderemos em breve.</p>
+                    <div class="space-y-3">
+                        <input type="text" id="new-ticket-subject" placeholder="Resumo do problema"
+                            class="w-full border rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-emerald-500">
+                        <textarea id="new-ticket-desc" rows="3" placeholder="Descreva com detalhes..."
+                            class="w-full border rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-emerald-500 resize-none"></textarea>
+                    </div>
+                    <div id="ticket-submit-status" class="mt-2 text-xs text-center hidden"></div>
+                    <button onclick="submitTicket()" class="mt-4 w-full py-3 bg-slate-900 text-white rounded-2xl font-black uppercase text-sm hover:bg-emerald-600 transition">
+                        Abrir chamado
+                    </button>
+                </div>`}
+
+            <!-- Chamados resolvidos -->
+            ${resolvedTickets.length ? `
+                <div>
+                    <h4 class="font-black text-slate-500 text-xs uppercase tracking-widest mb-3">Chamados anteriores</h4>
+                    <div class="space-y-2">${ticketItems}</div>
+                </div>` : ''}
+        </div>`;
+}
+
+// ── Abre o chat de um chamado ──
+async function openAutonomoChat(ticketId) {
+    if (_autonomoChatSub) { _sb.removeChannel(_autonomoChatSub); _autonomoChatSub = null; }
+    _autonomoActiveTicketId = ticketId;
+    switchTab('nav-suporte', 'Suporte');
+    showLoading(true);
+    const container = document.getElementById('view-container');
+
+    const [{ data: ticket }, { data: msgs }] = await Promise.all([
+        _sb.from('support_tickets').select('*').eq('id', ticketId).maybeSingle(),
+        _sb.from('support_messages').select('*').eq('ticket_id', ticketId).order('created_at'),
+    ]);
+    showLoading(false);
+    if (!ticket) return;
+
+    const isResolved = ticket.status === 'resolved';
+
+    container.innerHTML = `
+        <div class="max-w-2xl mx-auto flex flex-col" style="height: calc(100vh - 8rem);">
+            <!-- Header -->
+            <div class="flex items-center justify-between mb-4 flex-shrink-0">
+                <button onclick="if(_autonomoChatSub){_sb.removeChannel(_autonomoChatSub);_autonomoChatSub=null;} renderSuporteAutonomo();"
+                    class="flex items-center gap-2 text-sm text-slate-400 hover:text-slate-700 font-bold transition">
+                    ← Voltar
+                </button>
+                <span class="px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${ {open:'bg-amber-100 text-amber-700',in_progress:'bg-blue-100 text-blue-700',resolved:'bg-emerald-100 text-emerald-700'}[ticket.status]||'' }">
+                    ${ {open:'Aberto',in_progress:'Em atendimento',resolved:'Resolvido'}[ticket.status]||ticket.status }
+                </span>
+            </div>
+
+            <!-- Assunto -->
+            <div class="bg-white rounded-2xl border border-slate-200 p-4 mb-4 flex-shrink-0">
+                <p class="font-black text-slate-800 text-sm">${escapeHtml(ticket.subject||'Chamado')}</p>
+                <p class="text-xs text-slate-400 mt-1">${escapeHtml(ticket.description||'')}</p>
+            </div>
+
+            <!-- Mensagens -->
+            <div id="autonomo-chat-messages" class="flex-1 overflow-y-auto space-y-3 mb-4 px-1">
+                ${renderChatMessages(msgs||[], 'autonomo')}
+                ${(!msgs||!msgs.length) ? '<p class="text-center text-xs text-slate-400 py-4">Nenhuma mensagem ainda — escreva sua dúvida.</p>' : ''}
+            </div>
+
+            <!-- Input -->
+            ${!isResolved ? `
+                <div class="flex-shrink-0 flex gap-3 items-end">
+                    <textarea id="autonomo-chat-input" rows="2" placeholder="Digite sua mensagem..."
+                        class="flex-1 border-2 border-slate-200 focus:border-emerald-500 rounded-2xl px-4 py-3 text-sm outline-none transition resize-none"
+                        onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();autonomoSendMessage('${ticketId}');}"></textarea>
+                    <button onclick="autonomoSendMessage('${ticketId}')" class="w-12 h-12 bg-slate-900 text-white rounded-2xl flex items-center justify-center hover:bg-emerald-600 transition flex-shrink-0">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                    </button>
+                </div>` : `
+                <div class="text-center text-sm text-slate-400 py-3 flex-shrink-0 bg-emerald-50 rounded-2xl">
+                    ✅ Este chamado foi resolvido.
+                </div>`}
+        </div>`;
+
+    scrollChatToBottom('autonomo-chat-messages');
+
+    // Realtime
+    if (!isResolved) {
+        _autonomoChatSub = _sb.channel(`ticket-autonomo-${ticketId}`)
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'support_messages', filter: `ticket_id=eq.${ticketId}` },
+                (payload) => {
+                    // Não duplica mensagens próprias (já inseridas otimisticamente)
+                    if (payload.new.sender === 'autonomo') return;
+                    const el = document.getElementById('autonomo-chat-messages');
+                    if (!el) return;
+                    el.insertAdjacentHTML('beforeend', renderChatMessages([payload.new], 'autonomo'));
+                    scrollChatToBottom('autonomo-chat-messages');
+                })
+            .subscribe();
+    }
+}
+
+async function autonomoSendMessage(ticketId) {
+    const input = document.getElementById('autonomo-chat-input');
+    const text = (input?.value || '').trim();
+    if (!text) return;
+    // Insere otimisticamente na tela
+    const el = document.getElementById('autonomo-chat-messages');
+    const tempMsg = { sender: 'autonomo', message: text, created_at: new Date().toISOString() };
+    if (el) { el.insertAdjacentHTML('beforeend', renderChatMessages([tempMsg], 'autonomo')); scrollChatToBottom('autonomo-chat-messages'); }
+    input.value = '';
+    const { error } = await _sb.from('support_messages').insert({ ticket_id: ticketId, sender: 'autonomo', message: text });
+    if (error) { if(input) input.value = text; alert('Erro ao enviar: ' + error.message); }
+    await _sb.from('support_tickets').update({ last_message_at: new Date().toISOString() }).eq('id', ticketId);
+}
+
+async function submitTicket() {
+    const subject = (document.getElementById('new-ticket-subject')?.value||'').trim();
+    const desc    = (document.getElementById('new-ticket-desc')?.value||'').trim();
+    const statusEl = document.getElementById('ticket-submit-status');
+    if (!subject||!desc) {
+        if(statusEl){statusEl.className='mt-2 text-xs text-center text-red-500';statusEl.textContent='Preencha o resumo e a descrição.';statusEl.classList.remove('hidden');}
+        return;
+    }
+    const { data: newTicket, error } = await _sb.from('support_tickets')
+        .insert({ profile_id: currentUser.id, subject, description: desc, status: 'open' })
+        .select('id').maybeSingle();
+    if (error) {
+        if(statusEl){statusEl.className='mt-2 text-xs text-center text-red-500';statusEl.textContent='Erro: '+error.message;statusEl.classList.remove('hidden');}
+        return;
+    }
+    // Abre o chat direto
+    await openAutonomoChat(newTicket.id);
+}
+
+function toggleFaq(id) {
+    const el = document.getElementById(id);
+    const faqId = id.replace('faq-','');
+    const icon = document.getElementById(`faq-icon-${faqId}`);
+    if (!el) return;
+    const hidden = el.classList.contains('hidden');
+    el.classList.toggle('hidden', !hidden);
+    if (icon) icon.textContent = hidden ? '−' : '+';
+}
+
+function filterFaqs() {
+    const q = (document.getElementById('faq-search')?.value||'').toLowerCase();
+    document.querySelectorAll('.faq-item').forEach(item => {
+        item.style.display = item.textContent.toLowerCase().includes(q) ? '' : 'none';
+    });
+}
+
+function renderChatMessages(msgs, viewer) {
+    if (!msgs||!msgs.length) return '';
+    return msgs.map(m => {
+        const isMe = (viewer==='admin'&&m.sender==='admin')||(viewer==='autonomo'&&m.sender==='autonomo');
+        const time = new Date(m.created_at).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+        const label = m.sender==='admin' ? 'Suporte Voxyr' : 'Você';
+        return `
+            <div class="flex ${isMe?'justify-end':'justify-start'}">
+                <div class="max-w-[80%]">
+                    <p class="text-[10px] font-bold mb-1 ${isMe?'text-right text-emerald-600':'text-slate-400'}">${label}</p>
+                    <div class="rounded-2xl px-4 py-3 text-sm leading-relaxed ${isMe?'bg-slate-900 text-white rounded-tr-sm':'bg-white border border-slate-200 text-slate-800 rounded-tl-sm'}">
+                        ${escapeHtml(m.message)}
+                    </div>
+                    <p class="text-[10px] text-gray-400 mt-1 ${isMe?'text-right':''}">${time}</p>
+                </div>
+            </div>`;
+    }).join('');
+}
+
+function scrollChatToBottom(id) {
+    setTimeout(() => { const el = document.getElementById(id); if(el) el.scrollTop = el.scrollHeight; }, 50);
+}
+
 async function logout() { await _sb.auth.signOut(); window.location.href = '/index.html'; }
+
+// ============================================================
+// 🎓 ACADEMIA VOXYR — AUTÔNOMO
+// ============================================================
+
+// Helper: escapa HTML para evitar XSS
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+// Check if autonomo has pending academy steps
+async function checkAcademyPending() {
+    const fn = String(window.__profile?.job_function || '').toLowerCase().trim();
+    let { data: steps } = await _sb
+        .from('academy_steps')
+        .select('id')
+        .eq('job_function', fn || 'separador')
+        .order('order_index');
+
+    if ((!steps || !steps.length) && fn) {
+        const { data: all } = await _sb.from('academy_steps').select('id');
+        steps = all || [];
+    }
+    if (!steps || !steps.length) return false;
+
+    const stepIds = steps.map(s => s.id);
+    const { data: progress } = await _sb
+        .from('academy_progress')
+        .select('step_id, completed')
+        .eq('profile_id', currentUser.id)
+        .in('step_id', stepIds);
+
+    const completedIds = new Set((progress || []).filter(p => p.completed).map(p => p.step_id));
+    return stepIds.some(id => !completedIds.has(id));
+}
+
+// Main academy screen
+async function renderAcademiaAutonomo() {
+    switchTab('nav-academia', 'Academia');
+    showLoading(true);
+    const container = document.getElementById('view-container');
+    const fn = String(window.__profile?.job_function || '').toLowerCase().trim();
+
+    // Busca etapas da função do autônomo
+    let { data: steps, error } = await _sb
+        .from('academy_steps')
+        .select('id, title, order_index, pass_score, job_function')
+        .eq('job_function', fn || 'separador')
+        .order('order_index');
+
+    // Se não achou nada (função pode estar nula/diferente), busca todas
+    if ((!steps || !steps.length) && fn) {
+        const { data: allSteps } = await _sb
+            .from('academy_steps')
+            .select('id, title, order_index, pass_score, job_function')
+            .order('job_function').order('order_index');
+        steps = allSteps || [];
+    }
+
+    showLoading(false);
+
+    if (!steps || !steps.length) {
+        container.innerHTML = `
+            <div class="text-center py-20">
+                <div class="text-5xl mb-4">🎓</div>
+                <p class="font-black text-slate-400 uppercase text-sm">Nenhum treinamento disponível para sua função.</p>
+                <p class="text-slate-400 text-xs mt-2">Função detectada: <strong>${fn || '(não definida)'}</strong></p>
+                <p class="text-slate-400 text-xs mt-1">O admin ainda não cadastrou etapas. Aguarde!</p>
+            </div>`;
+        return;
+    }
+
+    // Load progress
+    const stepIds = steps.map(s => s.id);
+    const { data: progress } = await _sb
+        .from('academy_progress')
+        .select('step_id, completed, score')
+        .eq('profile_id', currentUser.id)
+        .in('step_id', stepIds);
+    const progressMap = {};
+    (progress || []).forEach(p => { progressMap[p.step_id] = p; });
+
+    const totalDone = steps.filter(s => progressMap[s.id]?.completed).length;
+    const pct = Math.round((totalDone / steps.length) * 100);
+    const allDone = totalDone === steps.length;
+
+    container.innerHTML = `
+        <div class="max-w-2xl mx-auto">
+            <div class="mb-8">
+                <h3 class="text-2xl font-black uppercase italic text-slate-800 mb-1">🎓 Academia Voxyr</h3>
+                <p class="text-sm text-slate-500 mb-4">Complete todas as etapas para desbloquear as missões.</p>
+                <div class="flex items-center gap-4 mb-2">
+                    <div class="flex-1 bg-slate-200 rounded-full h-3 overflow-hidden">
+                        <div class="h-3 rounded-full bg-emerald-500 transition-all" style="width:${pct}%"></div>
+                    </div>
+                    <span class="text-sm font-black text-slate-600 w-12 text-right">${pct}%</span>
+                </div>
+                <p class="text-xs text-slate-400">${totalDone} de ${steps.length} etapas concluídas</p>
+                ${allDone ? `<div class="mt-4 bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex items-center gap-3">
+                    <span class="text-2xl">🏆</span>
+                    <div><p class="font-black text-emerald-700">Academia concluída!</p><p class="text-xs text-emerald-600">Você pode acessar todas as missões disponíveis.</p></div>
+                </div>` : ''}
+            </div>
+
+            <div class="space-y-4">
+                ${steps.map((step, idx) => {
+                    const prog = progressMap[step.id];
+                    const done = prog?.completed;
+                    const prevDone = idx === 0 || progressMap[steps[idx-1].id]?.completed;
+                    const locked = !prevDone && !done;
+                    return `
+                    <div class="card-nexo border ${done ? 'border-emerald-200 bg-emerald-50/30' : locked ? 'border-slate-200 opacity-60' : 'border-slate-200'} cursor-pointer transition-all hover:shadow-md ${locked ? 'cursor-not-allowed' : ''}"
+                         onclick="${locked ? '' : `openAcademiaStep('${step.id}')`}">
+                        <div class="flex items-center gap-4">
+                            <div class="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 ${done ? 'bg-emerald-500' : locked ? 'bg-slate-200' : 'bg-slate-800'}">
+                                ${done ? '<span class="text-xl">✅</span>' : locked ? '<span class="text-xl">🔒</span>' : `<span class="text-white font-black text-lg">${step.order_index}</span>`}
+                            </div>
+                            <div class="flex-1">
+                                <p class="font-black text-slate-800">${escapeHtml(step.title)}</p>
+                                ${done ? `<p class="text-xs text-emerald-600 font-bold">Concluído · Nota: ${prog?.score ?? 0}%</p>` :
+                                  locked ? '<p class="text-xs text-slate-400">Conclua a etapa anterior primeiro</p>' :
+                                  '<p class="text-xs text-slate-400">Toque para iniciar</p>'}
+                            </div>
+                            ${!locked ? '<span class="text-slate-400 text-lg">→</span>' : ''}
+                        </div>
+                    </div>`; }).join('')}
+            </div>
+        </div>`;
+}
+
+// Open a single academy step
+async function openAcademiaStep(stepId) {
+    switchTab('nav-academia', 'Academia');
+    showLoading(true);
+    const container = document.getElementById('view-container');
+
+    const [{ data: step }, { data: contents }, { data: questions }] = await Promise.all([
+        _sb.from('academy_steps').select('*').eq('id', stepId).maybeSingle(),
+        _sb.from('academy_step_contents').select('*').eq('step_id', stepId).order('order_index'),
+        _sb.from('academy_quiz_questions').select('*, academy_quiz_options(*)').eq('step_id', stepId).order('order_index'),
+    ]);
+    showLoading(false);
+    if (!step) return;
+
+    const renderContent = (c) => {
+        if (c.type === 'text') return `
+            <div class="bg-white rounded-2xl border p-6 shadow-sm">
+                ${c.title ? `<h4 class="font-black text-slate-800 mb-3">${escapeHtml(c.title)}</h4>` : ''}
+                <p class="text-slate-600 leading-relaxed whitespace-pre-line">${escapeHtml(c.body)}</p>
+            </div>`;
+        if (c.type === 'image') return `
+            <div class="rounded-2xl overflow-hidden shadow-sm border">
+                ${c.title ? `<p class="px-4 pt-3 font-bold text-slate-700 text-sm">${escapeHtml(c.title)}</p>` : ''}
+                <img src="${escapeHtml(c.body)}" alt="${escapeHtml(c.title||'')}" class="w-full object-cover max-h-80">
+            </div>`;
+        if (c.type === 'video') return `
+            <div class="rounded-2xl overflow-hidden shadow-sm border bg-black">
+                ${c.title ? `<p class="px-4 pt-3 font-bold text-white text-sm">${escapeHtml(c.title)}</p>` : ''}
+                <div class="relative" style="padding-bottom:56.25%">
+                    <iframe src="${c.body}" class="absolute inset-0 w-full h-full" frameborder="0" allowfullscreen></iframe>
+                </div>
+            </div>`;
+        return '';
+    };
+
+    const quizHtml = (questions || []).length ? `
+        <div id="academy-quiz" class="max-w-2xl mx-auto mt-8">
+            <div class="bg-white rounded-2xl border p-6 shadow-sm">
+                <h4 class="font-black text-slate-800 text-lg mb-1">📝 Questionário</h4>
+                <p class="text-xs text-slate-400 mb-6">Nota mínima para aprovação: ${step.pass_score || 70}%</p>
+                <div class="space-y-6">
+                    ${(questions || []).map((q, qi) => `
+                        <div>
+                            <p class="font-bold text-slate-800 mb-3">${qi+1}. ${escapeHtml(q.question_text)}</p>
+                            <div class="space-y-2">
+                                ${(q.academy_quiz_options || []).map((opt, oi) => `
+                                    <label class="flex items-center gap-3 p-3 rounded-xl border cursor-pointer hover:bg-slate-50 transition">
+                                        <input type="radio" name="q_${qi}" value="${opt.id}" data-correct="${opt.is_correct}" class="accent-emerald-500">
+                                        <span class="text-sm text-slate-700">${escapeHtml(opt.option_text)}</span>
+                                    </label>`).join('')}
+                            </div>
+                        </div>`).join('')}
+                </div>
+                <div id="quiz-result-${stepId}" class="mt-4 hidden"></div>
+                <button onclick="submitAcademiaQuiz('${stepId}', ${step.pass_score || 70}, ${(questions||[]).length})" 
+                    class="mt-6 w-full py-3 bg-slate-900 text-white rounded-2xl font-black uppercase text-sm hover:bg-emerald-600 transition">
+                    Enviar Respostas
+                </button>
+            </div>
+        </div>` : `
+        <div class="max-w-2xl mx-auto mt-8">
+            <button onclick="markStepComplete('${stepId}')" class="w-full py-4 bg-emerald-600 text-white rounded-2xl font-black uppercase text-sm hover:bg-emerald-700 transition">
+                ✅ Concluir Etapa
+            </button>
+        </div>`;
+
+    container.innerHTML = `
+        <div class="max-w-2xl mx-auto">
+            <button onclick="renderAcademiaAutonomo()" class="flex items-center gap-2 text-sm text-slate-400 hover:text-slate-700 font-bold mb-6 transition">
+                ← Voltar para a Academia
+            </button>
+            <h3 class="text-2xl font-black uppercase italic text-slate-800 mb-6">${escapeHtml(step.title)}</h3>
+            <div class="space-y-4">
+                ${(contents || []).map(renderContent).join('')}
+            </div>
+            ${quizHtml}
+        </div>`;
+}
+
+// Submit quiz
+async function submitAcademiaQuiz(stepId, passScore, totalQuestions) {
+    const resultEl = document.getElementById(`quiz-result-${stepId}`);
+    let correct = 0;
+    let allAnswered = true;
+
+    for (let i = 0; i < totalQuestions; i++) {
+        const selected = document.querySelector(`input[name="q_${i}"]:checked`);
+        if (!selected) { allAnswered = false; break; }
+        if (selected.dataset.correct === 'true') correct++;
+    }
+
+    if (!allAnswered) {
+        if (resultEl) {
+            resultEl.className = 'mt-4 bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-700 font-bold';
+            resultEl.textContent = '⚠️ Responda todas as perguntas antes de enviar.';
+            resultEl.classList.remove('hidden');
+        }
+        return;
+    }
+
+    const score = Math.round((correct / totalQuestions) * 100);
+    const passed = score >= passScore;
+
+    // Save progress
+    await _sb.from('academy_progress').upsert({
+        profile_id: currentUser.id,
+        step_id: stepId,
+        completed: passed,
+        score,
+        attempts: 1,
+        updated_at: new Date().toISOString(),
+    }, { onConflict: 'profile_id,step_id' });
+
+    if (resultEl) {
+        resultEl.classList.remove('hidden');
+        if (passed) {
+            resultEl.className = 'mt-4 bg-emerald-50 border border-emerald-200 rounded-xl p-4';
+            resultEl.innerHTML = `
+                <p class="font-black text-emerald-700 text-base mb-1">🏆 Aprovado! Nota: ${score}%</p>
+                <p class="text-xs text-emerald-600">Etapa concluída com sucesso.</p>`;
+            setTimeout(() => renderAcademiaAutonomo(), 2000);
+        } else {
+            resultEl.className = 'mt-4 bg-red-50 border border-red-200 rounded-xl p-4';
+            resultEl.innerHTML = `
+                <p class="font-black text-red-700 text-base mb-1">❌ Nota: ${score}% — mínimo necessário: ${passScore}%</p>
+                <p class="text-xs text-red-600">Revise o conteúdo acima e tente novamente.</p>`;
+            // Reset radio buttons
+            document.querySelectorAll(`#academy-quiz input[type="radio"]`).forEach(r => r.checked = false);
+        }
+    }
+}
+
+// Mark step complete (no quiz steps)
+async function markStepComplete(stepId) {
+    await _sb.from('academy_progress').upsert({
+        profile_id: currentUser.id,
+        step_id: stepId,
+        completed: true,
+        score: 100,
+        updated_at: new Date().toISOString(),
+    }, { onConflict: 'profile_id,step_id' });
+    renderAcademiaAutonomo();
+}
+
+// Check and show academy onboarding on first login
+async function checkAcademiaOnboarding() {
+    if (!currentUser || !window.__profile) return;
+    const fn = String(window.__profile.job_function || 'separador').toLowerCase();
+    const { data: steps } = await _sb.from('academy_steps').select('id').eq('job_function', fn).limit(1);
+    if (!steps || !steps.length) return;
+    const pending = await checkAcademyPending();
+    if (pending) {
+        // Show onboarding banner on dashboard
+        const banner = document.getElementById('academy-onboarding-banner');
+        if (banner) banner.classList.remove('hidden');
+    }
+}
+
 
 // ===== REPOSITOR DE MERCADORIAS =====
 async function renderRepositor() {

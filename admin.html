@@ -125,6 +125,10 @@
 
     <button onclick="switchTab('configuracoes'); renderConfiguracoes();" id="nav-configuracoes" class="w-full text-left px-4 py-3 rounded text-gray-400 hover:bg-gray-800 hover:text-white transition-colors font-bold border-l-4 border-transparent flex items-center gap-2">⚙️ Configurações</button>
 
+    <button onclick="switchTab('academia'); renderAcademia();" id="nav-academia" class="w-full text-left px-4 py-3 rounded text-gray-400 hover:bg-gray-800 hover:text-white transition-colors font-bold border-l-4 border-transparent flex items-center gap-2">🎓 Academia</button>
+
+    <button onclick="switchTab('suporte'); renderAdminSuporte();" id="nav-suporte" class="w-full text-left px-4 py-3 rounded text-gray-400 hover:bg-gray-800 hover:text-white transition-colors font-bold border-l-4 border-transparent flex items-center gap-2">🎧 Suporte</button>
+
     <button onclick="switchTab('finance'); renderAdminFinance();" id="nav-finance" class="w-full text-left px-4 py-3 rounded text-gray-400 hover:bg-gray-800 hover:text-white transition-colors font-bold border-l-4 border-transparent flex items-center gap-2">💰 Financeiro</button>
     <button onclick="switchTab('comunicados'); renderAdminComunicados();" id="nav-comunicados" class="w-full text-left px-4 py-3 rounded text-gray-400 hover:bg-gray-800 hover:text-white transition-colors font-bold border-l-4 border-transparent flex items-center gap-2">📣 Comunicados</button>
     <button onclick="switchTab('atrasos')" id="nav-atrasos" class="w-full text-left px-4 py-3 rounded text-gray-400 hover:bg-gray-800 hover:text-white transition-colors font-bold border-l-4 border-transparent flex items-center gap-2">⏰ Atrasos</button>
@@ -140,9 +144,15 @@
         </header>
 
         <div class="bg-white border-b px-8 py-3 flex items-center justify-between">
-            <div class="flex gap-4">
+            <div class="flex gap-4 flex-wrap">
                 <input type="text" id="filter-name" oninput="applyFilters()" placeholder="Nome ou CPF..." class="border rounded-lg px-4 py-2 text-sm w-64 outline-none focus:ring-2 focus:ring-emerald-500">
                 <input type="text" id="store-search" oninput="applyFilters()" placeholder="Filtrar por nome da loja..." class="border rounded-lg px-4 py-2 text-sm w-64 outline-none focus:ring-2 focus:ring-emerald-500">
+                <select id="filter-job-function" onchange="applyFilters()" class="border rounded-lg px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500 bg-white">
+                    <option value="">Todas as funções</option>
+                    <option value="separador">📦 Separador</option>
+                    <option value="repositor">🛒 Repositor</option>
+                    <option value="operador_caixa">💳 Op. de Caixa</option>
+                </select>
             </div>
             <div class="text-xs font-bold text-gray-500 bg-gray-100 px-3 py-1 rounded-full uppercase">
                 Cadastros: <span id="counter" class="text-emerald-600">0</span>
@@ -271,6 +281,28 @@
     </div>
 
     
+    <div id="mod-suporte" class="module-container bg-gray-50">
+        <header class="h-16 border-b bg-white flex items-center px-8 justify-between shrink-0">
+            <div>
+                <h2 class="text-xl font-semibold text-gray-800">🎧 Suporte</h2>
+                <p class="text-xs text-gray-500">Chamados abertos pelos autônomos e gestão de FAQ</p>
+            </div>
+            <button onclick="openFaqModal()" class="bg-gray-900 text-white px-5 py-2 rounded-xl text-xs font-bold uppercase hover:bg-emerald-600 transition">+ Nova pergunta FAQ</button>
+        </header>
+        <div id="suporte-content" class="p-8 overflow-y-auto flex-1"></div>
+    </div>
+
+    <div id="mod-academia" class="module-container bg-gray-50">
+        <header class="h-16 border-b bg-white flex items-center px-8 justify-between shrink-0">
+            <div>
+                <h2 class="text-xl font-semibold text-gray-800">🎓 Academia Voxyr</h2>
+                <p class="text-xs text-gray-500">Gerencie as etapas de treinamento por função</p>
+            </div>
+            <button onclick="openAcademiaStepModal()" class="bg-gray-900 text-white px-5 py-2 rounded-xl text-xs font-bold uppercase hover:bg-emerald-600 transition">+ Nova Etapa</button>
+        </header>
+        <div id="academia-content" class="p-8 overflow-y-auto flex-1"></div>
+    </div>
+
     <div id="mod-configuracoes" class="module-container bg-white">
         <header class="h-16 border-b flex items-center px-8 justify-between shrink-0">
             <div>
@@ -542,7 +574,17 @@
                     <button onclick="openDecisionModal('bloqueado')" class="bg-red-600 text-white px-6 py-2 rounded-lg font-bold uppercase text-xs">Bloquear</button>
                     <button onclick="openDecisionModal('reprovado')" class="bg-orange-500 text-white px-6 py-2 rounded-lg font-bold uppercase text-xs">Reprovar Etapa</button>
                 </div>
-                <button id="btn-approve" class="bg-emerald-600 text-white px-10 py-2 rounded-lg font-bold uppercase text-xs">Aprovar Candidato</button>
+                <div class="flex items-center gap-3">
+                    <div class="flex items-center gap-2">
+                        <label class="text-[10px] font-black text-gray-500 uppercase whitespace-nowrap">Função:</label>
+                        <select id="modal-job-function" onchange="updateProfileJobFunction(this.value)" class="border rounded-lg px-3 py-2 text-xs font-bold outline-none focus:ring-2 focus:ring-emerald-500 bg-white">
+                            <option value="separador">📦 Separador</option>
+                            <option value="repositor">🛒 Repositor</option>
+                            <option value="operador_caixa">💳 Op. de Caixa</option>
+                        </select>
+                    </div>
+                    <button id="btn-approve" class="bg-emerald-600 text-white px-10 py-2 rounded-lg font-bold uppercase text-xs">Aprovar Candidato</button>
+                </div>
             </div>
         </div>
     </div>
@@ -865,11 +907,14 @@ let allUsers = [];
         function applyFilters() {
             const search = document.getElementById('filter-name').value.toLowerCase();
             const storeSearch = document.getElementById('store-search').value.toLowerCase();
+            const jobFnFilter = document.getElementById('filter-job-function')?.value || '';
             const list = allUsers.filter(u => {
                 const matchStatus = (u.status || 'pendente').toLowerCase() === currentStatusTab;
                 const matchName = (u.full_name || "").toLowerCase().includes(search) || (u.cpf || "").includes(search);
                 const storeName = allStores.find(s => s.id === u.store_id)?.name || "";
-                return matchStatus && matchName && (storeSearch === "" || storeName.toLowerCase().includes(storeSearch));
+                const matchStore = storeSearch === "" || storeName.toLowerCase().includes(storeSearch);
+                const matchJobFn = jobFnFilter === "" || (u.job_function || 'separador') === jobFnFilter;
+                return matchStatus && matchName && matchStore && matchJobFn;
             });
             document.getElementById('counter').innerText = list.length;
             document.getElementById('list-container').innerHTML = list.map(u => {
@@ -879,10 +924,19 @@ let dataRef = u.updated_at || u.created_at;
 if (currentStatusTab !== 'pendente') {
     rotulo = currentStatusTab + " há";
 }
+                const fnBadge = {
+                    separador:      { label: '📦 Separador',    cls: 'bg-emerald-100 text-emerald-700' },
+                    repositor:      { label: '🛒 Repositor',    cls: 'bg-blue-100 text-blue-700' },
+                    operador_caixa: { label: '💳 Op. de Caixa', cls: 'bg-purple-100 text-purple-700' }
+                }[u.job_function || 'separador'] || { label: '📦 Separador', cls: 'bg-emerald-100 text-emerald-700' };
+
                 return `
                     <div class="bg-white p-4 rounded-xl border flex items-center justify-between hover:shadow-md transition-shadow">
                         <div>
-                            <h4 class="font-bold text-gray-800">${u.full_name}</h4>
+                            <div class="flex items-center gap-2 mb-1">
+                                <h4 class="font-bold text-gray-800">${u.full_name}</h4>
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${fnBadge.cls}">${fnBadge.label}</span>
+                            </div>
                             <p class="text-xs text-gray-500">${u.cpf} • <span class="text-emerald-600 font-bold uppercase">${allStores.find(s => s.id === u.store_id)?.name || 'Sem Loja'}</span></p>
                         </div>
                         <div class="flex items-center gap-6">
@@ -1657,6 +1711,10 @@ document.getElementById('analysis-created').innerText = 'Cadastro em: ' + (creat
                 </div>`;
             // Snapshot para comparar alterações
             window.__currentProfileSnapshot = JSON.parse(JSON.stringify(u || {}));
+
+            // Pré-preenche o select de função no rodapé do modal
+            const modalJobFn = document.getElementById('modal-job-function');
+            if (modalJobFn) modalJobFn.value = u.job_function || 'separador';
 
             // Viewer de fotos (somente etapa 5)
             const _btnDoc = document.getElementById('btn-view-doc');
@@ -2695,7 +2753,7 @@ async function showMetrics() {
             }).join('') : '<div class="p-8 text-center text-gray-400">Nenhuma atividade registrada.</div>';
         }
 async function switchTab(tab) {
-    const menuItems = ['profiles', 'markets', 'metrics', 'credenciais', 'pontuacao', 'pedidos', 'atrasos', 'managers', 'finance', 'comunicados'];
+    const menuItems = ['profiles', 'markets', 'metrics', 'credenciais', 'pontuacao', 'pedidos', 'atrasos', 'managers', 'finance', 'comunicados', 'configuracoes', 'academia', 'suporte'];
     menuItems.forEach(item => {
         const btn = document.getElementById(`nav-${item}`);
         if (btn) {
@@ -2761,6 +2819,10 @@ if (tab === 'profiles') {
     renderDelayRequests();
 } else if (tab === 'configuracoes') {
     renderConfiguracoes();
+} else if (tab === 'academia') {
+    renderAcademia();
+} else if (tab === 'suporte') {
+    renderAdminSuporte();
     }
 }
 
@@ -9306,6 +9368,652 @@ async function saveJobFunctionSettings() {
   }
 }
 
+// ============================================================
+// 🎓 ACADEMIA VOXYR — ADMIN
+// ============================================================
+
+let _academiaCurrentStepId = null;
+let _quizQuestions = [];
+
+// ── Render main Academia tab ──
+async function renderAcademia() {
+  const container = document.getElementById('academia-content');
+  if (!container) return;
+  container.innerHTML = '<div class="text-gray-400 text-sm p-4">Carregando...</div>';
+
+  const { data: steps } = await _supabase
+    .from('academy_steps')
+    .select('*, academy_step_contents(id), academy_quiz_questions(id)')
+    .order('job_function').order('order_index');
+
+  const fnLabel = { separador: '📦 Separador', repositor: '🛒 Repositor', operador_caixa: '💳 Op. Caixa' };
+
+  if (!steps || steps.length === 0) {
+    container.innerHTML = `
+      <div class="text-center py-20">
+        <div class="text-5xl mb-4">🎓</div>
+        <p class="font-black text-slate-300 uppercase text-sm mb-2">Nenhuma etapa ainda.</p>
+        <p class="text-slate-400 text-xs">Clique em "+ Nova Etapa" para começar.</p>
+      </div>`;
+    return;
+  }
+
+  const grouped = {};
+  steps.forEach(s => {
+    if (!grouped[s.job_function]) grouped[s.job_function] = [];
+    grouped[s.job_function].push(s);
+  });
+
+  container.innerHTML = Object.entries(grouped).map(([fn, fnSteps]) => `
+    <div class="mb-8">
+      <p class="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-3">${fnLabel[fn] || fn}</p>
+      <div class="space-y-2">
+        ${fnSteps.map(step => `
+          <div class="bg-white rounded-2xl border border-gray-200 px-5 py-4 flex items-center justify-between gap-4 hover:border-emerald-400 transition">
+            <div class="flex items-center gap-4">
+              <span class="w-7 h-7 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-xs font-black flex-shrink-0">${step.order_index}</span>
+              <div>
+                <p class="font-bold text-gray-800 text-sm">${escapeHtml(step.title)}</p>
+                <p class="text-xs text-gray-400 mt-0.5">
+                  ${step.academy_step_contents?.length || 0} conteúdo(s) &nbsp;·&nbsp;
+                  ${step.academy_quiz_questions?.length || 0} pergunta(s) &nbsp;·&nbsp;
+                  mínimo ${step.pass_score || 70}%
+                </p>
+              </div>
+            </div>
+            <div class="flex gap-2 flex-shrink-0">
+              <button onclick="openAcademiaEditor('${step.id}')" class="px-4 py-1.5 bg-gray-900 text-white rounded-lg text-xs font-bold hover:bg-emerald-600 transition">✏️ Editar etapa</button>
+              <button onclick="deleteAcademiaStep('${step.id}')" class="px-3 py-1.5 bg-red-50 text-red-500 rounded-lg text-xs font-bold hover:bg-red-100 transition">🗑️</button>
+            </div>
+          </div>`).join('')}
+      </div>
+    </div>`).join('');
+}
+
+// ── Full-screen step editor (replaces content modal) ──
+async function openAcademiaEditor(stepId) {
+  const container = document.getElementById('academia-content');
+  container.innerHTML = '<div class="text-gray-400 text-sm p-4">Carregando...</div>';
+
+  const [{ data: step }, { data: contents }, { data: questions }] = await Promise.all([
+    _supabase.from('academy_steps').select('*').eq('id', stepId).maybeSingle(),
+    _supabase.from('academy_step_contents').select('*').eq('step_id', stepId).order('order_index'),
+    _supabase.from('academy_quiz_questions').select('*, academy_quiz_options(*)').eq('step_id', stepId).order('order_index'),
+  ]);
+
+  if (!step) return;
+
+  // Init quiz state
+  _quizQuestions = (questions || []).map(q => ({
+    id: q.id,
+    text: q.question_text,
+    options: (q.academy_quiz_options || []).map(o => ({ id: o.id, text: o.option_text, correct: o.is_correct })),
+  }));
+
+  const typeIcon = { text: '📝', image: '🖼️', video: '🎬' };
+
+  const contentBlocks = (contents || []).map((c, i) => `
+    <div class="bg-white rounded-2xl border border-gray-200 p-4 flex items-start gap-4">
+      <span class="text-lg mt-0.5 flex-shrink-0">${typeIcon[c.type] || '📄'}</span>
+      <div class="flex-1 min-w-0">
+        <p class="font-bold text-gray-800 text-sm">${escapeHtml(c.title || '(sem título)')}</p>
+        <p class="text-xs text-gray-400 truncate mt-0.5">${c.type === 'text' ? escapeHtml((c.body||'').substring(0,80)) + '...' : escapeHtml(c.body)}</p>
+      </div>
+      <button onclick="deleteAcademiaContent('${c.id}', '${stepId}')" class="text-red-400 hover:text-red-600 text-xs font-bold flex-shrink-0">Remover</button>
+    </div>`).join('') || '<p class="text-sm text-gray-400 italic">Nenhum conteúdo adicionado ainda.</p>';
+
+  container.innerHTML = `
+    <div class="max-w-2xl mx-auto">
+
+      <!-- Voltar -->
+      <button onclick="renderAcademia()" class="flex items-center gap-2 text-sm text-gray-400 hover:text-gray-700 font-bold mb-6 transition">
+        ← Voltar para a Academia
+      </button>
+
+      <!-- Título da etapa -->
+      <div class="bg-white rounded-2xl border border-gray-200 p-5 mb-6">
+        <div class="flex items-center justify-between mb-4">
+          <p class="text-xs font-black uppercase text-gray-400">Dados da etapa</p>
+          <button onclick="openAcademiaStepModal('${stepId}')" class="text-xs text-emerald-600 font-bold hover:underline">Alterar</button>
+        </div>
+        <p class="font-black text-gray-800 text-lg">${escapeHtml(step.title)}</p>
+        <p class="text-xs text-gray-400 mt-1">${{ separador:'📦 Separador', repositor:'🛒 Repositor', operador_caixa:'💳 Op. Caixa' }[step.job_function] || step.job_function} &nbsp;·&nbsp; Etapa ${step.order_index} &nbsp;·&nbsp; Nota mínima: ${step.pass_score}%</p>
+      </div>
+
+      <!-- Conteúdos existentes -->
+      <div class="mb-4">
+        <p class="text-xs font-black uppercase text-gray-400 mb-3">Conteúdo da etapa</p>
+        <div class="space-y-2 mb-4" id="content-blocks-list">
+          ${contentBlocks}
+        </div>
+
+        <!-- Adicionar novo bloco -->
+        <div class="bg-gray-50 rounded-2xl border-2 border-dashed border-gray-300 p-5" id="add-content-block">
+          <p class="text-xs font-black uppercase text-gray-400 mb-3">Adicionar conteúdo</p>
+          <div class="flex gap-2 mb-4">
+            <button onclick="setContentType('text')" id="btn-type-text" class="flex-1 py-2 rounded-xl border-2 border-emerald-500 bg-emerald-50 text-emerald-700 text-xs font-black transition">📝 Texto</button>
+            <button onclick="setContentType('image')" id="btn-type-image" class="flex-1 py-2 rounded-xl border-2 border-gray-200 text-gray-500 text-xs font-black hover:border-blue-400 hover:text-blue-600 transition">🖼️ Imagem</button>
+            <button onclick="setContentType('video')" id="btn-type-video" class="flex-1 py-2 rounded-xl border-2 border-gray-200 text-gray-500 text-xs font-black hover:border-purple-400 hover:text-purple-600 transition">🎬 Vídeo</button>
+          </div>
+          <input type="hidden" id="new-content-type" value="text">
+          <div class="space-y-3">
+            <input type="text" id="new-content-title" placeholder="Título do bloco (ex: Como usar o app)" class="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500">
+            <div id="new-content-body-wrap">
+              <textarea id="new-content-body" rows="4" placeholder="Digite o conteúdo da etapa aqui..." class="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500 resize-none"></textarea>
+            </div>
+          </div>
+          <button onclick="addContentBlock('${stepId}')" class="mt-4 w-full py-2.5 bg-gray-900 text-white rounded-xl text-xs font-black hover:bg-emerald-600 transition">+ Adicionar bloco</button>
+          <div id="add-content-status" class="mt-2 text-xs text-center hidden"></div>
+        </div>
+      </div>
+
+      <!-- Quiz -->
+      <div class="bg-white rounded-2xl border border-gray-200 p-5">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <p class="text-xs font-black uppercase text-gray-400">Questionário final</p>
+            <p class="text-xs text-gray-400 mt-0.5">${_quizQuestions.length} pergunta(s) cadastrada(s)</p>
+          </div>
+          <button onclick="openAcademiaQuizModal('${stepId}')" class="px-4 py-2 bg-indigo-50 text-indigo-700 rounded-xl text-xs font-bold hover:bg-indigo-100 transition">✏️ Editar quiz</button>
+        </div>
+        ${_quizQuestions.length ? _quizQuestions.map((q, i) => `
+          <div class="bg-gray-50 rounded-xl p-3 mb-2 text-sm text-gray-700">
+            <span class="font-bold">${i+1}.</span> ${escapeHtml(q.text)}
+            <span class="text-xs text-gray-400 ml-2">(${q.options.length} opções)</span>
+          </div>`).join('') : '<p class="text-sm text-gray-400 italic">Nenhuma pergunta ainda — clique em "Editar quiz" para adicionar.</p>'}
+      </div>
+
+    </div>`;
+}
+
+// ── Set content type in add block form ──
+function setContentType(type) {
+  document.getElementById('new-content-type').value = type;
+  ['text','image','video'].forEach(t => {
+    const btn = document.getElementById(`btn-type-${t}`);
+    if (t === type) {
+      btn.className = 'flex-1 py-2 rounded-xl border-2 border-emerald-500 bg-emerald-50 text-emerald-700 text-xs font-black transition';
+    } else {
+      btn.className = 'flex-1 py-2 rounded-xl border-2 border-gray-200 text-gray-500 text-xs font-black hover:border-gray-400 transition';
+    }
+  });
+  const wrap = document.getElementById('new-content-body-wrap');
+  if (type === 'text') {
+    wrap.innerHTML = `<textarea id="new-content-body" rows="4" placeholder="Digite o conteúdo da etapa aqui..." class="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500 resize-none"></textarea>`;
+  } else if (type === 'image') {
+    wrap.innerHTML = `<input type="url" id="new-content-body" placeholder="Cole a URL da imagem (https://...)" class="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500">`;
+  } else if (type === 'video') {
+    wrap.innerHTML = `
+      <input type="url" id="new-content-body" placeholder="Cole o link do YouTube ou Vimeo" class="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500">
+      <p class="text-[10px] text-gray-400 mt-1">Ex: https://youtube.com/watch?v=abc123 — o sistema converte automaticamente.</p>`;
+  }
+}
+
+// ── Add content block inline ──
+async function addContentBlock(stepId) {
+  const type = document.getElementById('new-content-type').value;
+  const title = (document.getElementById('new-content-title')?.value || '').trim();
+  let body = (document.getElementById('new-content-body')?.value || '').trim();
+  const statusEl = document.getElementById('add-content-status');
+
+  if (!body) {
+    statusEl.className = 'mt-2 text-xs text-center text-red-500'; statusEl.textContent = 'Preencha o conteúdo antes de adicionar.'; statusEl.classList.remove('hidden');
+    return;
+  }
+
+  // Convert YouTube URL to embed
+  if (type === 'video') {
+    if (body.includes('youtube.com/watch')) {
+      try { const vid = new URL(body).searchParams.get('v'); if (vid) body = `https://www.youtube.com/embed/${vid}`; } catch(e){}
+    } else if (body.includes('youtu.be/')) {
+      const vid = body.split('youtu.be/')[1]?.split('?')[0]; if (vid) body = `https://www.youtube.com/embed/${vid}`;
+    }
+  }
+
+  // Get current max order
+  const { data: existing } = await _supabase.from('academy_step_contents').select('order_index').eq('step_id', stepId).order('order_index', { ascending: false }).limit(1);
+  const nextOrder = (existing?.[0]?.order_index || 0) + 1;
+
+  const { error } = await _supabase.from('academy_step_contents').insert({ step_id: stepId, type, title: title || null, body, order_index: nextOrder });
+
+  if (error) {
+    statusEl.className = 'mt-2 text-xs text-center text-red-500'; statusEl.textContent = 'Erro: ' + error.message; statusEl.classList.remove('hidden');
+    return;
+  }
+
+  // Reload editor
+  await openAcademiaEditor(stepId);
+}
+
+// ── Open step modal ──
+async function openAcademiaStepModal(id = null) {
+  document.getElementById('acs-id').value = id || '';
+  document.getElementById('acs-title').value = '';
+  document.getElementById('acs-function').value = 'separador';
+  document.getElementById('acs-order').value = '1';
+  document.getElementById('acs-pass-score').value = '70';
+  document.getElementById('modal-academia-step-title').textContent = id ? 'Editar Etapa' : 'Nova Etapa';
+
+  if (id) {
+    const { data } = await _supabase.from('academy_steps').select('*').eq('id', id).maybeSingle();
+    if (data) {
+      document.getElementById('acs-title').value = data.title;
+      document.getElementById('acs-function').value = data.job_function;
+      document.getElementById('acs-order').value = data.order_index;
+      document.getElementById('acs-pass-score').value = data.pass_score || 70;
+    }
+  }
+  document.getElementById('modal-academia-step').classList.remove('hidden');
+}
+
+// ── Save step ──
+async function saveAcademiaStep() {
+  const id = document.getElementById('acs-id').value;
+  const payload = {
+    title: document.getElementById('acs-title').value.trim(),
+    job_function: document.getElementById('acs-function').value,
+    order_index: parseInt(document.getElementById('acs-order').value) || 1,
+    pass_score: parseInt(document.getElementById('acs-pass-score').value) || 70,
+    updated_at: new Date().toISOString(),
+  };
+  if (!payload.title) return alert('Informe o título da etapa.');
+  const { error } = id
+    ? await _supabase.from('academy_steps').update(payload).eq('id', id)
+    : await _supabase.from('academy_steps').insert(payload);
+  if (error) return alert('Erro: ' + error.message);
+  document.getElementById('modal-academia-step').classList.add('hidden');
+  renderAcademia();
+}
+
+// ── Delete step ──
+async function deleteAcademiaStep(id) {
+  if (!confirm('Excluir esta etapa e todo seu conteúdo?')) return;
+  await _supabase.from('academy_step_contents').delete().eq('step_id', id);
+  await _supabase.from('academy_quiz_questions').delete().eq('step_id', id);
+  await _supabase.from('academy_steps').delete().eq('id', id);
+  renderAcademia();
+}
+
+// ── Delete content (called from editor) ──
+async function deleteAcademiaContent(id, stepId) {
+  if (!confirm('Remover este bloco de conteúdo?')) return;
+  await _supabase.from('academy_step_contents').delete().eq('id', id);
+  await openAcademiaEditor(stepId);
+}
+
+// ── Open quiz modal ──
+async function openAcademiaQuizModal(stepId) {
+  document.getElementById('quiz-step-id').value = stepId;
+  const { data: step } = await _supabase.from('academy_steps').select('title').eq('id', stepId).maybeSingle();
+  const { data: questions } = await _supabase
+    .from('academy_quiz_questions')
+    .select('*, academy_quiz_options(*)')
+    .eq('step_id', stepId)
+    .order('order_index');
+
+  _quizQuestions = (questions || []).map(q => ({
+    id: q.id,
+    text: q.question_text,
+    options: (q.academy_quiz_options || []).map(o => ({ id: o.id, text: o.option_text, correct: o.is_correct })),
+  }));
+
+  renderQuizEditor();
+  document.getElementById('modal-academia-quiz').classList.remove('hidden');
+}
+
+// ── Render quiz editor ──
+function renderQuizEditor() {
+  const container = document.getElementById('quiz-questions-list');
+  if (!_quizQuestions.length) {
+    container.innerHTML = '<p class="text-sm text-gray-400 text-center py-4">Nenhuma pergunta ainda. Clique em "+ Adicionar Pergunta".</p>';
+    return;
+  }
+  container.innerHTML = _quizQuestions.map((q, qi) => `
+    <div class="bg-gray-50 rounded-2xl p-4 border border-gray-200">
+      <div class="flex items-start justify-between gap-3 mb-3">
+        <input type="text" value="${escapeHtml(q.text)}" onchange="_quizQuestions[${qi}].text=this.value"
+          placeholder="Texto da pergunta..." class="flex-1 border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500">
+        <button onclick="_quizQuestions.splice(${qi},1); renderQuizEditor();" class="text-red-400 hover:text-red-600 text-xs font-bold flex-shrink-0 mt-2">🗑️ Remover</button>
+      </div>
+      <div class="space-y-2 mb-2">
+        ${q.options.map((opt, oi) => `
+          <div class="flex items-center gap-2">
+            <input type="radio" name="correct_${qi}" ${opt.correct ? 'checked' : ''} onchange="_quizQuestions[${qi}].options.forEach((o,i)=>o.correct=i===${oi})" class="accent-emerald-500">
+            <input type="text" value="${escapeHtml(opt.text)}" onchange="_quizQuestions[${qi}].options[${oi}].text=this.value"
+              placeholder="Opção de resposta..." class="flex-1 border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500">
+            <button onclick="_quizQuestions[${qi}].options.splice(${oi},1); renderQuizEditor();" class="text-red-300 hover:text-red-500 text-xs">✕</button>
+          </div>`).join('')}
+      </div>
+      <button onclick="_quizQuestions[${qi}].options.push({id:null,text:'',correct:false}); renderQuizEditor();"
+        class="text-xs text-emerald-600 font-bold hover:text-emerald-800">+ Adicionar opção</button>
+    </div>`).join('');
+}
+
+// ── Add blank question ──
+function addQuizQuestion() {
+  _quizQuestions.push({ id: null, text: '', options: [{ id: null, text: '', correct: true }, { id: null, text: '', correct: false }] });
+  renderQuizEditor();
+}
+
+// ── Save quiz ──
+async function saveQuiz() {
+  const stepId = document.getElementById('quiz-step-id').value;
+  if (!stepId) return;
+
+  for (const q of _quizQuestions) {
+    if (!q.text.trim()) return alert('Preencha o texto de todas as perguntas.');
+    if (!q.options.length) return alert('Cada pergunta precisa de ao menos uma opção.');
+    if (!q.options.some(o => o.correct)) return alert(`A pergunta "${q.text}" precisa de uma resposta correta.`);
+  }
+
+  // Delete all existing questions/options for this step and re-insert
+  await _supabase.from('academy_quiz_questions').delete().eq('step_id', stepId);
+
+  for (let i = 0; i < _quizQuestions.length; i++) {
+    const q = _quizQuestions[i];
+    const { data: newQ, error } = await _supabase
+      .from('academy_quiz_questions')
+      .insert({ step_id: stepId, question_text: q.text.trim(), order_index: i + 1 })
+      .select('id')
+      .maybeSingle();
+    if (error || !newQ) { alert('Erro ao salvar pergunta: ' + (error?.message || '')); return; }
+    const opts = q.options.map((o, oi) => ({ question_id: newQ.id, option_text: o.text.trim(), is_correct: o.correct, order_index: oi + 1 }));
+    await _supabase.from('academy_quiz_options').insert(opts);
+  }
+
+  document.getElementById('modal-academia-quiz').classList.add('hidden');
+  renderAcademia();
+}
+
+
+async function updateProfileJobFunction(newFn) {
+    if (!currentUserId) return;
+    const fnLabels = { separador: '📦 Separador', repositor: '🛒 Repositor', operador_caixa: '💳 Op. de Caixa' };
+    if (!confirm(`Alterar a função deste perfil para "${fnLabels[newFn]}"?`)) {
+        // Reverte o select se cancelar
+        const u = allUsers.find(x => x.id === currentUserId);
+        const modalJobFn = document.getElementById('modal-job-function');
+        if (modalJobFn && u) modalJobFn.value = u.job_function || 'separador';
+        return;
+    }
+    const { error } = await _supabase
+        .from('profiles')
+        .update({ job_function: newFn, updated_at: new Date().toISOString() })
+        .eq('id', currentUserId);
+
+    if (error) {
+        alert('Erro ao alterar função: ' + error.message);
+        return;
+    }
+    // Atualiza localmente
+    const u = allUsers.find(x => x.id === currentUserId);
+    if (u) u.job_function = newFn;
+    // Feedback visual
+    const select = document.getElementById('modal-job-function');
+    if (select) {
+        select.classList.add('ring-2', 'ring-emerald-500');
+        setTimeout(() => select.classList.remove('ring-2', 'ring-emerald-500'), 2000);
+    }
+}
+
+// ============================================================
+// 🎧 SUPORTE — ADMIN
+// ============================================================
+
+// ── Realtime subscription para o chat aberto no admin ──
+let _adminChatSub = null;
+let _adminCurrentTicketId = null;
+
+async function renderAdminSuporte() {
+  const container = document.getElementById('suporte-content');
+  if (!container) return;
+  container.innerHTML = '<div class="text-gray-400 text-sm p-4">Carregando...</div>';
+
+  const [{ data: tickets }, { data: faqs }] = await Promise.all([
+    _supabase.from('support_tickets')
+      .select('*, profile:profile_id(full_name)')
+      .order('last_message_at', { ascending: false, nullsFirst: false })
+      .order('created_at', { ascending: false })
+      .limit(100),
+    _supabase.from('support_faqs').select('*').order('category').order('created_at'),
+  ]);
+
+  const statusBadge = (s) => ({
+    open:        '<span class="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-amber-100 text-amber-700">Aberto</span>',
+    in_progress: '<span class="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-blue-100 text-blue-700">Em atendimento</span>',
+    resolved:    '<span class="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-100 text-emerald-700">Resolvido</span>',
+  }[s] || s);
+
+  const openTickets     = (tickets||[]).filter(t => t.status === 'open');
+  const inProgTickets   = (tickets||[]).filter(t => t.status === 'in_progress');
+  const resolvedTickets = (tickets||[]).filter(t => t.status === 'resolved');
+
+  const ticketRow = (t) => `
+    <div class="bg-white rounded-2xl border border-gray-200 px-5 py-4 flex items-center justify-between gap-4 hover:border-emerald-400 transition cursor-pointer" onclick="openAdminChat('${t.id}')">
+      <div class="flex items-center gap-3 min-w-0">
+        <div class="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center text-base flex-shrink-0">🎧</div>
+        <div class="min-w-0">
+          <p class="font-bold text-gray-800 text-sm truncate">${escapeHtml(t.subject || 'Sem assunto')}</p>
+          <p class="text-xs text-gray-400 mt-0.5">${escapeHtml(t.profile?.full_name || '—')} · ${new Date(t.created_at).toLocaleDateString('pt-BR')}</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-3 flex-shrink-0">${statusBadge(t.status)}<span class="text-gray-400 text-sm">→</span></div>
+    </div>`;
+
+  const faqGrouped = {};
+  (faqs||[]).forEach(f => { const cat = f.category||'Geral'; if(!faqGrouped[cat]) faqGrouped[cat]=[]; faqGrouped[cat].push(f); });
+
+  const faqHtml = Object.keys(faqGrouped).length
+    ? Object.entries(faqGrouped).map(([cat, items]) => `
+        <div class="mb-4">
+          <p class="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-2">${escapeHtml(cat)}</p>
+          <div class="space-y-2">${items.map(f => `
+            <div class="bg-white rounded-2xl border border-gray-200 px-5 py-3 flex items-start justify-between gap-4">
+              <div class="min-w-0">
+                <p class="font-bold text-gray-800 text-sm">${escapeHtml(f.question)}</p>
+                <p class="text-xs text-gray-500 mt-1 line-clamp-2">${escapeHtml(f.answer)}</p>
+              </div>
+              <div class="flex gap-2 flex-shrink-0">
+                <button onclick="openFaqModal('${f.id}')" class="text-xs text-gray-400 hover:text-gray-700 font-bold px-2 py-1">✏️</button>
+                <button onclick="deleteFaq('${f.id}')" class="text-xs text-red-400 hover:text-red-600 font-bold px-2 py-1">🗑️</button>
+              </div>
+            </div>`).join('')}
+          </div>
+        </div>`).join('')
+    : '<p class="text-sm text-gray-400 italic">Nenhuma pergunta cadastrada ainda.</p>';
+
+  const section = (title, list) => !list.length ? '' : `
+    <div class="mb-6">
+      <p class="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-3">${title} (${list.length})</p>
+      <div class="space-y-2">${list.map(ticketRow).join('')}</div>
+    </div>`;
+
+  const noTickets = !openTickets.length && !inProgTickets.length && !resolvedTickets.length;
+
+  container.innerHTML = `
+    <div class="grid grid-cols-1 xl:grid-cols-2 gap-8">
+      <div>
+        <h3 class="text-sm font-black uppercase text-gray-700 mb-4">📋 Chamados</h3>
+        ${noTickets
+          ? `<div class="bg-white rounded-2xl border p-8 text-center"><p class="text-3xl mb-2">🎉</p><p class="text-sm text-gray-400">Nenhum chamado aberto!</p></div>`
+          : `${section('🔴 Abertos', openTickets)}${section('🔵 Em atendimento', inProgTickets)}${section('✅ Resolvidos', resolvedTickets)}`}
+      </div>
+      <div>
+        <h3 class="text-sm font-black uppercase text-gray-700 mb-4">❓ FAQ — Base de conhecimento</h3>
+        ${faqHtml}
+      </div>
+    </div>`;
+}
+
+// ── Abre o chat do chamado na tela do admin ──
+async function openAdminChat(ticketId) {
+  // Cancela sub anterior
+  if (_adminChatSub) { _supabase.removeChannel(_adminChatSub); _adminChatSub = null; }
+  _adminCurrentTicketId = ticketId;
+
+  const container = document.getElementById('suporte-content');
+  container.innerHTML = '<div class="text-gray-400 text-sm p-4">Carregando...</div>';
+
+  const [{ data: ticket }, { data: msgs }] = await Promise.all([
+    _supabase.from('support_tickets').select('*, profile:profile_id(full_name)').eq('id', ticketId).maybeSingle(),
+    _supabase.from('support_messages').select('*').eq('ticket_id', ticketId).order('created_at'),
+  ]);
+  if (!ticket) return;
+
+  // Marca como in_progress automaticamente
+  if (ticket.status === 'open') {
+    await _supabase.from('support_tickets').update({ status: 'in_progress' }).eq('id', ticketId);
+    ticket.status = 'in_progress';
+  }
+
+  const statusBadge = { open:'<span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-100 text-amber-700">Aberto</span>', in_progress:'<span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-blue-100 text-blue-700">Em atendimento</span>', resolved:'<span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-700">Resolvido</span>' }[ticket.status] || '';
+
+  container.innerHTML = `
+    <div class="max-w-2xl mx-auto flex flex-col" style="height: calc(100vh - 8rem);">
+
+      <!-- Header -->
+      <div class="flex items-center justify-between mb-4 flex-shrink-0">
+        <button onclick="if(_adminChatSub){_supabase.removeChannel(_adminChatSub);_adminChatSub=null;} renderAdminSuporte();"
+          class="flex items-center gap-2 text-sm text-gray-400 hover:text-gray-700 font-bold transition">
+          ← Voltar
+        </button>
+        <div class="flex items-center gap-3">
+          ${statusBadge}
+          ${ticket.status !== 'resolved' ? `<button onclick="adminCloseTicket('${ticketId}')" class="px-4 py-1.5 bg-emerald-50 text-emerald-700 rounded-xl text-xs font-bold hover:bg-emerald-100 transition">✅ Resolver</button>` : ''}
+        </div>
+      </div>
+
+      <!-- Info do chamado -->
+      <div class="bg-white rounded-2xl border border-gray-200 p-4 mb-4 flex-shrink-0">
+        <p class="font-black text-gray-800">${escapeHtml(ticket.subject || 'Sem assunto')}</p>
+        <p class="text-xs text-gray-400 mt-0.5">${escapeHtml(ticket.profile?.full_name || '—')} · ${new Date(ticket.created_at).toLocaleDateString('pt-BR')}</p>
+        <div class="mt-3 bg-gray-50 rounded-xl p-3">
+          <p class="text-[10px] font-black uppercase text-gray-400 mb-1">Descrição</p>
+          <p class="text-sm text-gray-700">${escapeHtml(ticket.description || '')}</p>
+        </div>
+      </div>
+
+      <!-- Mensagens -->
+      <div id="admin-chat-messages" class="flex-1 overflow-y-auto space-y-3 mb-4 px-1">
+        ${renderChatMessages(msgs || [], 'admin')}
+      </div>
+
+      <!-- Input (bloqueado se resolvido) -->
+      ${ticket.status !== 'resolved' ? `
+        <div class="flex-shrink-0 flex gap-3 items-end">
+          <textarea id="admin-chat-input" rows="2" placeholder="Digite a resposta..."
+            class="flex-1 border-2 border-gray-200 focus:border-emerald-500 rounded-2xl px-4 py-3 text-sm outline-none transition resize-none"
+            onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();adminSendMessage('${ticketId}');}"></textarea>
+          <button onclick="adminSendMessage('${ticketId}')" class="w-12 h-12 bg-slate-900 text-white rounded-2xl flex items-center justify-center hover:bg-emerald-600 transition flex-shrink-0">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          </button>
+        </div>` : `<div class="text-center text-sm text-gray-400 py-3 flex-shrink-0">Este chamado foi resolvido.</div>`}
+    </div>`;
+
+  scrollChatToBottom('admin-chat-messages');
+
+  // Realtime subscription
+  _adminChatSub = _supabase.channel(`ticket-admin-${ticketId}`)
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'support_messages', filter: `ticket_id=eq.${ticketId}` },
+      (payload) => {
+        const el = document.getElementById('admin-chat-messages');
+        if (!el) return;
+        el.insertAdjacentHTML('beforeend', renderChatMessages([payload.new], 'admin'));
+        scrollChatToBottom('admin-chat-messages');
+      })
+    .subscribe();
+}
+
+async function adminSendMessage(ticketId) {
+  const input = document.getElementById('admin-chat-input');
+  const text = (input?.value || '').trim();
+  if (!text) return;
+  input.value = '';
+  const { error } = await _supabase.from('support_messages').insert({
+    ticket_id: ticketId,
+    sender: 'admin',
+    message: text,
+  });
+  if (error) { input.value = text; alert('Erro: ' + error.message); }
+  // Atualiza last_message_at
+  await _supabase.from('support_tickets').update({ last_message_at: new Date().toISOString() }).eq('id', ticketId);
+}
+
+async function adminCloseTicket(ticketId) {
+  if (!confirm('Marcar este chamado como resolvido?')) return;
+  await _supabase.from('support_tickets').update({ status: 'resolved', resolved_at: new Date().toISOString() }).eq('id', ticketId);
+  if (_adminChatSub) { _supabase.removeChannel(_adminChatSub); _adminChatSub = null; }
+  renderAdminSuporte();
+}
+
+// FAQ modal e funções (mantidas)
+async function openFaqModal(id = null) {
+  document.getElementById('faq-id').value = id || '';
+  document.getElementById('faq-question').value = '';
+  document.getElementById('faq-answer').value = '';
+  document.getElementById('faq-category').value = '';
+  document.getElementById('modal-faq-title').textContent = id ? 'Editar Pergunta' : 'Nova Pergunta FAQ';
+  if (id) {
+    const { data } = await _supabase.from('support_faqs').select('*').eq('id', id).maybeSingle();
+    if (data) {
+      document.getElementById('faq-question').value = data.question;
+      document.getElementById('faq-answer').value = data.answer;
+      document.getElementById('faq-category').value = data.category || '';
+    }
+  }
+  document.getElementById('modal-faq').classList.remove('hidden');
+}
+
+async function saveFaq() {
+  const id = document.getElementById('faq-id').value;
+  const payload = {
+    question:   document.getElementById('faq-question').value.trim(),
+    answer:     document.getElementById('faq-answer').value.trim(),
+    category:   document.getElementById('faq-category').value.trim() || 'Geral',
+    updated_at: new Date().toISOString(),
+  };
+  if (!payload.question || !payload.answer) return alert('Preencha a pergunta e a resposta.');
+  const { error } = id
+    ? await _supabase.from('support_faqs').update(payload).eq('id', id)
+    : await _supabase.from('support_faqs').insert(payload);
+  if (error) return alert('Erro: ' + error.message);
+  document.getElementById('modal-faq').classList.add('hidden');
+  renderAdminSuporte();
+}
+
+async function deleteFaq(id) {
+  if (!confirm('Excluir esta pergunta do FAQ?')) return;
+  await _supabase.from('support_faqs').delete().eq('id', id);
+  renderAdminSuporte();
+}
+
+// Helpers compartilhados
+function renderChatMessages(msgs, viewer) {
+  if (!msgs || !msgs.length) return '<p class="text-center text-xs text-gray-400 py-4">Nenhuma mensagem ainda.</p>';
+  return msgs.map(m => {
+    const isMe = (viewer === 'admin' && m.sender === 'admin') || (viewer === 'autonomo' && m.sender === 'autonomo');
+    const time = new Date(m.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    const label = m.sender === 'admin' ? 'Suporte Voxyr' : 'Você';
+    return `
+      <div class="flex ${isMe ? 'justify-end' : 'justify-start'}">
+        <div class="max-w-[80%]">
+          <p class="text-[10px] font-bold mb-1 ${isMe ? 'text-right text-emerald-600' : 'text-slate-400'}">${label}</p>
+          <div class="rounded-2xl px-4 py-3 text-sm leading-relaxed ${isMe ? 'bg-slate-900 text-white rounded-tr-sm' : 'bg-white border border-slate-200 text-slate-800 rounded-tl-sm'}">
+            ${escapeHtml(m.message)}
+          </div>
+          <p class="text-[10px] text-gray-400 mt-1 ${isMe ? 'text-right' : ''}">${time}</p>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function scrollChatToBottom(id) {
+  setTimeout(() => {
+    const el = document.getElementById(id);
+    if (el) el.scrollTop = el.scrollHeight;
+  }, 50);
+}
+
 </script>
 <script>
   if ('serviceWorker' in navigator) {
@@ -9320,5 +10028,126 @@ async function saveJobFunctionSettings() {
   }
 
 </script>
+<!-- ===== MODAL: CRIAR/EDITAR ETAPA DA ACADEMIA ===== -->
+<div id="modal-academia-step" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+    <div class="p-6 border-b flex items-center justify-between">
+      <h3 id="modal-academia-step-title" class="font-black text-gray-800 uppercase text-sm">Nova Etapa</h3>
+      <button onclick="document.getElementById('modal-academia-step').classList.add('hidden')" class="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+    </div>
+    <div class="p-6 space-y-4">
+      <input type="hidden" id="acs-id">
+      <div>
+        <label class="text-[10px] font-black uppercase text-gray-400">Título da Etapa</label>
+        <input type="text" id="acs-title" placeholder="Ex: Boas-vindas à Voxyr" class="w-full border rounded-xl px-3 py-2 text-sm mt-1 outline-none focus:ring-2 focus:ring-emerald-500">
+      </div>
+      <div>
+        <label class="text-[10px] font-black uppercase text-gray-400">Função</label>
+        <select id="acs-function" class="w-full border rounded-xl px-3 py-2 text-sm mt-1 bg-white outline-none focus:ring-2 focus:ring-emerald-500">
+          <option value="separador">📦 Separador de Pedidos</option>
+          <option value="repositor">🛒 Repositor de Mercadorias</option>
+          <option value="operador_caixa">💳 Operador de Caixa</option>
+        </select>
+      </div>
+      <div>
+        <label class="text-[10px] font-black uppercase text-gray-400">Ordem</label>
+        <input type="number" id="acs-order" value="1" min="1" class="w-full border rounded-xl px-3 py-2 text-sm mt-1 outline-none focus:ring-2 focus:ring-emerald-500">
+      </div>
+      <div>
+        <label class="text-[10px] font-black uppercase text-gray-400">Nota mínima no questionário (%)</label>
+        <input type="number" id="acs-pass-score" value="70" min="0" max="100" class="w-full border rounded-xl px-3 py-2 text-sm mt-1 outline-none focus:ring-2 focus:ring-emerald-500">
+      </div>
+    </div>
+    <div class="p-6 border-t flex justify-end gap-3">
+      <button onclick="document.getElementById('modal-academia-step').classList.add('hidden')" class="px-5 py-2 text-sm text-gray-600 hover:text-gray-900">Cancelar</button>
+      <button onclick="saveAcademiaStep()" class="bg-gray-900 text-white px-6 py-2 rounded-xl text-sm font-bold hover:bg-emerald-600 transition">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL: QUESTIONÁRIO DA ETAPA ===== -->
+<div id="modal-academia-quiz" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+    <div class="p-6 border-b flex items-center justify-between">
+      <h3 class="font-black text-gray-800 uppercase text-sm">Questionário da Etapa</h3>
+      <button onclick="document.getElementById('modal-academia-quiz').classList.add('hidden')" class="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+    </div>
+    <div class="p-6">
+      <input type="hidden" id="quiz-step-id">
+      <div id="quiz-questions-list" class="space-y-4 mb-6"></div>
+      <button onclick="addQuizQuestion()" class="w-full py-3 border-2 border-dashed border-gray-300 rounded-xl text-sm font-bold text-gray-400 hover:border-emerald-500 hover:text-emerald-600 transition">+ Adicionar Pergunta</button>
+    </div>
+    <div class="p-6 border-t flex justify-end gap-3">
+      <button onclick="document.getElementById('modal-academia-quiz').classList.add('hidden')" class="px-5 py-2 text-sm text-gray-600">Cancelar</button>
+      <button onclick="saveQuiz()" class="bg-gray-900 text-white px-6 py-2 rounded-xl text-sm font-bold hover:bg-emerald-600 transition">Salvar Questionário</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL: FAQ ===== -->
+<div id="modal-faq" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
+    <div class="p-6 border-b flex items-center justify-between">
+      <h3 id="modal-faq-title" class="font-black text-gray-800 uppercase text-sm">Nova Pergunta FAQ</h3>
+      <button onclick="document.getElementById('modal-faq').classList.add('hidden')" class="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+    </div>
+    <div class="p-6 space-y-4">
+      <input type="hidden" id="faq-id">
+      <div>
+        <label class="text-[10px] font-black uppercase text-gray-400">Pergunta</label>
+        <input type="text" id="faq-question" placeholder="Ex: Como faço para cancelar uma reserva?" class="w-full border rounded-xl px-3 py-2 text-sm mt-1 outline-none focus:ring-2 focus:ring-emerald-500">
+      </div>
+      <div>
+        <label class="text-[10px] font-black uppercase text-gray-400">Resposta</label>
+        <textarea id="faq-answer" rows="5" placeholder="Digite a resposta completa..." class="w-full border rounded-xl px-3 py-2 text-sm mt-1 outline-none focus:ring-2 focus:ring-emerald-500 resize-none"></textarea>
+      </div>
+      <div>
+        <label class="text-[10px] font-black uppercase text-gray-400">Categoria (opcional)</label>
+        <input type="text" id="faq-category" placeholder="Ex: Reservas, Pagamento, App..." class="w-full border rounded-xl px-3 py-2 text-sm mt-1 outline-none focus:ring-2 focus:ring-emerald-500">
+      </div>
+    </div>
+    <div class="p-6 border-t flex justify-end gap-3">
+      <button onclick="document.getElementById('modal-faq').classList.add('hidden')" class="px-5 py-2 text-sm text-gray-500 hover:text-gray-700">Cancelar</button>
+      <button onclick="saveFaq()" class="bg-gray-900 text-white px-6 py-2 rounded-xl text-sm font-bold hover:bg-emerald-600 transition">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL: RESPONDER CHAMADO ===== -->
+<div id="modal-ticket" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+    <div class="p-6 border-b flex items-center justify-between">
+      <h3 class="font-black text-gray-800 uppercase text-sm">Responder Chamado</h3>
+      <button onclick="document.getElementById('modal-ticket').classList.add('hidden')" class="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+    </div>
+    <div class="p-6 space-y-4">
+      <input type="hidden" id="ticket-id">
+      <div class="bg-gray-50 rounded-2xl p-4">
+        <p class="text-[10px] font-black uppercase text-gray-400 mb-1">Autônomo</p>
+        <p id="ticket-user" class="font-bold text-gray-800 text-sm"></p>
+      </div>
+      <div class="bg-gray-50 rounded-2xl p-4">
+        <p class="text-[10px] font-black uppercase text-gray-400 mb-2">Descrição do problema</p>
+        <p id="ticket-description" class="text-gray-700 text-sm leading-relaxed"></p>
+      </div>
+      <div id="ticket-prev-reply-wrap" class="hidden bg-emerald-50 rounded-2xl p-4 border border-emerald-200">
+        <p class="text-[10px] font-black uppercase text-emerald-600 mb-1">Resposta anterior</p>
+        <p id="ticket-prev-reply" class="text-emerald-800 text-sm leading-relaxed"></p>
+      </div>
+      <div>
+        <label class="text-[10px] font-black uppercase text-gray-400">Sua resposta</label>
+        <textarea id="ticket-reply" rows="5" placeholder="Digite a resposta para o autônomo..." class="w-full border rounded-xl px-3 py-2 text-sm mt-1 outline-none focus:ring-2 focus:ring-emerald-500 resize-none"></textarea>
+      </div>
+    </div>
+    <div class="p-6 border-t flex justify-between items-center">
+      <button onclick="closeTicket()" class="px-4 py-2 bg-emerald-50 text-emerald-700 rounded-xl text-xs font-bold hover:bg-emerald-100 transition">✅ Marcar como resolvido</button>
+      <div class="flex gap-3">
+        <button onclick="document.getElementById('modal-ticket').classList.add('hidden')" class="px-5 py-2 text-sm text-gray-500">Cancelar</button>
+        <button onclick="replyTicket()" class="bg-gray-900 text-white px-6 py-2 rounded-xl text-sm font-bold hover:bg-emerald-600 transition">Enviar resposta</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
