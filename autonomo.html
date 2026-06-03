@@ -3489,38 +3489,86 @@ async function openAcademiaStep(stepId) {
     showLoading(false);
     if (!step) return;
 
-    const renderContent = (c) => {
+    // Track which videos need to be watched
+    const videoContents = (contents||[]).filter(c => c.type === 'video');
+    const videoIds = videoContents.map(c => c.id);
+    window.__videosWatched = window.__videosWatched || {};
+    window.__videosWatched[stepId] = window.__videosWatched[stepId] || new Set();
+    const allVideosRequired = videoIds.length > 0;
+
+    const renderContent = (c, idx) => {
+        // Title OUTSIDE the card
+        const titleHtml = c.title
+            ? `<p class="font-black text-slate-800 text-base mb-2">${escapeHtml(c.title)}</p>`
+            : '';
+        // Observation below the card
+        const obsHtml = c.observation
+            ? `<div class="mt-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-start gap-2">
+                <span class="text-amber-500 flex-shrink-0 mt-0.5">💡</span>
+                <p class="text-sm text-amber-800 leading-relaxed">${escapeHtml(c.observation)}</p>
+               </div>`
+            : '';
+
         if (c.type === 'text') return `
-            <div class="bg-white rounded-2xl border p-6 shadow-sm">
-                ${c.title ? `<h4 class="font-black text-slate-800 mb-3">${escapeHtml(c.title)}</h4>` : ''}
-                <p class="text-slate-600 leading-relaxed whitespace-pre-line">${escapeHtml(c.body)}</p>
-            </div>`;
-        if (c.type === 'image') return `
-            <div class="rounded-2xl overflow-hidden shadow-sm border">
-                ${c.title ? `<p class="px-4 pt-3 font-bold text-slate-700 text-sm">${escapeHtml(c.title)}</p>` : ''}
-                <img src="${escapeHtml(c.body)}" alt="${escapeHtml(c.title||'')}" class="w-full object-cover max-h-80">
-            </div>`;
-        if (c.type === 'video') return `
-            <div class="rounded-2xl overflow-hidden shadow-sm border bg-black">
-                ${c.title ? `<p class="px-4 pt-3 font-bold text-white text-sm">${escapeHtml(c.title)}</p>` : ''}
-                <div class="relative" style="padding-bottom:56.25%">
-                    <iframe src="${c.body}" class="absolute inset-0 w-full h-full" frameborder="0" allowfullscreen></iframe>
+            <div>
+                ${titleHtml}
+                <div class="bg-white rounded-2xl border p-6 shadow-sm">
+                    <p class="text-slate-600 leading-relaxed whitespace-pre-line">${escapeHtml(c.body)}</p>
                 </div>
+                ${obsHtml}
             </div>`;
+
+        if (c.type === 'image') return `
+            <div>
+                ${titleHtml}
+                <div class="rounded-2xl overflow-hidden shadow-sm border">
+                    <img src="${escapeHtml(c.body)}" alt="${escapeHtml(c.title||'')}" class="w-full object-cover max-h-80">
+                </div>
+                ${obsHtml}
+            </div>`;
+
+        if (c.type === 'video') {
+            // Add enablejsapi=1 to allow YouTube API to track completion
+            const embedUrl = c.body.includes('?')
+                ? c.body + '&enablejsapi=1&rel=0'
+                : c.body + '?enablejsapi=1&rel=0';
+            return `
+            <div>
+                ${titleHtml}
+                <div class="rounded-2xl overflow-hidden shadow-sm border bg-black" id="video-wrap-${c.id}">
+                    <div class="relative" style="padding-bottom:56.25%">
+                        <iframe
+                            id="yt-${c.id}"
+                            src="${escapeHtml(embedUrl)}"
+                            class="absolute inset-0 w-full h-full"
+                            frameborder="0"
+                            allowfullscreen
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture">
+                        </iframe>
+                    </div>
+                </div>
+                <div id="video-status-${c.id}" class="mt-2 flex items-center gap-2 text-xs font-bold text-amber-600">
+                    <span>⏳</span> Assista ao vídeo completo para continuar
+                </div>
+                ${obsHtml}
+            </div>`;
+        }
         return '';
     };
 
-    const quizHtml = (questions || []).length ? `
+    const hasQuiz = (questions||[]).length > 0;
+
+    const quizHtml = hasQuiz ? `
         <div id="academy-quiz" class="max-w-2xl mx-auto mt-8">
             <div class="bg-white rounded-2xl border p-6 shadow-sm">
                 <h4 class="font-black text-slate-800 text-lg mb-1">📝 Questionário</h4>
                 <p class="text-xs text-slate-400 mb-6">Nota mínima para aprovação: ${step.pass_score || 70}%</p>
                 <div class="space-y-6">
-                    ${(questions || []).map((q, qi) => `
+                    ${(questions||[]).map((q, qi) => `
                         <div>
                             <p class="font-bold text-slate-800 mb-3">${qi+1}. ${escapeHtml(q.question_text)}</p>
                             <div class="space-y-2">
-                                ${(q.academy_quiz_options || []).map((opt, oi) => `
+                                ${(q.academy_quiz_options||[]).map((opt) => `
                                     <label class="flex items-center gap-3 p-3 rounded-xl border cursor-pointer hover:bg-slate-50 transition">
                                         <input type="radio" name="q_${qi}" value="${opt.id}" data-correct="${opt.is_correct}" class="accent-emerald-500">
                                         <span class="text-sm text-slate-700">${escapeHtml(opt.option_text)}</span>
@@ -3529,15 +3577,20 @@ async function openAcademiaStep(stepId) {
                         </div>`).join('')}
                 </div>
                 <div id="quiz-result-${stepId}" class="mt-4 hidden"></div>
-                <button onclick="submitAcademiaQuiz('${stepId}', ${step.pass_score || 70}, ${(questions||[]).length})" 
-                    class="mt-6 w-full py-3 bg-slate-900 text-white rounded-2xl font-black uppercase text-sm hover:bg-emerald-600 transition">
-                    Enviar Respostas
+                <button id="btn-submit-quiz-${stepId}"
+                    onclick="submitAcademiaQuiz('${stepId}', ${step.pass_score || 70}, ${(questions||[]).length})"
+                    class="mt-6 w-full py-3 bg-slate-900 text-white rounded-2xl font-black uppercase text-sm hover:bg-emerald-600 transition disabled:opacity-40 disabled:cursor-not-allowed"
+                    ${allVideosRequired ? 'disabled' : ''}>
+                    ${allVideosRequired ? '⏳ Assista todos os vídeos primeiro' : 'Enviar Respostas'}
                 </button>
             </div>
         </div>` : `
         <div class="max-w-2xl mx-auto mt-8">
-            <button onclick="markStepComplete('${stepId}')" class="w-full py-4 bg-emerald-600 text-white rounded-2xl font-black uppercase text-sm hover:bg-emerald-700 transition">
-                ✅ Concluir Etapa
+            <button id="btn-complete-${stepId}"
+                onclick="markStepComplete('${stepId}')"
+                class="w-full py-4 bg-emerald-600 text-white rounded-2xl font-black uppercase text-sm hover:bg-emerald-700 transition disabled:opacity-40 disabled:cursor-not-allowed"
+                ${allVideosRequired ? 'disabled' : ''}>
+                ${allVideosRequired ? '⏳ Assista todos os vídeos primeiro' : '✅ Concluir Etapa'}
             </button>
         </div>`;
 
@@ -3547,11 +3600,83 @@ async function openAcademiaStep(stepId) {
                 ← Voltar para a Academia
             </button>
             <h3 class="text-2xl font-black uppercase italic text-slate-800 mb-6">${escapeHtml(step.title)}</h3>
-            <div class="space-y-4">
-                ${(contents || []).map(renderContent).join('')}
+            <div class="space-y-6">
+                ${(contents||[]).map((c, i) => renderContent(c, i)).join('')}
             </div>
             ${quizHtml}
         </div>`;
+
+    // Init YouTube API tracking if there are videos
+    if (allVideosRequired) {
+        initYouTubeTracking(stepId, videoIds, hasQuiz);
+    }
+}
+
+// YouTube IFrame API tracking
+function initYouTubeTracking(stepId, videoIds, hasQuiz) {
+    if (!videoIds.length) return;
+    window.__videosWatched = window.__videosWatched || {};
+    window.__videosWatched[stepId] = window.__videosWatched[stepId] || new Set();
+
+    const checkAllWatched = () => {
+        const watched = window.__videosWatched[stepId];
+        const allDone = videoIds.every(id => watched.has(id));
+        if (allDone) {
+            videoIds.forEach(id => {
+                const status = document.getElementById(`video-status-${id}`);
+                if (status) { status.className = 'mt-2 flex items-center gap-2 text-xs font-bold text-emerald-600'; status.innerHTML = '<span>✅</span> Vídeo assistido!'; }
+            });
+            const btn = document.getElementById(hasQuiz ? `btn-submit-quiz-${stepId}` : `btn-complete-${stepId}`);
+            if (btn) { btn.disabled = false; btn.textContent = hasQuiz ? 'Enviar Respostas' : '✅ Concluir Etapa'; }
+        }
+    };
+
+    const onPlayerReady = (videoId) => (event) => {
+        // Already watched (e.g. revisiting)
+    };
+
+    const onPlayerStateChange = (videoId) => (event) => {
+        // YT.PlayerState.ENDED = 0
+        if (event.data === 0) {
+            window.__videosWatched[stepId].add(videoId);
+            const status = document.getElementById(`video-status-${videoId}`);
+            if (status) { status.className = 'mt-2 flex items-center gap-2 text-xs font-bold text-emerald-600'; status.innerHTML = '<span>✅</span> Vídeo assistido!'; }
+            checkAllWatched();
+        }
+    };
+
+    const loadApi = () => {
+        videoIds.forEach(videoId => {
+            if (document.getElementById(`yt-${videoId}`)) {
+                try {
+                    new YT.Player(`yt-${videoId}`, {
+                        events: {
+                            onReady: onPlayerReady(videoId),
+                            onStateChange: onPlayerStateChange(videoId),
+                        }
+                    });
+                } catch(e) { console.warn('YT player error:', e); }
+            }
+        });
+    };
+
+    if (window.YT && window.YT.Player) {
+        loadApi();
+    } else {
+        // Load YouTube IFrame API
+        if (!document.getElementById('yt-api-script')) {
+            const tag = document.createElement('script');
+            tag.id = 'yt-api-script';
+            tag.src = 'https://www.youtube.com/iframe_api';
+            document.head.appendChild(tag);
+        }
+        // onYouTubeIframeAPIReady is called by YouTube when API loads
+        const prev = window.onYouTubeIframeAPIReady;
+        window.onYouTubeIframeAPIReady = () => {
+            if (prev) prev();
+            loadApi();
+        };
+    }
 }
 
 // Submit quiz

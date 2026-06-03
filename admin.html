@@ -9501,6 +9501,7 @@ async function openAcademiaEditor(stepId) {
             <div id="new-content-body-wrap">
               <textarea id="new-content-body" rows="4" placeholder="Digite o conteúdo da etapa aqui..." class="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500 resize-none"></textarea>
             </div>
+            <textarea id="new-content-obs" rows="2" placeholder="Observação (opcional) — aparece abaixo do conteúdo para o autônomo" class="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500 resize-none text-slate-500"></textarea>
           </div>
           <button onclick="addContentBlock('${stepId}')" class="mt-4 w-full py-2.5 bg-gray-900 text-white rounded-xl text-xs font-black hover:bg-emerald-600 transition">+ Adicionar bloco</button>
           <div id="add-content-status" class="mt-2 text-xs text-center hidden"></div>
@@ -9554,6 +9555,7 @@ async function addContentBlock(stepId) {
   const type = document.getElementById('new-content-type').value;
   const title = (document.getElementById('new-content-title')?.value || '').trim();
   let body = (document.getElementById('new-content-body')?.value || '').trim();
+  const obs = (document.getElementById('new-content-obs')?.value || '').trim();
   const statusEl = document.getElementById('add-content-status');
 
   if (!body) {
@@ -9574,7 +9576,7 @@ async function addContentBlock(stepId) {
   const { data: existing } = await _supabase.from('academy_step_contents').select('order_index').eq('step_id', stepId).order('order_index', { ascending: false }).limit(1);
   const nextOrder = (existing?.[0]?.order_index || 0) + 1;
 
-  const { error } = await _supabase.from('academy_step_contents').insert({ step_id: stepId, type, title: title || null, body, order_index: nextOrder });
+  const { error } = await _supabase.from('academy_step_contents').insert({ step_id: stepId, type, title: title || null, body, observation: obs || null, order_index: nextOrder });
 
   if (error) {
     statusEl.className = 'mt-2 text-xs text-center text-red-500'; statusEl.textContent = 'Erro: ' + error.message; statusEl.classList.remove('hidden');
