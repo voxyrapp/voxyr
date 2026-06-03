@@ -298,7 +298,11 @@
                 <h2 class="text-xl font-semibold text-gray-800">🎓 Academia Voxyr</h2>
                 <p class="text-xs text-gray-500">Gerencie as etapas de treinamento por função</p>
             </div>
-            <button onclick="openAcademiaStepModal()" class="bg-gray-900 text-white px-5 py-2 rounded-xl text-xs font-bold uppercase hover:bg-emerald-600 transition">+ Nova Etapa</button>
+            <div class="flex gap-2">
+                <button onclick="renderAcademiaRelatorio()" class="border border-gray-300 text-gray-700 px-5 py-2 rounded-xl text-xs font-bold uppercase hover:bg-gray-100 transition">📊 Relatório</button>
+                <button onclick="renderAcademia()" class="border border-gray-300 text-gray-700 px-5 py-2 rounded-xl text-xs font-bold uppercase hover:bg-gray-100 transition">📋 Etapas</button>
+                <button onclick="openAcademiaStepModal()" class="bg-gray-900 text-white px-5 py-2 rounded-xl text-xs font-bold uppercase hover:bg-emerald-600 transition">+ Nova Etapa</button>
+            </div>
         </header>
         <div id="academia-content" class="p-8 overflow-y-auto flex-1"></div>
     </div>
@@ -9452,15 +9456,64 @@ async function openAcademiaEditor(stepId) {
 
   const typeIcon = { text: '📝', image: '🖼️', video: '🎬' };
 
-  const contentBlocks = (contents || []).map((c, i) => `
-    <div class="bg-white rounded-2xl border border-gray-200 p-4 flex items-start gap-4">
-      <span class="text-lg mt-0.5 flex-shrink-0">${typeIcon[c.type] || '📄'}</span>
-      <div class="flex-1 min-w-0">
-        <p class="font-bold text-gray-800 text-sm">${escapeHtml(c.title || '(sem título)')}</p>
-        <p class="text-xs text-gray-400 truncate mt-0.5">${c.type === 'text' ? escapeHtml((c.body||'').substring(0,80)) + '...' : escapeHtml(c.body)}</p>
+  const contentBlocks = (contents || []).map((c, i) => {
+    const isFirst = i === 0;
+    const isLast = i === contents.length - 1;
+    const bodyPreview = c.type === 'text'
+      ? escapeHtml((c.body||'').substring(0, 80)) + ((c.body||'').length > 80 ? '…' : '')
+      : escapeHtml(c.body);
+    const obsValue = escapeHtml(c.observation || '');
+    const titleValue = escapeHtml(c.title || '');
+    const bodyValue = escapeHtml(c.body || '');
+
+    const bodyField = c.type === 'text'
+      ? `<textarea id="edit-body-${c.id}" rows="4" class="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500 resize-none">${bodyValue}</textarea>`
+      : `<input type="url" id="edit-body-${c.id}" value="${bodyValue}" class="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500" placeholder="${c.type === 'image' ? 'URL da imagem' : 'URL do vídeo (YouTube)'}">`;
+
+    return `
+    <div class="bg-white rounded-2xl border border-gray-200 overflow-hidden" id="block-${c.id}">
+      <!-- Header do bloco -->
+      <div class="flex items-center gap-3 px-4 py-3">
+        <span class="text-base flex-shrink-0">${typeIcon[c.type] || '📄'}</span>
+        <div class="flex-1 min-w-0 cursor-pointer" onclick="toggleEditBlock('${c.id}')">
+          <p class="font-bold text-gray-800 text-sm">${titleValue || '(sem título)'}</p>
+          <p class="text-xs text-gray-400 truncate mt-0.5">${bodyPreview}</p>
+        </div>
+        <!-- Reordenar -->
+        <div class="flex flex-col gap-0.5 flex-shrink-0">
+          <button onclick="moveContentBlock('${c.id}', '${stepId}', 'up')" ${isFirst ? 'disabled' : ''}
+            class="w-6 h-6 rounded flex items-center justify-center text-gray-400 hover:text-gray-700 disabled:opacity-20 disabled:cursor-not-allowed text-xs font-black">▲</button>
+          <button onclick="moveContentBlock('${c.id}', '${stepId}', 'down')" ${isLast ? 'disabled' : ''}
+            class="w-6 h-6 rounded flex items-center justify-center text-gray-400 hover:text-gray-700 disabled:opacity-20 disabled:cursor-not-allowed text-xs font-black">▼</button>
+        </div>
+        <button onclick="toggleEditBlock('${c.id}')" class="text-xs text-emerald-600 font-bold flex-shrink-0 px-2 py-1 hover:bg-emerald-50 rounded-lg">✏️</button>
+        <button onclick="deleteAcademiaContent('${c.id}', '${stepId}')" class="text-xs text-red-400 font-bold flex-shrink-0 px-2 py-1 hover:bg-red-50 rounded-lg">🗑️</button>
       </div>
-      <button onclick="deleteAcademiaContent('${c.id}', '${stepId}')" class="text-red-400 hover:text-red-600 text-xs font-bold flex-shrink-0">Remover</button>
-    </div>`).join('') || '<p class="text-sm text-gray-400 italic">Nenhum conteúdo adicionado ainda.</p>';
+
+      <!-- Painel de edição (oculto por padrão) -->
+      <div id="edit-panel-${c.id}" class="hidden border-t border-gray-100 bg-gray-50 px-4 py-4 space-y-3">
+        <div>
+          <label class="text-[10px] font-black uppercase text-gray-400">Título</label>
+          <input type="text" id="edit-title-${c.id}" value="${titleValue}" placeholder="Título do bloco"
+            class="w-full border rounded-xl px-3 py-2 text-sm mt-1 outline-none focus:ring-2 focus:ring-emerald-500">
+        </div>
+        <div>
+          <label class="text-[10px] font-black uppercase text-gray-400">${c.type === 'text' ? 'Texto' : c.type === 'image' ? 'URL da Imagem' : 'URL do Vídeo'}</label>
+          <div class="mt-1">${bodyField}</div>
+        </div>
+        <div>
+          <label class="text-[10px] font-black uppercase text-gray-400">Observação (opcional)</label>
+          <textarea id="edit-obs-${c.id}" rows="2" placeholder="Observação exibida ao autônomo..."
+            class="w-full border rounded-xl px-3 py-2 text-sm mt-1 outline-none focus:ring-2 focus:ring-emerald-500 resize-none">${obsValue}</textarea>
+        </div>
+        <div class="flex justify-end gap-2">
+          <button onclick="toggleEditBlock('${c.id}')" class="px-4 py-1.5 text-xs text-gray-500 hover:text-gray-700 font-bold">Cancelar</button>
+          <button onclick="saveContentBlock('${c.id}', '${stepId}')" class="px-5 py-1.5 bg-gray-900 text-white rounded-xl text-xs font-bold hover:bg-emerald-600 transition">Salvar</button>
+        </div>
+        <div id="edit-status-${c.id}" class="text-xs text-center hidden"></div>
+      </div>
+    </div>`;
+  }).join('') || '<p class="text-sm text-gray-400 italic">Nenhum conteúdo adicionado ainda.</p>';
 
   container.innerHTML = `
     <div class="max-w-2xl mx-auto">
@@ -9636,10 +9689,323 @@ async function deleteAcademiaStep(id) {
   renderAcademia();
 }
 
+// ── RELATÓRIO DA ACADEMIA ──
+async function renderAcademiaRelatorio() {
+  const container = document.getElementById('academia-content');
+  if (!container) return;
+  container.innerHTML = '<div class="text-gray-400 text-sm p-4">Carregando relatório...</div>';
+
+  // Carrega todos os dados em paralelo
+  const [{ data: steps }, { data: progress }, { data: profiles }, { data: stores }] = await Promise.all([
+    _supabase.from('academy_steps').select('id, title, job_function, order_index').order('job_function').order('order_index'),
+    _supabase.from('academy_progress').select('profile_id, step_id, completed, score, updated_at'),
+    _supabase.from('profiles').select('id, full_name, job_function, store_id, status').eq('role', 'autonomo').eq('status', 'aprovado'),
+    _supabase.from('stores').select('id, name'),
+  ]);
+
+  const storeMap = Object.fromEntries((stores||[]).map(s => [s.id, s.name]));
+  const stepMap  = Object.fromEntries((steps||[]).map(s => [s.id, s]));
+
+  // Para cada autônomo, calcula progresso por função
+  const fnLabel = { separador:'📦 Separador', repositor:'🛒 Repositor', operador_caixa:'💳 Op. Caixa' };
+  const fnSteps = {};
+  (steps||[]).forEach(s => {
+    if (!fnSteps[s.job_function]) fnSteps[s.job_function] = [];
+    fnSteps[s.job_function].push(s);
+  });
+
+  // Monta mapa de progresso: profileId -> stepId -> {completed, score, updated_at}
+  const progMap = {};
+  (progress||[]).forEach(p => {
+    if (!progMap[p.profile_id]) progMap[p.profile_id] = {};
+    progMap[p.profile_id][p.step_id] = p;
+  });
+
+  // Gera dados por autônomo
+  const rows = (profiles||[]).map(p => {
+    const fn = p.job_function || 'separador';
+    const mySteps = fnSteps[fn] || [];
+    const total = mySteps.length;
+    if (total === 0) return null;
+    const completedSteps = mySteps.filter(s => progMap[p.id]?.[s.id]?.completed);
+    const done = completedSteps.length;
+    const allDone = done === total;
+    const lastDate = allDone
+      ? mySteps.map(s => progMap[p.id]?.[s.id]?.updated_at).filter(Boolean).sort().reverse()[0]
+      : null;
+    return { profile: p, fn, total, done, allDone, lastDate, storeName: storeMap[p.store_id] || '—' };
+  }).filter(Boolean);
+
+  // Filtros
+  const uniqueStores = [...new Set(rows.map(r => r.storeName))].sort();
+  const pending  = rows.filter(r => !r.allDone);
+  const finished = rows.filter(r => r.allDone);
+
+  const fmt = (d) => d ? new Date(d).toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '—';
+
+  const storeOptions = uniqueStores.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
+  const profileOptions = (profiles||[]).map(p => `<option value="${p.id}">${escapeHtml(p.full_name)}</option>`).join('');
+
+  container.innerHTML = `
+    <div class="max-w-5xl mx-auto">
+
+      <!-- Cabeçalho -->
+      <div class="flex items-center gap-4 mb-6">
+        <div class="flex-1">
+          <h3 class="text-sm font-black uppercase text-gray-700">📊 Relatório da Academia</h3>
+          <p class="text-xs text-gray-400 mt-0.5">${rows.length} autônomos avaliados</p>
+        </div>
+      </div>
+
+      <!-- Cards resumo -->
+      <div class="grid grid-cols-3 gap-4 mb-8">
+        <div class="bg-white rounded-2xl border p-5 text-center">
+          <p class="text-3xl font-black text-emerald-600">${finished.length}</p>
+          <p class="text-xs font-bold text-gray-400 uppercase mt-1">Concluíram</p>
+        </div>
+        <div class="bg-white rounded-2xl border p-5 text-center">
+          <p class="text-3xl font-black text-amber-500">${pending.length}</p>
+          <p class="text-xs font-bold text-gray-400 uppercase mt-1">Pendentes</p>
+        </div>
+        <div class="bg-white rounded-2xl border p-5 text-center">
+          <p class="text-3xl font-black text-blue-600">${rows.length > 0 ? Math.round((finished.length/rows.length)*100) : 0}%</p>
+          <p class="text-xs font-bold text-gray-400 uppercase mt-1">Taxa de conclusão</p>
+        </div>
+      </div>
+
+      <!-- Resetar progresso -->
+      <div class="bg-white rounded-2xl border border-gray-200 p-5 mb-8">
+        <h4 class="text-xs font-black uppercase text-gray-500 mb-4">🔄 Refazer treinamento</h4>
+        <p class="text-xs text-gray-400 mb-4">Selecione um autônomo específico ou todos de uma loja para zerar o progresso e obrigar a refazer o curso.</p>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <div>
+            <label class="text-[10px] font-black uppercase text-gray-400">Autônomo específico</label>
+            <select id="reset-profile-select" class="w-full border rounded-xl px-3 py-2 text-sm mt-1 bg-white outline-none focus:ring-2 focus:ring-emerald-500">
+              <option value="">— Selecione —</option>
+              ${profileOptions}
+            </select>
+          </div>
+          <div>
+            <label class="text-[10px] font-black uppercase text-gray-400">Ou todos de uma loja</label>
+            <select id="reset-store-select" class="w-full border rounded-xl px-3 py-2 text-sm mt-1 bg-white outline-none focus:ring-2 focus:ring-emerald-500">
+              <option value="">— Selecione uma loja —</option>
+              ${storeOptions}
+            </select>
+          </div>
+        </div>
+        <div id="reset-status" class="text-xs font-bold text-center hidden mb-3"></div>
+        <button onclick="resetAcademiaProgress()" class="px-6 py-2.5 bg-red-600 text-white rounded-xl text-xs font-black uppercase hover:bg-red-700 transition">
+          🗑️ Zerar progresso selecionado
+        </button>
+      </div>
+
+      <!-- Tabela -->
+      <div class="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+        <!-- Filtros -->
+        <div class="p-4 border-b flex flex-wrap gap-3 items-center">
+          <input type="text" id="rel-search" oninput="filterRelatorio()" placeholder="Buscar autônomo..."
+            class="border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500 w-52">
+          <select id="rel-store" onchange="filterRelatorio()" class="border rounded-xl px-3 py-2 text-sm bg-white outline-none focus:ring-2 focus:ring-emerald-500">
+            <option value="">Todas as lojas</option>
+            ${storeOptions}
+          </select>
+          <select id="rel-status" onchange="filterRelatorio()" class="border rounded-xl px-3 py-2 text-sm bg-white outline-none focus:ring-2 focus:ring-emerald-500">
+            <option value="">Todos</option>
+            <option value="done">✅ Concluídos</option>
+            <option value="pending">⏳ Pendentes</option>
+          </select>
+          <span id="rel-count" class="text-xs text-gray-400 ml-auto">${rows.length} resultados</span>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm" id="rel-table">
+            <thead class="bg-gray-50 text-[10px] uppercase text-gray-500 font-black">
+              <tr>
+                <th class="p-4 text-left">Autônomo</th>
+                <th class="p-4 text-left">Loja</th>
+                <th class="p-4 text-left">Função</th>
+                <th class="p-4 text-center">Progresso</th>
+                <th class="p-4 text-left">Status</th>
+                <th class="p-4 text-left">Conclusão</th>
+              </tr>
+            </thead>
+            <tbody id="rel-tbody">
+              ${rows.map(r => `
+                <tr class="border-b hover:bg-gray-50 rel-row"
+                    data-name="${escapeHtml(r.profile.full_name.toLowerCase())}"
+                    data-store="${escapeHtml(r.storeName)}"
+                    data-status="${r.allDone ? 'done' : 'pending'}">
+                  <td class="p-4 font-bold text-gray-800">${escapeHtml(r.profile.full_name)}</td>
+                  <td class="p-4 text-gray-500 text-xs">${escapeHtml(r.storeName)}</td>
+                  <td class="p-4 text-xs">${fnLabel[r.fn] || r.fn}</td>
+                  <td class="p-4">
+                    <div class="flex items-center gap-2 justify-center">
+                      <div class="w-24 bg-gray-200 rounded-full h-2 overflow-hidden">
+                        <div class="h-2 rounded-full ${r.allDone ? 'bg-emerald-500' : 'bg-amber-400'}" style="width:${r.total ? Math.round((r.done/r.total)*100) : 0}%"></div>
+                      </div>
+                      <span class="text-xs text-gray-500 whitespace-nowrap">${r.done}/${r.total}</span>
+                    </div>
+                  </td>
+                  <td class="p-4">
+                    ${r.allDone
+                      ? '<span class="px-2 py-1 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-700">✅ Concluído</span>'
+                      : '<span class="px-2 py-1 rounded-full text-[10px] font-black bg-amber-100 text-amber-700">⏳ Pendente</span>'}
+                  </td>
+                  <td class="p-4 text-xs text-gray-500">${r.allDone ? fmt(r.lastDate) : '—'}</td>
+                </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>`;
+
+  // Guarda rows no window para filtros
+  window.__relRows = rows;
+}
+
+function filterRelatorio() {
+  const search = (document.getElementById('rel-search')?.value || '').toLowerCase();
+  const store  = document.getElementById('rel-store')?.value || '';
+  const status = document.getElementById('rel-status')?.value || '';
+  let count = 0;
+  document.querySelectorAll('.rel-row').forEach(row => {
+    const nameMatch  = !search || row.dataset.name.includes(search);
+    const storeMatch = !store  || row.dataset.store === store;
+    const statusMatch= !status || row.dataset.status === status;
+    const visible = nameMatch && storeMatch && statusMatch;
+    row.style.display = visible ? '' : 'none';
+    if (visible) count++;
+  });
+  const countEl = document.getElementById('rel-count');
+  if (countEl) countEl.textContent = `${count} resultados`;
+}
+
+async function resetAcademiaProgress() {
+  const profileId = document.getElementById('reset-profile-select')?.value;
+  const storeName = document.getElementById('reset-store-select')?.value;
+  const statusEl  = document.getElementById('reset-status');
+
+  if (!profileId && !storeName) {
+    if (statusEl) { statusEl.className = 'text-xs font-bold text-center text-red-500 mb-3'; statusEl.textContent = 'Selecione um autônomo ou uma loja.'; statusEl.classList.remove('hidden'); }
+    return;
+  }
+
+  const label = profileId
+    ? `o autônomo selecionado`
+    : `todos os autônomos da loja "${storeName}"`;
+  if (!confirm(`Zerar o progresso da Academia para ${label}? Eles precisarão refazer o treinamento completo.`)) return;
+
+  if (statusEl) { statusEl.className = 'text-xs font-bold text-center text-gray-500 mb-3'; statusEl.textContent = 'Zerando...'; statusEl.classList.remove('hidden'); }
+
+  let profileIds = [];
+
+  if (profileId) {
+    profileIds = [profileId];
+  } else {
+    // Busca todos os autônomos aprovados daquela loja
+    const { data: profiles } = await _supabase
+      .from('profiles')
+      .select('id, store_id')
+      .eq('role', 'autonomo')
+      .eq('status', 'aprovado');
+    const { data: stores } = await _supabase.from('stores').select('id, name').ilike('name', storeName);
+    const storeIds = (stores||[]).map(s => s.id);
+    profileIds = (profiles||[]).filter(p => storeIds.includes(p.store_id)).map(p => p.id);
+  }
+
+  if (!profileIds.length) {
+    if (statusEl) { statusEl.className = 'text-xs font-bold text-center text-amber-500 mb-3'; statusEl.textContent = 'Nenhum autônomo encontrado.'; statusEl.classList.remove('hidden'); }
+    return;
+  }
+
+  // Deleta progresso
+  const { error } = await _supabase
+    .from('academy_progress')
+    .delete()
+    .in('profile_id', profileIds);
+
+  if (error) {
+    if (statusEl) { statusEl.className = 'text-xs font-bold text-center text-red-500 mb-3'; statusEl.textContent = 'Erro: ' + error.message; }
+    return;
+  }
+
+  if (statusEl) { statusEl.className = 'text-xs font-bold text-center text-emerald-600 mb-3'; statusEl.textContent = `✅ Progresso zerado para ${profileIds.length} autônomo(s)!`; }
+  setTimeout(() => renderAcademiaRelatorio(), 1500);
+}
+
+
+
 // ── Delete content (called from editor) ──
 async function deleteAcademiaContent(id, stepId) {
   if (!confirm('Remover este bloco de conteúdo?')) return;
   await _supabase.from('academy_step_contents').delete().eq('id', id);
+  await openAcademiaEditor(stepId);
+}
+
+// ── Toggle edit panel ──
+function toggleEditBlock(id) {
+  const panel = document.getElementById(`edit-panel-${id}`);
+  if (!panel) return;
+  panel.classList.toggle('hidden');
+}
+
+// ── Save edited content block ──
+async function saveContentBlock(id, stepId) {
+  const title = (document.getElementById(`edit-title-${id}`)?.value || '').trim();
+  let body = (document.getElementById(`edit-body-${id}`)?.value || '').trim();
+  const obs = (document.getElementById(`edit-obs-${id}`)?.value || '').trim();
+  const statusEl = document.getElementById(`edit-status-${id}`);
+
+  if (!body) {
+    if (statusEl) { statusEl.className = 'text-xs text-center text-red-500'; statusEl.textContent = 'O conteúdo não pode ser vazio.'; statusEl.classList.remove('hidden'); }
+    return;
+  }
+
+  // Fetch current type to handle YouTube conversion
+  const { data: current } = await _supabase.from('academy_step_contents').select('type').eq('id', id).maybeSingle();
+  if (current?.type === 'video') {
+    if (body.includes('youtube.com/watch')) {
+      try { const vid = new URL(body).searchParams.get('v'); if (vid) body = `https://www.youtube.com/embed/${vid}`; } catch(e){}
+    } else if (body.includes('youtu.be/')) {
+      const vid = body.split('youtu.be/')[1]?.split('?')[0]; if (vid) body = `https://www.youtube.com/embed/${vid}`;
+    }
+  }
+
+  const { error } = await _supabase.from('academy_step_contents').update({
+    title: title || null,
+    body,
+    observation: obs || null,
+  }).eq('id', id);
+
+  if (error) {
+    if (statusEl) { statusEl.className = 'text-xs text-center text-red-500'; statusEl.textContent = 'Erro: ' + error.message; statusEl.classList.remove('hidden'); }
+    return;
+  }
+  await openAcademiaEditor(stepId);
+}
+
+// ── Move content block up or down ──
+async function moveContentBlock(id, stepId, direction) {
+  const { data: contents } = await _supabase
+    .from('academy_step_contents')
+    .select('id, order_index')
+    .eq('step_id', stepId)
+    .order('order_index');
+
+  if (!contents || contents.length < 2) return;
+  const idx = contents.findIndex(c => c.id === id);
+  if (idx === -1) return;
+  const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
+  if (swapIdx < 0 || swapIdx >= contents.length) return;
+
+  const a = contents[idx];
+  const b = contents[swapIdx];
+
+  // Swap order_index values
+  await Promise.all([
+    _supabase.from('academy_step_contents').update({ order_index: b.order_index }).eq('id', a.id),
+    _supabase.from('academy_step_contents').update({ order_index: a.order_index }).eq('id', b.id),
+  ]);
   await openAcademiaEditor(stepId);
 }
 
