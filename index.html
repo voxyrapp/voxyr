@@ -165,16 +165,6 @@
 
 <div class="step hidden" data-step="3">
 
-  <!-- SELEÇÃO DE FUNÇÃO -->
-  <div class="mb-5" id="jobFunctionSection">
-    <p class="font-semibold text-gray-800 mb-3">Qual função você deseja exercer?</p>
-    <div id="jobFunctionOptions" class="grid grid-cols-1 gap-3">
-      <!-- opções carregadas dinamicamente via JS -->
-      <p class="text-sm text-gray-400 italic">Carregando funções disponíveis...</p>
-    </div>
-    <input type="hidden" id="selectedJobFunction" value="">
-  </div>
-
   <button type="button" id="openStoreSelect" class="btn w-full mb-3">
     Selecionar unidade operacional
   </button>
@@ -886,7 +876,7 @@ if (isRecovery) {
     if (profile?.status === 'aprovado') {
       const role = (profile.role || '').toLowerCase();
 
-      if (role === 'admin') {
+      if (role === 'admin' || role === 'subadmin') {
         window.location.href = 'admin.html';
       } else if (role === 'gerente' || role === 'manager') {
         window.location.href = 'gerente.html';
@@ -1074,7 +1064,7 @@ if (!registration || !registration.active) {
 
     const role = (window.__lastProfile?.role || '').trim().toLowerCase();
 
-    if (role === 'admin') {
+    if (role === 'admin' || role === 'subadmin') {
       window.location.href = 'admin.html';
     } else if (role === 'gerente' || role === 'manager') {
       window.location.href = 'gerente.html';
@@ -1351,18 +1341,16 @@ if (openStoreSelect) {
     storeModal.classList.remove('hidden');
     storesList.innerHTML = '<p class="p-4 text-center">Carregando lojas...</p>';
 
-    // Filtrar lojas pela função selecionada
-    const jobFn = document.getElementById('selectedJobFunction')?.value || '';
-    let query = _supabase.from('stores').select('*').eq('state', state.value).eq('is_visible', true);
-    if (jobFn === 'separador') query = query.eq('has_separador', true);
-    else if (jobFn === 'repositor') query = query.eq('has_repositor', true);
-    else if (jobFn === 'operador_caixa') query = query.eq('has_operador_caixa', true);
-    const { data: lojas, error } = await query;
+    const { data: lojas, error } = await _supabase
+      .from('stores')
+      .select('*')
+      .eq('state', state.value)
+      .eq('is_visible', true);
 
     function renderStores(list) {
       storesList.innerHTML = '';
       if (!list || list.length === 0) {
-        storesList.innerHTML = '<p class="text-center p-4">Nenhuma loja encontrada para a função selecionada.</p>';
+        storesList.innerHTML = '<p class="text-center p-4">Nenhuma loja encontrada.</p>';
         return;
       }
       list.forEach(loja => {
@@ -1479,7 +1467,7 @@ if (!pushAlreadyEnabled) {
     return;
 }
 
-if (role === 'admin') {
+if (role === 'admin' || role === 'subadmin') {
     window.location.href = 'admin.html';
 } else if (role === 'gerente' || role === 'manager') {
     window.location.href = 'gerente.html';
@@ -1754,78 +1742,8 @@ document.getElementById('stepLabel').innerText =
 document.getElementById('stepPercent').innerText =
   `${percent}%`;
 
-  // Carrega funções disponíveis ao mostrar etapa 3
-  if (step === 3 && !window.__correctionMode) {
-    loadJobFunctionOptions();
-  }
-
 }
 showStep();
-
-/* FUNÇÕES DE TRABALHO */
-async function loadJobFunctionOptions() {
-  const container = document.getElementById('jobFunctionOptions');
-  const hiddenInput = document.getElementById('selectedJobFunction');
-  if (!container) return;
-
-  // Busca configuração do admin sobre funções disponíveis
-  const { data, error } = await _supabase
-    .from('app_settings')
-    .select('value')
-    .eq('key', 'job_functions_visible')
-    .maybeSingle();
-
-  const defaults = { separador: true, repositor: false, operador_caixa: false };
-  const settings = (data?.value) || defaults;
-
-  const allFunctions = [
-    { key: 'separador', label: '📦 Separador de Pedidos', desc: 'Separa e organiza pedidos para entrega' },
-    { key: 'repositor', label: '🛒 Repositor de Mercadorias', desc: 'Reposição de produtos nas gôndolas' },
-    { key: 'operador_caixa', label: '💳 Operador de Caixa', desc: 'Operação de caixas registradoras' }
-  ];
-
-  const available = allFunctions.filter(f => settings[f.key] === true);
-
-  if (!available.length) {
-    container.innerHTML = '<p class="text-sm text-red-500">Nenhuma função disponível para novos cadastros no momento.</p>';
-    return;
-  }
-
-  // Se só tem uma função, seleciona automaticamente
-  if (available.length === 1) {
-    hiddenInput.value = available[0].key;
-  }
-
-  container.innerHTML = available.map(f => `
-    <label class="flex items-start gap-3 border-2 rounded-2xl p-4 cursor-pointer transition hover:border-teal-500 ${hiddenInput.value === f.key ? 'border-teal-500 bg-teal-50' : 'border-gray-200'}">
-      <input type="radio" name="jobFunction" value="${f.key}" class="mt-1" ${hiddenInput.value === f.key ? 'checked' : ''}>
-      <div>
-        <p class="font-semibold text-gray-800">${f.label}</p>
-        <p class="text-xs text-gray-500 mt-0.5">${f.desc}</p>
-      </div>
-    </label>
-  `).join('');
-
-  // Ao selecionar, atualiza o hidden e limpa a loja selecionada (pois pode mudar)
-  container.querySelectorAll('input[name="jobFunction"]').forEach(radio => {
-    radio.onchange = () => {
-      hiddenInput.value = radio.value;
-      // reset loja ao trocar função
-      selectedStore = null;
-      const div = document.getElementById('selectedStore');
-      if (div) { div.innerHTML = ''; div.classList.add('hidden'); }
-      // Atualiza estilos
-      container.querySelectorAll('label').forEach(l => {
-        const r = l.querySelector('input[type=radio]');
-        if (r && r.value === radio.value) {
-          l.classList.add('border-teal-500', 'bg-teal-50');
-        } else {
-          l.classList.remove('border-teal-500', 'bg-teal-50');
-        }
-      });
-    };
-  });
-}
 
 /* VALIDAÇÕES */
 fullname.onblur=()=>fullname.value=fullname.value.replace(/[^\p{L}\s]/gu,'').trim().replace(/\s+/g,' ').toLowerCase().replace(/\b\w/g,l=>l.toUpperCase());
@@ -1928,12 +1846,6 @@ next.onclick = async () => {
 
   if (step === 3) {
     // etapa 3: se for correção só de loja, exige apenas loja
-    const jobFn = document.getElementById('selectedJobFunction')?.value || '';
-    if (!isCorrection && !jobFn) {
-      alert('Selecione a função que deseja exercer');
-      return;
-    }
-
     if (!selectedStore) {
       alert('Selecione uma loja');
       return;
@@ -2093,7 +2005,6 @@ const payload = {
   updated_at: new Date().toISOString(),
 
   role: 'autonomo',
-  job_function: document.getElementById('selectedJobFunction')?.value || 'separador',
 
   worked_in_partner_store: document.querySelector('input[name="q1"]:checked')?.value === 'Sim',
   worked_desc: document.getElementById('q1_desc').value,

@@ -125,6 +125,8 @@
 
     <button onclick="switchTab('configuracoes'); renderConfiguracoes();" id="nav-configuracoes" class="w-full text-left px-4 py-3 rounded text-gray-400 hover:bg-gray-800 hover:text-white transition-colors font-bold border-l-4 border-transparent flex items-center gap-2">⚙️ Configurações</button>
 
+    <button onclick="switchTab('subadmins'); renderSubAdmins();" id="nav-subadmins" class="w-full text-left px-4 py-3 rounded text-gray-400 hover:bg-gray-800 hover:text-white transition-colors font-bold border-l-4 border-transparent flex items-center gap-2">🔑 Sub-admins</button>
+
     <button onclick="switchTab('academia'); renderAcademia();" id="nav-academia" class="w-full text-left px-4 py-3 rounded text-gray-400 hover:bg-gray-800 hover:text-white transition-colors font-bold border-l-4 border-transparent flex items-center gap-2">🎓 Academia</button>
 
     <button onclick="switchTab('suporte'); renderAdminSuporte();" id="nav-suporte" class="w-full text-left px-4 py-3 rounded text-gray-400 hover:bg-gray-800 hover:text-white transition-colors font-bold border-l-4 border-transparent flex items-center gap-2">🎧 Suporte</button>
@@ -281,6 +283,17 @@
     </div>
 
     
+    <div id="mod-subadmins" class="module-container bg-gray-50">
+        <header class="h-16 border-b bg-white flex items-center px-8 justify-between shrink-0">
+            <div>
+                <h2 class="text-xl font-semibold text-gray-800">🔑 Sub-admins</h2>
+                <p class="text-xs text-gray-500">Gerencie acessos administrativos com permissões personalizadas</p>
+            </div>
+            <button onclick="openSubAdminModal()" class="bg-gray-900 text-white px-5 py-2 rounded-xl text-xs font-bold uppercase hover:bg-emerald-600 transition">+ Novo Sub-admin</button>
+        </header>
+        <div id="subadmins-content" class="p-8 overflow-y-auto flex-1"></div>
+    </div>
+
     <div id="mod-suporte" class="module-container bg-gray-50">
         <header class="h-16 border-b bg-white flex items-center px-8 justify-between shrink-0">
             <div>
@@ -741,10 +754,7 @@ async function setPixEditControl(locked) {
 }
 
 
-// ===== Gate de Acesso (Admin somente) =====
-// - admin: permanece no admin.html
-// - gerente/manager: vai para gerente.html
-// - demais: vai para autonomo.html
+// ===== Gate de Acesso (Admin + Sub-admin) =====
 (async function __gateAdminOnly(){
   try {
     const { data: { session } } = await _supabase.auth.getSession();
@@ -762,7 +772,26 @@ async function setPixEditControl(locked) {
     const role = String(prof.role || '').trim().toLowerCase();
 
     if (role === 'gerente' || role === 'manager') { window.location.href = 'gerente.html'; return; }
-    if (role !== 'admin') { window.location.href = 'autonomo.html'; return; }
+    if (role === 'autonomo') { window.location.href = 'autonomo.html'; return; }
+    if (role !== 'admin' && role !== 'subadmin') { window.location.href = '/index.html'; return; }
+
+    // Se for sub-admin, carrega permissões e aplica restrições
+    if (role === 'subadmin') {
+      const { data: sa } = await _supabase
+        .from('admin_subusers')
+        .select('id, name, permissions, store_ids, is_active')
+        .eq('profile_id', uid)
+        .maybeSingle();
+
+      if (!sa || !sa.is_active) { window.location.href = '/index.html'; return; }
+
+      // Aguarda o DOM estar pronto antes de aplicar restrições
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => applySubAdminRestrictions(sa));
+      } else {
+        applySubAdminRestrictions(sa);
+      }
+    }
   } catch (e) {
     console.error('Gate admin error:', e);
     window.location.href = '/index.html';
@@ -2757,7 +2786,7 @@ async function showMetrics() {
             }).join('') : '<div class="p-8 text-center text-gray-400">Nenhuma atividade registrada.</div>';
         }
 async function switchTab(tab) {
-    const menuItems = ['profiles', 'markets', 'metrics', 'credenciais', 'pontuacao', 'pedidos', 'atrasos', 'managers', 'finance', 'comunicados', 'configuracoes', 'academia', 'suporte'];
+    const menuItems = ['profiles', 'markets', 'metrics', 'credenciais', 'pontuacao', 'pedidos', 'atrasos', 'managers', 'finance', 'comunicados', 'configuracoes', 'academia', 'suporte', 'subadmins'];
     menuItems.forEach(item => {
         const btn = document.getElementById(`nav-${item}`);
         if (btn) {
@@ -2827,6 +2856,8 @@ if (tab === 'profiles') {
     renderAcademia();
 } else if (tab === 'suporte') {
     renderAdminSuporte();
+} else if (tab === 'subadmins') {
+    renderSubAdmins();
     }
 }
 
@@ -3065,6 +3096,10 @@ async function updateStatus(id, status) {
 
 async function openStoreModal(id = null) {
     document.getElementById('modal-store').classList.remove('hidden');
+    // Reset leader fields
+    document.getElementById('m-leader-name').value = '';
+    document.getElementById('m-leader-contact').value = '';
+    document.getElementById('m-leader-instructions').value = '';
     if (id) {
         const { data } = await _supabase.from('stores').select('*').eq('id', id).maybeSingle();
         document.getElementById('edit-store-id').value = data.id;
@@ -3076,6 +3111,9 @@ async function openStoreModal(id = null) {
         document.getElementById('m-has-separador').checked = data.has_separador || false;
         document.getElementById('m-has-repositor').checked = data.has_repositor || false;
         document.getElementById('m-has-operador').checked = data.has_operador_caixa || false;
+        document.getElementById('m-leader-name').value = data.leader_name || '';
+        document.getElementById('m-leader-contact').value = data.leader_contact || '';
+        document.getElementById('m-leader-instructions').value = data.leader_instructions || '';
     } else {
         document.getElementById('edit-store-id').value = '';
         document.getElementById('m-store-name').value = '';
@@ -3111,7 +3149,10 @@ async function saveStore() {
         has_repositor: document.getElementById('m-has-repositor').checked,
         has_operador_caixa: document.getElementById('m-has-operador').checked,
         city: city,
-        state: state.toUpperCase() // Garante que vá sempre em maiúsculas
+        state: state.toUpperCase(),
+        leader_name: document.getElementById('m-leader-name').value.trim() || null,
+        leader_contact: document.getElementById('m-leader-contact').value.trim() || null,
+        leader_instructions: document.getElementById('m-leader-instructions').value.trim() || null,
     };
 
     let error;
@@ -6378,6 +6419,10 @@ function applyPointsFilter(){
   const rows = __admExtras.points.rows || [];
   const filtered = q ? rows.filter(r => ((r.full_name||'').toLowerCase().includes(q) || (r.email||'').toLowerCase().includes(q) || (r.cpf||'').toLowerCase().includes(q))) : rows;
   renderPointsTable(filtered);
+  // Reaplica restrição de view-only se for sub-admin com permissão somente leitura
+  if (window.__saViewOnlyTabs?.has('pontuacao')) {
+    setTimeout(() => applyViewOnlyToCurrentTab('pontuacao'), 50);
+  }
 }
 
 async function savePointsLine(profileId){
@@ -8304,6 +8349,26 @@ try {
                     </div>
                 </div>
                 <input type="hidden" id="m-city"><input type="hidden" id="m-state">
+
+                <!-- Líder / Responsável -->
+                <div class="border-t pt-3">
+                    <p class="text-[10px] font-bold text-gray-400 uppercase mb-2">👤 Responsável na loja</p>
+                    <p class="text-[10px] text-gray-400 mb-3">O autônomo verá essas informações na agenda ao se agendar.</p>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="text-[10px] font-bold text-gray-400 uppercase">Nome do responsável</label>
+                            <input type="text" id="m-leader-name" placeholder="Ex: João Silva" class="w-full border p-2 rounded-lg text-sm mt-1">
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-bold text-gray-400 uppercase">Contato (WhatsApp ou telefone)</label>
+                            <input type="text" id="m-leader-contact" placeholder="Ex: (31) 99999-9999" class="w-full border p-2 rounded-lg text-sm mt-1">
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-bold text-gray-400 uppercase">Instruções de chegada (opcional)</label>
+                            <textarea id="m-leader-instructions" rows="3" placeholder="Ex: Entre pela portaria lateral, informe que é da Voxyr e peça para falar com o líder do depósito." class="w-full border p-2 rounded-lg text-sm mt-1 resize-none"></textarea>
+                        </div>
+                    </div>
+                </div>
             </div>
             <div class="p-6 bg-gray-50 flex gap-3">
                 <button onclick="closeStoreModal()" class="flex-1 py-2 text-sm font-bold text-gray-500 uppercase">Cancelar</button>
@@ -9277,6 +9342,330 @@ ${scopeLabel} • ${updated.require_ack ? 'Exige confirmação' : 'Sem confirma�
   </div>
 </div>
 <script>
+// ============================================================
+// 🔑 SUB-ADMINS
+// ============================================================
+
+const SA_TABS = [
+  { key: 'profiles',     label: '👥 Autônomos' },
+  { key: 'markets',      label: '🏢 Gestão Mercados' },
+  { key: 'metrics',      label: '📊 Métricas' },
+  { key: 'managers',     label: '👔 Gerentes' },
+  { key: 'credenciais',  label: '🔐 Credenciais' },
+  { key: 'pontuacao',    label: '⭐ Pontuação' },
+  { key: 'pedidos',      label: '📦 Pedidos' },
+  { key: 'finance',      label: '💰 Financeiro' },
+  { key: 'comunicados',  label: '📣 Comunicados' },
+  { key: 'atrasos',      label: '⏰ Atrasos' },
+  { key: 'academia',     label: '🎓 Academia' },
+  { key: 'suporte',      label: '🎧 Suporte' },
+  { key: 'configuracoes',label: '⚙️ Configurações' },
+];
+
+// ── Lista de sub-admins ──
+async function renderSubAdmins() {
+  const container = document.getElementById('subadmins-content');
+  if (!container) return;
+  container.innerHTML = '<div class="text-gray-400 text-sm p-2">Carregando...</div>';
+
+  const { data, error } = await _supabase
+    .from('admin_subusers')
+    .select('id, name, email, permissions, store_ids, is_active, created_at')
+    .order('created_at', { ascending: false });
+
+  if (error) { container.innerHTML = `<p class="text-red-500 text-sm">${error.message}</p>`; return; }
+
+  if (!data || !data.length) {
+    container.innerHTML = `
+      <div class="text-center py-20">
+        <div class="text-5xl mb-4">🔑</div>
+        <p class="font-black text-slate-300 uppercase text-sm">Nenhum sub-admin cadastrado.</p>
+        <p class="text-slate-400 text-xs mt-2">Clique em "+ Novo Sub-admin" para criar.</p>
+      </div>`;
+    return;
+  }
+
+  container.innerHTML = `
+    <div class="space-y-3 max-w-3xl">
+      ${data.map(sa => {
+        const perms = sa.permissions || {};
+        const activeTabs = SA_TABS.filter(t => perms[t.key]);
+        const storeCount = (sa.store_ids||[]).length;
+        return `
+        <div class="bg-white rounded-2xl border border-gray-200 px-5 py-4">
+          <div class="flex items-start justify-between gap-4">
+            <div class="min-w-0">
+              <div class="flex items-center gap-2 mb-1">
+                <p class="font-black text-gray-800">${escapeHtml(sa.name || sa.email)}</p>
+                <span class="px-2 py-0.5 rounded-full text-[10px] font-black ${sa.is_active !== false ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}">
+                  ${sa.is_active !== false ? 'Ativo' : 'Inativo'}
+                </span>
+              </div>
+              <p class="text-xs text-gray-400 mb-2">${escapeHtml(sa.email)}</p>
+              <div class="flex flex-wrap gap-1">
+                ${activeTabs.map(t => {
+                  const perm = perms[t.key];
+                  const badge = perm === 'edit'
+                    ? 'bg-emerald-100 text-emerald-700'
+                    : 'bg-slate-100 text-slate-600';
+                  return `<span class="px-2 py-0.5 rounded-lg text-[10px] font-bold ${badge}">${t.label}${perm === 'edit' ? ' ✏️' : ''}</span>`;
+                }).join('')}
+                ${!activeTabs.length ? '<span class="text-xs text-gray-400 italic">Sem permissões</span>' : ''}
+              </div>
+              <p class="text-xs text-gray-400 mt-2">
+                ${storeCount ? `${storeCount} loja(s) específica(s)` : 'Acesso a todas as lojas'}
+              </p>
+            </div>
+            <div class="flex gap-2 flex-shrink-0">
+              <button onclick="toggleSubAdminActive('${sa.id}', ${sa.is_active !== false})"
+                class="px-3 py-1.5 rounded-lg text-xs font-bold ${sa.is_active !== false ? 'bg-gray-100 text-gray-600 hover:bg-red-50 hover:text-red-600' : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'} transition">
+                ${sa.is_active !== false ? 'Desativar' : 'Ativar'}
+              </button>
+              <button onclick="openSubAdminModal('${sa.id}')" class="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-xs font-bold hover:bg-gray-200 transition">✏️ Editar</button>
+              <button onclick="deleteSubAdmin('${sa.id}')" class="px-3 py-1.5 bg-red-50 text-red-500 rounded-lg text-xs font-bold hover:bg-red-100 transition">🗑️</button>
+            </div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`;
+}
+
+// ── Abre modal de criação/edição ──
+async function openSubAdminModal(id = null) {
+  document.getElementById('sa-id').value = id || '';
+  document.getElementById('sa-profile-id').value = '';
+  document.getElementById('sa-name').value = '';
+  document.getElementById('sa-email').value = '';
+  document.getElementById('sa-password').value = '';
+  document.getElementById('sa-status').classList.add('hidden');
+  document.getElementById('modal-subadmin-title').textContent = id ? 'Editar Sub-admin' : 'Novo Sub-admin';
+
+  // Senha só obrigatória na criação
+  const pwdWrap = document.getElementById('sa-password-wrap');
+  const emailHint = document.getElementById('sa-email-hint');
+  if (id) {
+    pwdWrap.classList.add('hidden');
+    emailHint.classList.remove('hidden');
+  } else {
+    pwdWrap.classList.remove('hidden');
+    emailHint.classList.add('hidden');
+  }
+
+  // Build permissions grid
+  const permsGrid = document.getElementById('sa-permissions-grid');
+  permsGrid.innerHTML = SA_TABS.map(t => `
+    <div class="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-2.5">
+      <p class="text-sm font-bold text-gray-700">${t.label}</p>
+      <div class="flex gap-3">
+        <label class="flex items-center gap-1.5 text-xs text-gray-500 cursor-pointer">
+          <input type="radio" name="perm-${t.key}" value="view" class="accent-blue-500"> Ver
+        </label>
+        <label class="flex items-center gap-1.5 text-xs text-gray-500 cursor-pointer">
+          <input type="radio" name="perm-${t.key}" value="edit" class="accent-emerald-500"> Ver+Editar
+        </label>
+        <label class="flex items-center gap-1.5 text-xs text-gray-500 cursor-pointer">
+          <input type="radio" name="perm-${t.key}" value="none" checked class="accent-red-400"> Nenhum
+        </label>
+      </div>
+    </div>`).join('');
+
+  // Load stores
+  const { data: stores } = await _supabase.from('stores').select('id, name').order('name');
+  document.getElementById('sa-stores-grid').innerHTML = (stores||[]).map(s => `
+    <label class="flex items-center gap-2 bg-gray-50 rounded-xl p-2.5 cursor-pointer hover:bg-emerald-50 transition">
+      <input type="checkbox" class="sa-store-cb accent-emerald-500" value="${s.id}">
+      <span class="text-xs font-bold text-gray-700 truncate">${escapeHtml(s.name)}</span>
+    </label>`).join('');
+
+  // Load existing data if editing
+  if (id) {
+    const { data: sa } = await _supabase.from('admin_subusers').select('*').eq('id', id).maybeSingle();
+    if (sa) {
+      document.getElementById('sa-name').value = sa.name || '';
+      document.getElementById('sa-email').value = sa.email || '';
+      document.getElementById('sa-profile-id').value = sa.profile_id || '';
+      const perms = sa.permissions || {};
+      SA_TABS.forEach(t => {
+        const val = perms[t.key] || 'none';
+        const radio = document.querySelector(`input[name="perm-${t.key}"][value="${val}"]`);
+        if (radio) radio.checked = true;
+      });
+      (sa.store_ids||[]).forEach(sid => {
+        const cb = document.querySelector(`.sa-store-cb[value="${sid}"]`);
+        if (cb) cb.checked = true;
+      });
+    }
+  }
+
+  document.getElementById('modal-subadmin').classList.remove('hidden');
+}
+
+// ── Salva sub-admin (cria ou edita) ──
+async function saveSubAdmin() {
+  const id        = document.getElementById('sa-id').value;
+  const profileId = document.getElementById('sa-profile-id').value;
+  const name      = document.getElementById('sa-name').value.trim();
+  const email     = document.getElementById('sa-email').value.trim().toLowerCase();
+  const password  = document.getElementById('sa-password').value;
+  const statusEl  = document.getElementById('sa-status');
+
+  const show = (msg, cls) => {
+    statusEl.className = `px-6 pb-4 text-xs font-bold text-center ${cls}`;
+    statusEl.textContent = msg;
+    statusEl.classList.remove('hidden');
+  };
+
+  if (!name || !email) return show('Preencha nome e e-mail.', 'text-red-500');
+  if (!id && password.length < 6) return show('A senha precisa ter pelo menos 6 caracteres.', 'text-red-500');
+
+  // Coleta permissões
+  const permissions = {};
+  SA_TABS.forEach(t => {
+    const checked = document.querySelector(`input[name="perm-${t.key}"]:checked`);
+    if (checked && checked.value !== 'none') permissions[t.key] = checked.value;
+  });
+  const store_ids = [...document.querySelectorAll('.sa-store-cb:checked')].map(cb => cb.value);
+
+  show('Salvando...', 'text-gray-500');
+
+  try {
+    const res = await callEdgeFunction('upsert-subadmin', {
+      subadmin_id: id || null,
+      profile_id:  profileId || null,
+      name,
+      email,
+      password: id ? undefined : password,
+      permissions,
+      store_ids,
+    });
+
+    if (!res || !res.ok) throw new Error(res?.error || 'Erro ao salvar sub-admin');
+
+    document.getElementById('modal-subadmin').classList.add('hidden');
+    renderSubAdmins();
+  } catch (err) {
+    show('Erro: ' + (err.message || String(err)), 'text-red-500');
+  }
+}
+
+async function toggleSubAdminActive(id, currentlyActive) {
+  await _supabase.from('admin_subusers').update({ is_active: !currentlyActive }).eq('id', id);
+  renderSubAdmins();
+}
+
+async function deleteSubAdmin(id) {
+  if (!confirm('Excluir este sub-admin? O acesso será revogado imediatamente.')) return;
+  await _supabase.from('admin_subusers').delete().eq('id', id);
+  renderSubAdmins();
+}
+
+// ── Aplica restrições de sub-admin na interface ──
+function applySubAdminRestrictions(sa) {
+  if (!sa) return;
+  const perms = sa.permissions || {};
+
+  // Oculta abas sem permissão e a aba de sub-admins
+  SA_TABS.forEach(t => {
+    const btn = document.getElementById(`nav-${t.key}`);
+    if (btn) btn.style.display = perms[t.key] ? '' : 'none';
+  });
+  const navSa = document.getElementById('nav-subadmins');
+  if (navSa) navSa.style.display = 'none';
+
+  // Badge com nome na sidebar
+  const logo = document.querySelector('aside .p-6');
+  if (logo) {
+    const badge = document.createElement('p');
+    badge.className = 'text-[10px] text-emerald-400 font-bold uppercase truncate mt-1';
+    badge.textContent = sa.name || sa.email || 'Sub-admin';
+    logo.appendChild(badge);
+  }
+
+  // Guarda lojas e permissões globalmente para filtros nas telas
+  window.__saStoreIds = (sa.store_ids && sa.store_ids.length) ? sa.store_ids : null;
+  window.__saPerms    = perms;
+
+  // ── Bloqueia edição nas abas com permissão "view" ──
+  // Injeta CSS que oculta botões de ação quando a aba está em modo somente-leitura
+  // Aplicado dinamicamente a cada switchTab via MutationObserver
+  const viewOnlyTabs = SA_TABS.filter(t => perms[t.key] === 'view').map(t => t.key);
+  if (viewOnlyTabs.length) {
+    window.__saViewOnlyTabs = new Set(viewOnlyTabs);
+
+    // Sobrescreve switchTab para aplicar readonly após cada navegação
+    const origSwitchTab = window.switchTab;
+    window.switchTab = async function(tab) {
+      await origSwitchTab(tab);
+      if (window.__saViewOnlyTabs?.has(tab)) {
+        // Pequeno delay para a tela renderizar antes de bloquear
+        setTimeout(() => applyViewOnlyToCurrentTab(tab), 300);
+      }
+    };
+  }
+
+  // Navega para a primeira aba com acesso
+  const firstTab = SA_TABS.find(t => perms[t.key]);
+  if (firstTab) {
+    setTimeout(() => {
+      const btn = document.getElementById(`nav-${firstTab.key}`);
+      if (btn) btn.click();
+    }, 100);
+  }
+}
+
+// Aplica bloqueio de edição na aba atual
+function applyViewOnlyToCurrentTab(tab) {
+  const mod = document.getElementById(`mod-${tab}`);
+  if (!mod) return;
+
+  // Identificadores de campos de busca/filtro (nunca bloqueados)
+  const isSearchField = (el) => {
+    const id = (el.id || '').toLowerCase();
+    const ph = (el.getAttribute('placeholder') || '').toLowerCase();
+    const onin = (el.getAttribute('oninput') || el.getAttribute('onchange') || '').toLowerCase();
+    return id.includes('search') || id.includes('filter') || id.includes('buscar') ||
+           id.includes('rel-') || ph.includes('buscar') || ph.includes('filtrar') ||
+           ph.includes('pesquisar') || ph.includes('nome') ||
+           onin.includes('filter') || onin.includes('search') || onin.includes('buscar');
+  };
+
+  // Botões: desabilita exceto os de navegação/filtro
+  mod.querySelectorAll('button').forEach(btn => {
+    const txt = (btn.textContent || '').toLowerCase().trim();
+    const onc = (btn.getAttribute('onclick') || '').toLowerCase();
+    const isNav = onc.includes('switchtab') || onc.includes('rendertab') ||
+                  onc.includes('filter') || onc.includes('relatorio') ||
+                  txt.includes('voltar') || txt.includes('← ') ||
+                  txt.includes('fechar') || btn.closest('nav');
+    if (!isNav) {
+      btn.disabled = true;
+      btn.style.opacity = '0.35';
+      btn.style.cursor = 'not-allowed';
+      btn.title = 'Você tem apenas permissão de visualização nesta tela.';
+    }
+  });
+
+  // Inputs/selects: bloqueia SOMENTE os que não são de busca/filtro
+  mod.querySelectorAll('input, textarea, select').forEach(el => {
+    if (isSearchField(el)) return; // preserva campos de busca
+    el.setAttribute('readonly', 'true');
+    el.setAttribute('disabled', 'true');
+    el.style.opacity = '0.6';
+    el.style.cursor = 'not-allowed';
+  });
+
+  // Banner de aviso
+  const existing = mod.querySelector('.sa-readonly-banner');
+  if (!existing) {
+    const banner = document.createElement('div');
+    banner.className = 'sa-readonly-banner bg-amber-50 border-b border-amber-200 px-8 py-2 text-xs font-bold text-amber-700 flex items-center gap-2 shrink-0';
+    banner.innerHTML = '🔒 Você tem acesso somente de visualização nesta tela.';
+    const header = mod.querySelector('header');
+    if (header) header.insertAdjacentElement('afterend', banner);
+    else mod.prepend(banner);
+  }
+}
+
 // ===== CONFIGURAÇÕES DE FUNÇÕES =====
 async function renderConfiguracoes() {
   const container = document.getElementById('configuracoes-content');
@@ -9778,20 +10167,38 @@ async function renderAcademiaRelatorio() {
         <h4 class="text-xs font-black uppercase text-gray-500 mb-4">🔄 Refazer treinamento</h4>
         <p class="text-xs text-gray-400 mb-4">Selecione um autônomo específico ou todos de uma loja para zerar o progresso e obrigar a refazer o curso.</p>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+
+          <!-- Busca por autônomo com autocomplete -->
           <div>
             <label class="text-[10px] font-black uppercase text-gray-400">Autônomo específico</label>
-            <select id="reset-profile-select" class="w-full border rounded-xl px-3 py-2 text-sm mt-1 bg-white outline-none focus:ring-2 focus:ring-emerald-500">
-              <option value="">— Selecione —</option>
-              ${profileOptions}
-            </select>
+            <div class="relative mt-1">
+              <input type="text" id="reset-profile-search"
+                placeholder="Digite o nome do autônomo..."
+                autocomplete="off"
+                oninput="showResetProfileSuggestions()"
+                onfocus="showResetProfileSuggestions()"
+                onblur="setTimeout(hideResetProfileDd, 180)"
+                class="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500">
+              <input type="hidden" id="reset-profile-id">
+              <div id="reset-profile-dd" class="hidden absolute z-20 top-full left-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg w-full max-h-48 overflow-y-auto"></div>
+            </div>
           </div>
+
+          <!-- Busca por loja -->
           <div>
             <label class="text-[10px] font-black uppercase text-gray-400">Ou todos de uma loja</label>
-            <select id="reset-store-select" class="w-full border rounded-xl px-3 py-2 text-sm mt-1 bg-white outline-none focus:ring-2 focus:ring-emerald-500">
-              <option value="">— Selecione uma loja —</option>
-              ${storeOptions}
-            </select>
+            <div class="relative mt-1">
+              <input type="text" id="reset-store-search"
+                list="reset-store-list"
+                placeholder="Digite o nome da loja..."
+                autocomplete="off"
+                class="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500">
+              <datalist id="reset-store-list">
+                ${uniqueStores.map(s => `<option value="${escapeHtml(s)}">`).join('')}
+              </datalist>
+            </div>
           </div>
+
         </div>
         <div id="reset-status" class="text-xs font-bold text-center hidden mb-3"></div>
         <button onclick="resetAcademiaProgress()" class="px-6 py-2.5 bg-red-600 text-white rounded-xl text-xs font-black uppercase hover:bg-red-700 transition">
@@ -9803,17 +10210,33 @@ async function renderAcademiaRelatorio() {
       <div class="bg-white rounded-2xl border border-gray-200 overflow-hidden">
         <!-- Filtros -->
         <div class="p-4 border-b flex flex-wrap gap-3 items-center">
-          <input type="text" id="rel-search" oninput="filterRelatorio()" placeholder="Buscar autônomo..."
-            class="border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500 w-52">
-          <select id="rel-store" onchange="filterRelatorio()" class="border rounded-xl px-3 py-2 text-sm bg-white outline-none focus:ring-2 focus:ring-emerald-500">
-            <option value="">Todas as lojas</option>
-            ${storeOptions}
-          </select>
+
+          <!-- Busca por nome com autocomplete -->
+          <div class="relative">
+            <input type="text" id="rel-search" oninput="filterRelatorio(); showRelNameSuggestions()" onfocus="showRelNameSuggestions()" onblur="setTimeout(()=>hideRelSuggestions(),180)" placeholder="🔍 Buscar autônomo..."
+              autocomplete="off"
+              class="border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500 w-56">
+            <div id="rel-name-dd" class="hidden absolute z-20 top-full left-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg w-56 max-h-48 overflow-y-auto"></div>
+          </div>
+
+          <!-- Busca por loja com input + datalist -->
+          <div class="relative">
+            <input type="text" id="rel-store-search" list="rel-store-list" oninput="filterRelatorioByStore()" onchange="filterRelatorioByStore()" placeholder="🏢 Filtrar por loja..."
+              autocomplete="off"
+              class="border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500 w-48">
+            <datalist id="rel-store-list">
+              <option value="">Todas as lojas</option>
+              ${uniqueStores.map(s => `<option value="${escapeHtml(s)}">`).join('')}
+            </datalist>
+          </div>
+
           <select id="rel-status" onchange="filterRelatorio()" class="border rounded-xl px-3 py-2 text-sm bg-white outline-none focus:ring-2 focus:ring-emerald-500">
-            <option value="">Todos</option>
+            <option value="">Todos os status</option>
             <option value="done">✅ Concluídos</option>
             <option value="pending">⏳ Pendentes</option>
           </select>
+
+          <button onclick="clearRelatorioFilters()" class="text-xs text-gray-400 hover:text-gray-600 font-bold px-2">✕ Limpar</button>
           <span id="rel-count" class="text-xs text-gray-400 ml-auto">${rows.length} resultados</span>
         </div>
 
@@ -9864,76 +10287,141 @@ async function renderAcademiaRelatorio() {
 }
 
 function filterRelatorio() {
-  const search = (document.getElementById('rel-search')?.value || '').toLowerCase();
-  const store  = document.getElementById('rel-store')?.value || '';
+  const search = (document.getElementById('rel-search')?.value || '').toLowerCase().trim();
+  const store  = (document.getElementById('rel-store-search')?.value || '').toLowerCase().trim();
   const status = document.getElementById('rel-status')?.value || '';
   let count = 0;
   document.querySelectorAll('.rel-row').forEach(row => {
     const nameMatch  = !search || row.dataset.name.includes(search);
-    const storeMatch = !store  || row.dataset.store === store;
+    const storeMatch = !store  || row.dataset.store.toLowerCase().includes(store);
     const statusMatch= !status || row.dataset.status === status;
     const visible = nameMatch && storeMatch && statusMatch;
     row.style.display = visible ? '' : 'none';
     if (visible) count++;
   });
   const countEl = document.getElementById('rel-count');
-  if (countEl) countEl.textContent = `${count} resultados`;
+  if (countEl) countEl.textContent = `${count} resultado${count !== 1 ? 's' : ''}`;
+}
+
+function showResetProfileSuggestions() {
+  const input = document.getElementById('reset-profile-search');
+  const dd    = document.getElementById('reset-profile-dd');
+  const rows  = window.__relRows || [];
+  if (!input || !dd) return;
+  const q = (input.value || '').toLowerCase().trim();
+  const matches = rows.filter(r => !q || r.profile.full_name.toLowerCase().includes(q)).slice(0, 10);
+  if (!matches.length) { dd.classList.add('hidden'); return; }
+  dd.innerHTML = matches.map(r => `
+    <div onclick="selectResetProfile('${r.profile.id}', '${escapeHtml(r.profile.full_name)}')"
+      class="px-3 py-2 text-sm cursor-pointer hover:bg-emerald-50 hover:text-emerald-700 border-b border-gray-100 last:border-0">
+      <span class="font-bold">${escapeHtml(r.profile.full_name)}</span>
+      <span class="text-xs text-gray-400 ml-1">${escapeHtml(r.storeName)}</span>
+    </div>`).join('');
+  dd.classList.remove('hidden');
+}
+
+function selectResetProfile(id, name) {
+  document.getElementById('reset-profile-search').value = name;
+  document.getElementById('reset-profile-id').value = id;
+  document.getElementById('reset-profile-dd').classList.add('hidden');
+  // Limpa loja quando seleciona autônomo
+  const storeInput = document.getElementById('reset-store-search');
+  if (storeInput) storeInput.value = '';
+}
+
+function hideResetProfileDd() {
+  const dd = document.getElementById('reset-profile-dd');
+  if (dd) dd.classList.add('hidden');
 }
 
 async function resetAcademiaProgress() {
-  const profileId = document.getElementById('reset-profile-select')?.value;
-  const storeName = document.getElementById('reset-store-select')?.value;
-  const statusEl  = document.getElementById('reset-status');
+  const profileId  = document.getElementById('reset-profile-id')?.value || '';
+  const storeName  = (document.getElementById('reset-store-search')?.value || '').trim();
+  const statusEl   = document.getElementById('reset-status');
 
-  if (!profileId && !storeName) {
-    if (statusEl) { statusEl.className = 'text-xs font-bold text-center text-red-500 mb-3'; statusEl.textContent = 'Selecione um autônomo ou uma loja.'; statusEl.classList.remove('hidden'); }
-    return;
-  }
+  const show = (msg, cls) => {
+    if (!statusEl) return;
+    statusEl.className = `text-xs font-bold text-center ${cls} mb-3`;
+    statusEl.textContent = msg;
+    statusEl.classList.remove('hidden');
+  };
+
+  if (!profileId && !storeName) return show('Selecione um autônomo ou uma loja.', 'text-red-500');
 
   const label = profileId
     ? `o autônomo selecionado`
     : `todos os autônomos da loja "${storeName}"`;
   if (!confirm(`Zerar o progresso da Academia para ${label}? Eles precisarão refazer o treinamento completo.`)) return;
 
-  if (statusEl) { statusEl.className = 'text-xs font-bold text-center text-gray-500 mb-3'; statusEl.textContent = 'Zerando...'; statusEl.classList.remove('hidden'); }
+  show('Zerando...', 'text-gray-500');
 
   let profileIds = [];
 
   if (profileId) {
     profileIds = [profileId];
   } else {
-    // Busca todos os autônomos aprovados daquela loja
-    const { data: profiles } = await _supabase
-      .from('profiles')
-      .select('id, store_id')
-      .eq('role', 'autonomo')
-      .eq('status', 'aprovado');
     const { data: stores } = await _supabase.from('stores').select('id, name').ilike('name', storeName);
     const storeIds = (stores||[]).map(s => s.id);
+    const { data: profiles } = await _supabase.from('profiles').select('id, store_id').eq('role', 'autonomo').eq('status', 'aprovado');
     profileIds = (profiles||[]).filter(p => storeIds.includes(p.store_id)).map(p => p.id);
   }
 
-  if (!profileIds.length) {
-    if (statusEl) { statusEl.className = 'text-xs font-bold text-center text-amber-500 mb-3'; statusEl.textContent = 'Nenhum autônomo encontrado.'; statusEl.classList.remove('hidden'); }
-    return;
-  }
+  if (!profileIds.length) return show('Nenhum autônomo encontrado.', 'text-amber-500');
 
-  // Deleta progresso
-  const { error } = await _supabase
-    .from('academy_progress')
-    .delete()
-    .in('profile_id', profileIds);
+  const { error } = await _supabase.from('academy_progress').delete().in('profile_id', profileIds);
+  if (error) return show('Erro: ' + error.message, 'text-red-500');
 
-  if (error) {
-    if (statusEl) { statusEl.className = 'text-xs font-bold text-center text-red-500 mb-3'; statusEl.textContent = 'Erro: ' + error.message; }
-    return;
-  }
+  // Limpa os campos
+  if (document.getElementById('reset-profile-search')) document.getElementById('reset-profile-search').value = '';
+  if (document.getElementById('reset-profile-id')) document.getElementById('reset-profile-id').value = '';
+  if (document.getElementById('reset-store-search')) document.getElementById('reset-store-search').value = '';
 
-  if (statusEl) { statusEl.className = 'text-xs font-bold text-center text-emerald-600 mb-3'; statusEl.textContent = `✅ Progresso zerado para ${profileIds.length} autônomo(s)!`; }
+  show(`✅ Progresso zerado para ${profileIds.length} autônomo(s)!`, 'text-emerald-600');
   setTimeout(() => renderAcademiaRelatorio(), 1500);
 }
 
 
+
+function showRelNameSuggestions() {
+  const input = document.getElementById('rel-search');
+  const dd = document.getElementById('rel-name-dd');
+  if (!input || !dd) return;
+  const q = (input.value || '').toLowerCase().trim();
+  const rows = window.__relRows || [];
+  const matches = rows
+    .filter(r => !q || r.profile.full_name.toLowerCase().includes(q))
+    .slice(0, 8);
+  if (!matches.length || !q) { dd.classList.add('hidden'); return; }
+  dd.innerHTML = matches.map(r => `
+    <div onclick="selectRelName('${escapeHtml(r.profile.full_name)}')"
+      class="px-3 py-2 text-sm cursor-pointer hover:bg-emerald-50 hover:text-emerald-700 font-bold border-b border-gray-100 last:border-0">
+      ${escapeHtml(r.profile.full_name)}
+      <span class="text-xs text-gray-400 font-normal ml-1">${escapeHtml(r.storeName)}</span>
+    </div>`).join('');
+  dd.classList.remove('hidden');
+}
+
+function selectRelName(name) {
+  const input = document.getElementById('rel-search');
+  if (input) { input.value = name; filterRelatorio(); }
+  hideRelSuggestions();
+}
+
+function hideRelSuggestions() {
+  const dd = document.getElementById('rel-name-dd');
+  if (dd) dd.classList.add('hidden');
+}
+
+function clearRelatorioFilters() {
+  const s = document.getElementById('rel-search');
+  const st = document.getElementById('rel-store-search');
+  const sta = document.getElementById('rel-status');
+  if (s) s.value = '';
+  if (st) st.value = '';
+  if (sta) sta.value = '';
+  filterRelatorio();
+  hideRelSuggestions();
+}
 
 // ── Delete content (called from editor) ──
 async function deleteAcademiaContent(id, stepId) {
@@ -10514,6 +11002,56 @@ function scrollChatToBottom(id) {
         <button onclick="replyTicket()" class="bg-gray-900 text-white px-6 py-2 rounded-xl text-sm font-bold hover:bg-emerald-600 transition">Enviar resposta</button>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- ===== MODAL: SUB-ADMIN ===== -->
+<div id="modal-subadmin" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+    <div class="p-6 border-b flex items-center justify-between">
+      <h3 id="modal-subadmin-title" class="font-black text-gray-800 uppercase text-sm">Novo Sub-admin</h3>
+      <button onclick="document.getElementById('modal-subadmin').classList.add('hidden')" class="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+    </div>
+    <div class="p-6 space-y-5">
+      <input type="hidden" id="sa-id">
+      <input type="hidden" id="sa-profile-id">
+
+      <!-- Dados de acesso -->
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="text-[10px] font-black uppercase text-gray-400">Nome</label>
+          <input type="text" id="sa-name" placeholder="Ex: Ana — Operações SP" class="w-full border rounded-xl px-3 py-2 text-sm mt-1 outline-none focus:ring-2 focus:ring-emerald-500">
+        </div>
+        <div>
+          <label class="text-[10px] font-black uppercase text-gray-400">E-mail de acesso</label>
+          <input type="email" id="sa-email" placeholder="ana@voxyr.com.br" class="w-full border rounded-xl px-3 py-2 text-sm mt-1 outline-none focus:ring-2 focus:ring-emerald-500">
+          <p id="sa-email-hint" class="text-[10px] text-gray-400 mt-1 hidden">E-mail não pode ser alterado após criação.</p>
+        </div>
+        <div id="sa-password-wrap" class="col-span-2">
+          <label class="text-[10px] font-black uppercase text-gray-400">Senha inicial</label>
+          <input type="password" id="sa-password" placeholder="Mínimo 6 caracteres" class="w-full border rounded-xl px-3 py-2 text-sm mt-1 outline-none focus:ring-2 focus:ring-emerald-500">
+          <p class="text-[10px] text-gray-400 mt-1">O sub-admin fará login pela mesma tela de todos. Use a opção "Esqueci minha senha" para redefinir.</p>
+        </div>
+      </div>
+
+      <!-- Permissões por aba -->
+      <div>
+        <p class="text-[10px] font-black uppercase text-gray-400 mb-3">Permissões por aba</p>
+        <div class="grid grid-cols-1 gap-2" id="sa-permissions-grid"></div>
+      </div>
+
+      <!-- Lojas permitidas -->
+      <div>
+        <p class="text-[10px] font-black uppercase text-gray-400 mb-1">Lojas com acesso</p>
+        <p class="text-xs text-gray-400 mb-3">Se nenhuma selecionada, terá acesso a todas.</p>
+        <div class="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto" id="sa-stores-grid"></div>
+      </div>
+    </div>
+    <div class="p-6 border-t flex justify-end gap-3">
+      <button onclick="document.getElementById('modal-subadmin').classList.add('hidden')" class="px-5 py-2 text-sm text-gray-500 hover:text-gray-700">Cancelar</button>
+      <button onclick="saveSubAdmin()" class="bg-gray-900 text-white px-6 py-2 rounded-xl text-sm font-bold hover:bg-emerald-600 transition">Salvar</button>
+    </div>
+    <div id="sa-status" class="px-6 pb-4 text-xs font-bold text-center hidden"></div>
   </div>
 </div>
 
