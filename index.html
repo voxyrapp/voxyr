@@ -16,6 +16,42 @@
 
 <body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
 
+<!-- SPLASH SCREEN PWA -->
+<div id="pwa-splash" style="
+  position:fixed;inset:0;z-index:9999;
+  background:#0f172a;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;
+  transition:opacity 0.4s ease;
+">
+  <img src="/icon-512.png" style="width:96px;height:96px;border-radius:22px;" alt="Voxyr">
+  <div style="display:flex;flex-direction:column;align-items:center;gap:8px;">
+    <p style="color:white;font-family:Inter,sans-serif;font-size:28px;font-weight:900;letter-spacing:-1px;margin:0;">
+      Vox<span style="color:#0d9488;">yr</span>
+    </p>
+    <p style="color:#475569;font-family:Inter,sans-serif;font-size:12px;margin:0;font-weight:600;text-transform:uppercase;letter-spacing:1px;">Carregando...</p>
+  </div>
+  <div style="position:absolute;bottom:48px;">
+    <div style="width:40px;height:3px;background:#1e293b;border-radius:2px;overflow:hidden;">
+      <div id="splash-bar" style="width:0%;height:100%;background:#0d9488;border-radius:2px;animation:splashload 1.2s ease forwards;"></div>
+    </div>
+  </div>
+</div>
+<style>
+  @keyframes splashload { 0%{width:0%} 60%{width:70%} 100%{width:95%} }
+</style>
+<script>
+  // Remove splash quando o DOM estiver pronto
+  window.addEventListener('load', () => {
+    setTimeout(() => {
+      const splash = document.getElementById('pwa-splash');
+      if (splash) {
+        splash.style.opacity = '0';
+        setTimeout(() => splash.remove(), 400);
+      }
+    }, 600);
+  });
+</script>
+
 <!-- MODAL PWA -->
 <div id="pwaModal" class="fixed inset-0 z-50 hidden">
   <div class="absolute inset-0 bg-black/50"></div>
@@ -876,7 +912,7 @@ if (isRecovery) {
     if (profile?.status === 'aprovado') {
       const role = (profile.role || '').toLowerCase();
 
-      if (role === 'admin' || role === 'subadmin') {
+      if (role === 'admin') {
         window.location.href = 'admin.html';
       } else if (role === 'gerente' || role === 'manager') {
         window.location.href = 'gerente.html';
@@ -1064,7 +1100,7 @@ if (!registration || !registration.active) {
 
     const role = (window.__lastProfile?.role || '').trim().toLowerCase();
 
-    if (role === 'admin' || role === 'subadmin') {
+    if (role === 'admin') {
       window.location.href = 'admin.html';
     } else if (role === 'gerente' || role === 'manager') {
       window.location.href = 'gerente.html';
@@ -1467,7 +1503,7 @@ if (!pushAlreadyEnabled) {
     return;
 }
 
-if (role === 'admin' || role === 'subadmin') {
+if (role === 'admin') {
     window.location.href = 'admin.html';
 } else if (role === 'gerente' || role === 'manager') {
     window.location.href = 'gerente.html';
