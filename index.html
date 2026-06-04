@@ -912,7 +912,7 @@ if (isRecovery) {
     if (profile?.status === 'aprovado') {
       const role = (profile.role || '').toLowerCase();
 
-      if (role === 'admin') {
+      if (role === 'admin' || role === 'subadmin') {
         window.location.href = 'admin.html';
       } else if (role === 'gerente' || role === 'manager') {
         window.location.href = 'gerente.html';
@@ -1100,7 +1100,7 @@ if (!registration || !registration.active) {
 
     const role = (window.__lastProfile?.role || '').trim().toLowerCase();
 
-    if (role === 'admin') {
+    if (role === 'admin' || role === 'subadmin') {
       window.location.href = 'admin.html';
     } else if (role === 'gerente' || role === 'manager') {
       window.location.href = 'gerente.html';
@@ -1503,7 +1503,7 @@ if (!pushAlreadyEnabled) {
     return;
 }
 
-if (role === 'admin') {
+if (role === 'admin' || role === 'subadmin') {
     window.location.href = 'admin.html';
 } else if (role === 'gerente' || role === 'manager') {
     window.location.href = 'gerente.html';

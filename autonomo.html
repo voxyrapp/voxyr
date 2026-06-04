@@ -538,7 +538,7 @@ async function init() {
     subscribeProfileRealtime();
 
     const __r = (window.__profile?.role || '').trim().toLowerCase();
-    if (__r === 'admin') { window.location.href = 'admin.html'; return; }
+    if (__r === 'admin' || __r === 'subadmin') { window.location.href = 'admin.html'; return; }
     if (__r === 'gerente' || __r === 'manager') { window.location.href = 'gerente.html'; return; }
 
     await checkAnnouncementsOnOpen();
