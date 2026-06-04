@@ -123,10 +123,6 @@
     <button onclick="switchTab('pontuacao')" id="nav-pontuacao" class="w-full text-left px-4 py-3 rounded text-gray-400 hover:bg-gray-800 hover:text-white transition-colors font-bold border-l-4 border-transparent flex items-center gap-2">⭐ Pontuação</button>
     <button onclick="switchTab('pedidos')" id="nav-pedidos" class="w-full text-left px-4 py-3 rounded text-gray-400 hover:bg-gray-800 hover:text-white transition-colors font-bold border-l-4 border-transparent flex items-center gap-2">📦 Pedidos</button>
 
-    <button onclick="switchTab('configuracoes'); renderConfiguracoes();" id="nav-configuracoes" class="w-full text-left px-4 py-3 rounded text-gray-400 hover:bg-gray-800 hover:text-white transition-colors font-bold border-l-4 border-transparent flex items-center gap-2">⚙️ Configurações</button>
-
-    <button onclick="switchTab('subadmins'); renderSubAdmins();" id="nav-subadmins" class="w-full text-left px-4 py-3 rounded text-gray-400 hover:bg-gray-800 hover:text-white transition-colors font-bold border-l-4 border-transparent flex items-center gap-2">🔑 Sub-admins</button>
-
     <button onclick="switchTab('academia'); renderAcademia();" id="nav-academia" class="w-full text-left px-4 py-3 rounded text-gray-400 hover:bg-gray-800 hover:text-white transition-colors font-bold border-l-4 border-transparent flex items-center gap-2">🎓 Academia</button>
 
     <button onclick="switchTab('suporte'); renderAdminSuporte();" id="nav-suporte" class="w-full text-left px-4 py-3 rounded text-gray-400 hover:bg-gray-800 hover:text-white transition-colors font-bold border-l-4 border-transparent flex items-center gap-2">🎧 Suporte</button>
@@ -134,6 +130,8 @@
     <button onclick="switchTab('finance'); renderAdminFinance();" id="nav-finance" class="w-full text-left px-4 py-3 rounded text-gray-400 hover:bg-gray-800 hover:text-white transition-colors font-bold border-l-4 border-transparent flex items-center gap-2">💰 Financeiro</button>
     <button onclick="switchTab('comunicados'); renderAdminComunicados();" id="nav-comunicados" class="w-full text-left px-4 py-3 rounded text-gray-400 hover:bg-gray-800 hover:text-white transition-colors font-bold border-l-4 border-transparent flex items-center gap-2">📣 Comunicados</button>
     <button onclick="switchTab('atrasos')" id="nav-atrasos" class="w-full text-left px-4 py-3 rounded text-gray-400 hover:bg-gray-800 hover:text-white transition-colors font-bold border-l-4 border-transparent flex items-center gap-2">⏰ Atrasos</button>
+    <button onclick="switchTab('subadmins'); renderSubAdmins();" id="nav-subadmins" class="w-full text-left px-4 py-3 rounded text-gray-400 hover:bg-gray-800 hover:text-white transition-colors font-bold border-l-4 border-transparent flex items-center gap-2">🔑 Sub-admins</button>
+    <button onclick="switchTab('configuracoes'); renderConfiguracoes();" id="nav-configuracoes" class="w-full text-left px-4 py-3 rounded text-gray-400 hover:bg-gray-800 hover:text-white transition-colors font-bold border-l-4 border-transparent flex items-center gap-2">⚙️ Configurações</button>
     <button onclick="doLogout()" id="nav-logout" class="w-full text-left px-4 py-3 rounded text-gray-400 hover:bg-gray-800 hover:text-white transition-colors font-bold border-l-4 border-transparent flex items-center gap-2">🚪 Sair</button>
   </nav>
     </aside>
@@ -147,8 +145,8 @@
 
         <div class="bg-white border-b px-8 py-3 flex items-center justify-between">
             <div class="flex gap-4 flex-wrap">
-                <input type="text" id="filter-name" oninput="applyFilters()" placeholder="Nome ou CPF..." class="border rounded-lg px-4 py-2 text-sm w-64 outline-none focus:ring-2 focus:ring-emerald-500">
-                <input type="text" id="store-search" oninput="applyFilters()" placeholder="Filtrar por nome da loja..." class="border rounded-lg px-4 py-2 text-sm w-64 outline-none focus:ring-2 focus:ring-emerald-500">
+                <input type="text" id="filter-name" oninput="applyFilters()" placeholder="Nome ou CPF..." autocomplete="off" class="border rounded-lg px-4 py-2 text-sm w-64 outline-none focus:ring-2 focus:ring-emerald-500">
+                <input type="text" id="store-search" oninput="applyFilters()" placeholder="Filtrar por nome da loja..." autocomplete="off" class="border rounded-lg px-4 py-2 text-sm w-64 outline-none focus:ring-2 focus:ring-emerald-500">
                 <select id="filter-job-function" onchange="applyFilters()" class="border rounded-lg px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500 bg-white">
                     <option value="">Todas as funções</option>
                     <option value="separador">📦 Separador</option>
