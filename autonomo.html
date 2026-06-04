@@ -87,11 +87,11 @@
 
     <nav class="flex-1 pt-4">
         <a onclick="navigateMobile(renderDashboard, 'Dashboard')" class="nav-link active"><i class="fas fa-chart-line"></i> Dashboard</a>
-        <a onclick="navigateMobile(renderAcademiaAutonomo, 'Academia')" class="nav-link"><i class="fas fa-graduation-cap"></i> Academia</a>
         <a onclick="navigateMobile(renderMercado, 'Mercado')" class="nav-link"><i class="fas fa-store"></i> Mercado</a>
         <a onclick="navigateMobile(renderAgenda, 'Minha Agenda')" class="nav-link"><i class="fas fa-calendar-alt"></i> Minha Agenda</a>
         <a onclick="navigateMobile(renderPedidos, 'Pedidos')" class="nav-link"><i class="fas fa-box"></i> Pedidos</a>
         <a onclick="navigateMobile(renderFinanceiro, 'Financeiro')" class="nav-link"><i class="fas fa-wallet"></i> Financeiro</a>
+        <a onclick="navigateMobile(renderAcademiaAutonomo, 'Academia')" class="nav-link"><i class="fas fa-graduation-cap"></i> Academia</a>
         <a onclick="navigateMobile(renderSuporteAutonomo, 'Suporte')" class="nav-link"><i class="fas fa-headset"></i> Suporte</a>
     </nav>
 
@@ -3536,8 +3536,8 @@ async function openAcademiaStep(stepId) {
         if (c.type === 'image') return `
             <div>
                 ${titleHtml}
-                <div class="rounded-2xl overflow-hidden shadow-sm border">
-                    <img src="${escapeHtml(c.body)}" alt="${escapeHtml(c.title||'')}" class="w-full object-cover max-h-80">
+                <div class="rounded-2xl overflow-hidden shadow-sm border bg-white text-center">
+                    <img src="${escapeHtml(c.body)}" alt="${escapeHtml(c.title||'')}" class="max-w-full h-auto mx-auto">
                 </div>
                 ${obsHtml}
             </div>`;
