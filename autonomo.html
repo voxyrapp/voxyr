@@ -1595,12 +1595,15 @@ function iniciarMonitoramentoGeo(reservaId, lojaLat, lojaLng) {
           lng: geo.lng,
         });
         if (pingErr) {
-          console.error('[GEO PING] Erro ao inserir ping:', pingErr.message, pingErr.code, pingErr.details);
+          console.error('[GEO PING] Erro:', pingErr.message);
+          atualizarStatusGeo(`❌ Ping erro: ${pingErr.message}`, 'red');
         } else {
-          console.log('[GEO PING] Ping enviado:', geo.lat, geo.lng);
+          console.log('[GEO PING] OK:', geo.lat, geo.lng);
+          atualizarStatusGeo(`📍 Ping enviado ${new Date().toLocaleTimeString('pt-BR')}`, 'green');
         }
       } catch(e) {
         console.error('[GEO PING] Exceção:', e);
+        atualizarStatusGeo(`❌ Exceção: ${e}`, 'red');
       }
 
       if (latAtual && lngAtual) {
@@ -1658,6 +1661,21 @@ function mostrarBannerGeo(msg, cor) {
 }
 function removerBannerGeo() {
   document.getElementById('geo-banner')?.remove();
+}
+
+function atualizarStatusGeo(msg, cor) {
+  let el = document.getElementById('geo-status-pill');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'geo-status-pill';
+    el.className = 'fixed top-4 right-4 z-50 text-[10px] font-bold px-3 py-1.5 rounded-full shadow-lg max-w-xs';
+    document.body.appendChild(el);
+  }
+  el.textContent = msg;
+  el.style.background = cor === 'green' ? '#dcfce7' : cor === 'red' ? '#fee2e2' : '#fef3c7';
+  el.style.color = cor === 'green' ? '#166534' : cor === 'red' ? '#991b1b' : '#92400e';
+  clearTimeout(el._timeout);
+  el._timeout = setTimeout(() => el?.remove(), 10000);
 }
 
 // ── Substitui o QR code no fluxo por verificação de geolocalização ──
