@@ -1550,39 +1550,64 @@ function iniciarMonitoramentoGeo(reservaId, lojaLat, lojaLng) {
   _geoForaDesde    = null;
 
   _geoWatchId = setInterval(async () => {
+    // Verifica se a missão ainda está ativa
     const res = await _sb.from('reservations').select('status').eq('id', reservaId).maybeSingle();
     const st  = normStatus(res?.data?.status);
-    if (st !== 'check-in') { pararMonitoramentoGeo(); return; } // já pausou ou finalizou
+    if (st !== 'check-in') { pararMonitoramentoGeo(); return; }
 
-    let geo;
-    try { geo = await obterGeolocalizacao(); } catch(e) { return; }
-    const dist = distanciaMetros(geo.lat, geo.lng, lojaLat, lojaLng);
+    // Busca coordenadas ATUAIS da loja (sempre do banco, nunca do cache)
+    let latAtual = _geoLojaLat, lngAtual = _geoLojaLng;
+    try {
+      const { data: resData } = await _sb
+        .from('reservations')
+        .select('slots:slot_id(stores:store_id(lat, lng))')
+        .eq('id', reservaId).maybeSingle();
+      const coords = resData?.slots?.stores;
+      if (coords?.lat && coords?.lng) { latAtual = coords.lat; lngAtual = coords.lng; }
+    } catch(_) {}
 
-    if (dist > GEO_RAIO_METROS) {
+    // Tenta obter localização — GPS desligado = fora do raio
+    let geo = null;
+    try {
+      geo = await Promise.race([
+        obterGeolocalizacao(),
+        new Promise((_,reject) => setTimeout(() => reject(new Error('TIMEOUT')), 8000))
+      ]);
+    } catch(e) {
+      // GPS desligado, negado ou timeout — trata como fora do raio
       if (!_geoForaDesde) {
         _geoForaDesde = Date.now();
-        // Avisa o autônomo
-        mostrarBannerGeo(`⚠️ Você está ${Math.round(dist)}m da loja. Volte em ${GEO_MINUTOS_FORA} minutos ou a missão será pausada automaticamente.`, 'amber');
-      } else {
-        const minFora = (Date.now() - _geoForaDesde) / 60000;
-        if (minFora >= GEO_MINUTOS_FORA) {
-          // Pausa automática
-          pararMonitoramentoGeo();
-          mostrarBannerGeo('⏸️ Missão pausada automaticamente — você saiu do raio da loja.', 'red');
-          await _sb.from('reservations').update({
-            status: 'pausa',
-            geo_auto_paused: true,
-            geo_paused_at: new Date().toISOString(),
-            geo_paused_dist: Math.round(dist),
-          }).eq('id', reservaId);
-          await renderAgenda();
-        }
+        mostrarBannerGeo('⚠️ GPS desativado. Reative a localização ou a missão será pausada em 5 minutos.', 'amber');
       }
-    } else {
-      // Voltou para o raio — cancela o contador
-      if (_geoForaDesde) {
-        _geoForaDesde = null;
-        removerBannerGeo();
+    }
+
+    if (geo && latAtual && lngAtual) {
+      const dist = distanciaMetros(geo.lat, geo.lng, latAtual, lngAtual);
+      if (dist > GEO_RAIO_METROS) {
+        if (!_geoForaDesde) {
+          _geoForaDesde = Date.now();
+          mostrarBannerGeo(`⚠️ Você está ${Math.round(dist)}m da loja. Volte em ${GEO_MINUTOS_FORA} minutos ou a missão será pausada.`, 'amber');
+        }
+      } else {
+        // Dentro do raio — cancela contador
+        if (_geoForaDesde) { _geoForaDesde = null; removerBannerGeo(); }
+        return;
+      }
+    }
+
+    // Verifica se já passou os 5 minutos fora
+    if (_geoForaDesde) {
+      const minFora = (Date.now() - _geoForaDesde) / 60000;
+      if (minFora >= GEO_MINUTOS_FORA) {
+        pararMonitoramentoGeo();
+        mostrarBannerGeo('⏸️ Missão pausada automaticamente — localização fora do raio da loja.', 'red');
+        await _sb.from('reservations').update({
+          status: 'pausa',
+          geo_auto_paused: true,
+          geo_paused_at: new Date().toISOString(),
+          geo_paused_dist: geo && latAtual ? Math.round(distanciaMetros(geo.lat, geo.lng, latAtual, lngAtual)) : null,
+        }).eq('id', reservaId);
+        await renderAgenda();
       }
     }
   }, GEO_INTERVALO_MS);
@@ -1672,7 +1697,7 @@ async function fluxo(rid, status, horaEsperada) {
 
             if (!geoResult.dentro) {
                 const acao = nextNorm === 'check-out' ? 'finalizar' : curNorm === 'pausa' ? 'retomar' : 'iniciar';
-                alert(`📍 Você está a ${geoResult.distancia}m da loja.\n\nPrecisa estar dentro do raio para ${acao} a missão.\n\nAproximie-se da loja e tente novamente.`);
+                alert(`📍 Você está a ${geoResult.distancia}m da loja.\n\nPrecisa estar a menos de ${GEO_RAIO_METROS}m para ${acao} a missão.\n\nAproximie-se da loja e tente novamente.`);
                 return;
             }
 
