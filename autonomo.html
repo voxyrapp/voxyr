@@ -1477,14 +1477,63 @@ function obterGeolocalizacao() {
     if (!navigator.geolocation) { reject(new Error('GPS não disponível neste dispositivo.')); return; }
     navigator.geolocation.getCurrentPosition(
       pos => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude, acc: pos.coords.accuracy }),
-      err => reject(new Error(
-        err.code === 1 ? 'Permissão de localização negada. Ative o GPS para usar a plataforma.' :
-        err.code === 2 ? 'Localização indisponível. Verifique o GPS.' :
-        'Tempo esgotado ao obter localização.'
-      )),
+      err => {
+        if (err.code === 1) {
+          // Permissão negada — mostra modal amigável em vez de alert
+          reject(new Error('PERMISSION_DENIED'));
+        } else {
+          reject(new Error(
+            err.code === 2 ? 'Localização indisponível. Verifique se o GPS está ativo.' :
+            'Tempo esgotado ao obter localização. Tente novamente.'
+          ));
+        }
+      },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
     );
   });
+}
+
+function mostrarModalPermissaoGPS(onRetry) {
+  document.getElementById('gps-perm-modal')?.remove();
+  const m = document.createElement('div');
+  m.id = 'gps-perm-modal';
+  m.className = 'fixed inset-0 bg-black/60 z-50 flex items-end justify-center p-4';
+  m.innerHTML = `
+    <div class="bg-white rounded-3xl w-full max-w-sm p-6 mb-2 shadow-2xl">
+      <div class="text-center mb-5">
+        <div class="text-5xl mb-3">📍</div>
+        <h3 class="font-black text-slate-800 text-lg">Localização necessária</h3>
+        <p class="text-slate-500 text-sm mt-2 leading-relaxed">
+          A Voxyr precisa da sua localização para confirmar que você está na loja antes de iniciar a missão.
+        </p>
+      </div>
+
+      <div class="bg-slate-50 rounded-2xl p-4 mb-5 space-y-3">
+        <p class="text-xs font-black uppercase text-slate-400 mb-2">Como liberar no iPhone</p>
+        <div class="flex items-start gap-3">
+          <span class="text-lg">1️⃣</span>
+          <p class="text-sm text-slate-600"><strong>Ajustes</strong> → <strong>Privacidade e Segurança</strong> → <strong>Serviços de Localização</strong></p>
+        </div>
+        <div class="flex items-start gap-3">
+          <span class="text-lg">2️⃣</span>
+          <p class="text-sm text-slate-600">Role até <strong>Safari</strong> (ou Voxyr na lista) → selecione <strong>"Ao Usar o App"</strong></p>
+        </div>
+        <div class="flex items-start gap-3">
+          <span class="text-lg">3️⃣</span>
+          <p class="text-sm text-slate-600">Volte aqui e toque em <strong>"Tentar novamente"</strong></p>
+        </div>
+      </div>
+
+      <button onclick="document.getElementById('gps-perm-modal').remove(); (${onRetry.toString()})()"
+        class="w-full py-4 bg-slate-900 text-white rounded-2xl font-black uppercase text-sm hover:bg-emerald-600 transition mb-3">
+        📍 Tentar novamente
+      </button>
+      <button onclick="document.getElementById('gps-perm-modal').remove()"
+        class="w-full py-3 text-slate-400 text-sm font-bold">
+        Cancelar
+      </button>
+    </div>`;
+  document.body.appendChild(m);
 }
 
 async function verificarRaioLoja(lojaLat, lojaLng) {
@@ -1612,14 +1661,18 @@ async function fluxo(rid, status, horaEsperada) {
                 geoResult = await verificarRaioLoja(lojaLat, lojaLng);
             } catch(e) {
                 showLoading(false);
-                alert(`📍 ${e.message}`);
+                if (e.message === 'PERMISSION_DENIED') {
+                    mostrarModalPermissaoGPS(() => fluxo(rid, status, horaEsperada));
+                } else {
+                    alert(`📍 ${e.message}`);
+                }
                 return;
             }
             showLoading(false);
 
             if (!geoResult.dentro) {
                 const acao = nextNorm === 'check-out' ? 'finalizar' : curNorm === 'pausa' ? 'retomar' : 'iniciar';
-                alert(`📍 Você está a ${geoResult.distancia}m da loja.\n\nPrecisa estar a menos de ${GEO_RAIO_METROS}m para ${acao} a missão.\n\nAproximie-se da loja e tente novamente.`);
+                alert(`📍 Você está a ${geoResult.distancia}m da loja.\n\nPrecisa estar dentro do raio para ${acao} a missão.\n\nAproximie-se da loja e tente novamente.`);
                 return;
             }
 
