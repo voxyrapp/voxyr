@@ -1472,23 +1472,28 @@ function distanciaMetros(lat1, lng1, lat2, lng2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
 
-function obterGeolocalizacao() {
+function obterGeolocalizacao(tentativa = 1) {
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) { reject(new Error('GPS não disponível neste dispositivo.')); return; }
     navigator.geolocation.getCurrentPosition(
       pos => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude, acc: pos.coords.accuracy }),
-      err => {
+      async (err) => {
         if (err.code === 1) {
-          // Permissão negada — mostra modal amigável em vez de alert
           reject(new Error('PERMISSION_DENIED'));
+        } else if (tentativa < 3) {
+          // Tenta mais 2 vezes antes de desistir
+          try {
+            const resultado = await obterGeolocalizacao(tentativa + 1);
+            resolve(resultado);
+          } catch(e) { reject(e); }
         } else {
           reject(new Error(
             err.code === 2 ? 'Localização indisponível. Verifique se o GPS está ativo.' :
-            'Tempo esgotado ao obter localização. Tente novamente.'
+            'Não foi possível obter sua localização. Verifique o GPS e tente novamente.'
           ));
         }
       },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }
     );
   });
 }
@@ -1571,7 +1576,7 @@ function iniciarMonitoramentoGeo(reservaId, lojaLat, lojaLng) {
     try {
       geo = await Promise.race([
         obterGeolocalizacao(),
-        new Promise((_,reject) => setTimeout(() => reject(new Error('TIMEOUT')), 8000))
+        new Promise((_,reject) => setTimeout(() => reject(new Error('TIMEOUT')), 50000))
       ]);
     } catch(e) {
       // GPS desligado, negado ou timeout — trata como fora do raio
