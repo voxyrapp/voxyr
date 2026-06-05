@@ -1449,91 +1449,187 @@ function canStartCheckin(slot){
   }
 }
 
-// --- Validação de código gerado pelo gerente (Supabase: reservation_codes) ---
-async function validateReservationCode(reservationId, codeType, codeInput) {
-    const code = (codeInput || '').trim();
-    if (!code) return { ok: false, message: 'Código vazio.' };
+// ============================================================
+// 📍 GEOLOCALIZAÇÃO — Check-in/out por raio
+// ============================================================
 
-    // IMPORTANT: como agora pode existir mais de 1 código do mesmo tipo (ex: vários "resume"),
-    // a validação precisa bater PELO CÓDIGO escaneado, e não "pegar o último".
-    // (Se o RLS estiver bloqueando o SELECT, o Supabase pode retornar vazio sem erro.)
-    const { data: row, error } = await _sb
-        .from('reservation_codes')
-        .select('code, expires_at')
-        .eq('reservation_id', reservationId)
-        .eq('code_type', codeType)
-        .eq('code', code)
-        .limit(1)
-        .maybeSingle();
+const GEO_RAIO_METROS   = 300;  // raio de tolerância
+const GEO_MINUTOS_FORA  = 5;    // minutos fora do raio antes de pausar
+const GEO_INTERVALO_MS  = 60000;// verifica a cada 1 minuto
 
-    if (error) return { ok: false, message: error.message };
+let _geoWatchId        = null;
+let _geoForaDesde      = null; // timestamp quando saiu do raio
+let _geoReservaAtiva   = null; // id da reserva em andamento
+let _geoLojaLat        = null;
+let _geoLojaLng        = null;
 
-    if (!row) {
-        return { ok: false, message: 'Código não encontrado para esta reserva (ou sem permissão para ler no banco).' };
-    }
-
-    if (row.expires_at) {
-        const exp = new Date(row.expires_at);
-        if (!isNaN(exp.getTime()) && new Date() > exp) {
-            return { ok: false, message: 'Código expirado. Solicite um novo código.' };
-        }
-    }
-
-    return { ok: true };
+function distanciaMetros(lat1, lng1, lat2, lng2) {
+  const R = 6371000;
+  const dLat = (lat2-lat1) * Math.PI/180;
+  const dLng = (lng2-lng1) * Math.PI/180;
+  const a = Math.sin(dLat/2)**2 +
+    Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
+
+function obterGeolocalizacao() {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) { reject(new Error('GPS não disponível neste dispositivo.')); return; }
+    navigator.geolocation.getCurrentPosition(
+      pos => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude, acc: pos.coords.accuracy }),
+      err => reject(new Error(
+        err.code === 1 ? 'Permissão de localização negada. Ative o GPS para usar a plataforma.' :
+        err.code === 2 ? 'Localização indisponível. Verifique o GPS.' :
+        'Tempo esgotado ao obter localização.'
+      )),
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
+    );
+  });
+}
+
+async function verificarRaioLoja(lojaLat, lojaLng) {
+  const geo = await obterGeolocalizacao();
+  const dist = distanciaMetros(geo.lat, geo.lng, lojaLat, lojaLng);
+  return { dentro: dist <= GEO_RAIO_METROS, distancia: Math.round(dist), geo };
+}
+
+function iniciarMonitoramentoGeo(reservaId, lojaLat, lojaLng) {
+  pararMonitoramentoGeo();
+  _geoReservaAtiva = reservaId;
+  _geoLojaLat      = lojaLat;
+  _geoLojaLng      = lojaLng;
+  _geoForaDesde    = null;
+
+  _geoWatchId = setInterval(async () => {
+    const res = await _sb.from('reservations').select('status').eq('id', reservaId).maybeSingle();
+    const st  = normStatus(res?.data?.status);
+    if (st !== 'check-in') { pararMonitoramentoGeo(); return; } // já pausou ou finalizou
+
+    let geo;
+    try { geo = await obterGeolocalizacao(); } catch(e) { return; }
+    const dist = distanciaMetros(geo.lat, geo.lng, lojaLat, lojaLng);
+
+    if (dist > GEO_RAIO_METROS) {
+      if (!_geoForaDesde) {
+        _geoForaDesde = Date.now();
+        // Avisa o autônomo
+        mostrarBannerGeo(`⚠️ Você está ${Math.round(dist)}m da loja. Volte em ${GEO_MINUTOS_FORA} minutos ou a missão será pausada automaticamente.`, 'amber');
+      } else {
+        const minFora = (Date.now() - _geoForaDesde) / 60000;
+        if (minFora >= GEO_MINUTOS_FORA) {
+          // Pausa automática
+          pararMonitoramentoGeo();
+          mostrarBannerGeo('⏸️ Missão pausada automaticamente — você saiu do raio da loja.', 'red');
+          await _sb.from('reservations').update({
+            status: 'pausa',
+            geo_auto_paused: true,
+            geo_paused_at: new Date().toISOString(),
+            geo_paused_dist: Math.round(dist),
+          }).eq('id', reservaId);
+          await renderAgenda();
+        }
+      }
+    } else {
+      // Voltou para o raio — cancela o contador
+      if (_geoForaDesde) {
+        _geoForaDesde = null;
+        removerBannerGeo();
+      }
+    }
+  }, GEO_INTERVALO_MS);
+}
+
+function pararMonitoramentoGeo() {
+  if (_geoWatchId) { clearInterval(_geoWatchId); _geoWatchId = null; }
+  _geoForaDesde = null;
+  _geoReservaAtiva = null;
+}
+
+function mostrarBannerGeo(msg, cor) {
+  removerBannerGeo();
+  const cores = {
+    amber: 'bg-amber-50 border-amber-300 text-amber-800',
+    red:   'bg-red-50 border-red-300 text-red-800',
+    green: 'bg-emerald-50 border-emerald-300 text-emerald-800',
+  };
+  const banner = document.createElement('div');
+  banner.id = 'geo-banner';
+  banner.className = `fixed bottom-20 left-4 right-4 z-50 border rounded-2xl px-4 py-3 text-sm font-bold shadow-lg ${cores[cor]||cores.amber}`;
+  banner.textContent = msg;
+  document.body.appendChild(banner);
+  setTimeout(removerBannerGeo, 8000);
+}
+function removerBannerGeo() {
+  document.getElementById('geo-banner')?.remove();
+}
+
+// ── Substitui o QR code no fluxo por verificação de geolocalização ──
 async function fluxo(rid, status, horaEsperada) {
-    // Pedir QR Code no Check-in, Retomar (saindo da pausa) e Check-out (QR gerado pelo gerente)
-    const curNorm = normStatus((await _sb.from('reservations').select('status').eq('id', rid).single()).data?.status);
+    const curNorm  = normStatus((await _sb.from('reservations').select('status').eq('id', rid).single()).data?.status);
     const nextNorm = normStatus(status);
 
-    const requiresQr = (nextNorm === 'check-in' || nextNorm === 'check-out') || (nextNorm === 'check-in' && curNorm === 'pausa') || (curNorm === 'pausa' && nextNorm === 'check-in');
+    const precisaGeo = (nextNorm === 'check-in' && curNorm === 'confirmada') ||
+                       (nextNorm === 'check-in'  && curNorm === 'pausa')     ||  // retomar
+                       (nextNorm === 'check-out');
 
     let atrasoSinalizado = false;
-    if(requiresQr){
-        // regra de janela de check-in (5 min antes)
-        if(nextNorm === 'check-in' && curNorm === 'confirmada'){
 
-let reservaAtual = null;
-try {
-    const { data: rr } = await _sb
-        .from('reservations')
-        .select('id, delay_status')
-        .eq('id', rid)
-        .maybeSingle();
-
-    reservaAtual = rr || null;
-} catch (_) {
-    reservaAtual = null;
-}
-
-atrasoSinalizado = ['pendente', 'aprovado']
-    .includes(String(reservaAtual?.delay_status || '').toLowerCase());
-
-            // busca data/hora do turno para validar janela
-            let slotInfo=null;
-            try{
+    if (precisaGeo) {
+        // Janela de check-in (5 min antes)
+        if (nextNorm === 'check-in' && curNorm === 'confirmada') {
+            let slotInfo = null;
+            try {
               const { data: rr } = await _sb.from('reservations').select('id,slot_id,slots:slot_id(date,shift_id,shifts:shift_id(start_time))').eq('id', rid).maybeSingle();
               slotInfo = rr?.slots || null;
-            }catch(_){ slotInfo=null; }
-            if(!canStartCheckin(slotInfo)){
+            } catch(_) {}
+            if (!canStartCheckin(slotInfo)) {
                 alert('Você só pode fazer check-in a partir de 5 minutos antes do início do turno.');
                 return;
             }
+
+            const reservaAtual = await _sb.from('reservations').select('id,delay_status').eq('id', rid).maybeSingle();
+            atrasoSinalizado = ['pendente','aprovado'].includes(String(reservaAtual?.data?.delay_status||'').toLowerCase());
         }
 
-        const tipo = (curNorm === 'pausa' && nextNorm === 'check-in') ? 'resume' : (nextNorm === 'check-in' ? 'checkin' : 'checkout');
+        // Busca coordenadas da loja
+        let lojaLat = null, lojaLng = null;
+        try {
+            const { data: resData } = await _sb.from('reservations')
+                .select('slot_id, slots:slot_id(store_id, stores:store_id(lat, lng, name))')
+                .eq('id', rid).maybeSingle();
+            lojaLat = resData?.slots?.stores?.lat;
+            lojaLng = resData?.slots?.stores?.lng;
+        } catch(_) {}
 
-        let scanned = '';
-        try{
-          scanned = await openQrScanModal();
-        }catch(e){
-          return; // cancelado
-        }
+        if (!lojaLat || !lojaLng) {
+            // Loja sem coordenadas cadastradas — permite sem verificação
+            console.warn('[GEO] Loja sem coordenadas — check-in liberado sem validação de raio.');
+        } else {
+            // Verifica raio
+            showLoading(true);
+            let geoResult;
+            try {
+                geoResult = await verificarRaioLoja(lojaLat, lojaLng);
+            } catch(e) {
+                showLoading(false);
+                alert(`📍 ${e.message}`);
+                return;
+            }
+            showLoading(false);
 
-        const v = await validateReservationCode(rid, tipo, scanned);
-        if(!v.ok){
-            alert(v.message || 'QR inválido.');
-            return;
+            if (!geoResult.dentro) {
+                const acao = nextNorm === 'check-out' ? 'finalizar' : curNorm === 'pausa' ? 'retomar' : 'iniciar';
+                alert(`📍 Você está a ${geoResult.distancia}m da loja.\n\nPrecisa estar a menos de ${GEO_RAIO_METROS}m para ${acao} a missão.\n\nAproximie-se da loja e tente novamente.`);
+                return;
+            }
+
+            // Dentro do raio — salva coords para monitoramento
+            if (nextNorm === 'check-in') {
+                setTimeout(() => iniciarMonitoramentoGeo(rid, lojaLat, lojaLng), 2000);
+            }
+            if (nextNorm === 'check-out') {
+                pararMonitoramentoGeo();
+            }
         }
     }
 
@@ -4175,25 +4271,6 @@ function openScreenFromUrl() {
             modal.classList.add('hidden');
             modal.classList.remove('flex');
         }
-        function showToast(message, type = 'success') {
-  const toast = document.getElementById('toast');
-  const content = document.getElementById('toastContent');
-
-  content.innerText = message;
-
-  // cores
-  if (type === 'error') {
-    content.className = "bg-red-600 text-white px-4 py-3 rounded-xl shadow-lg text-sm font-bold";
-  } else {
-    content.className = "bg-emerald-600 text-white px-4 py-3 rounded-xl shadow-lg text-sm font-bold";
-  }
-
-  toast.classList.remove('hidden');
-
-  setTimeout(() => {
-    toast.classList.add('hidden');
-  }, 3000);
-}
         // ==== FIM CREDENCIAIS (AUTÔNOMO) ====
 
 </script>
