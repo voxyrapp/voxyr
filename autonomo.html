@@ -1581,17 +1581,28 @@ function iniciarMonitoramentoGeo(reservaId, lojaLat, lojaLng) {
       }
     }
 
-    if (geo && latAtual && lngAtual) {
-      const dist = distanciaMetros(geo.lat, geo.lng, latAtual, lngAtual);
-      if (dist > GEO_RAIO_METROS) {
-        if (!_geoForaDesde) {
-          _geoForaDesde = Date.now();
-          mostrarBannerGeo(`⚠️ Você está ${Math.round(dist)}m da loja. Volte em ${GEO_MINUTOS_FORA} minutos ou a missão será pausada.`, 'amber');
+    if (geo) {
+      // Envia ping de posição para o servidor (permite detecção server-side)
+      try {
+        await _sb.from('geo_pings').insert({
+          reservation_id: reservaId,
+          lat: geo.lat,
+          lng: geo.lng,
+        });
+      } catch(_) {}
+
+      if (latAtual && lngAtual) {
+        const dist = distanciaMetros(geo.lat, geo.lng, latAtual, lngAtual);
+        if (dist > GEO_RAIO_METROS) {
+          if (!_geoForaDesde) {
+            _geoForaDesde = Date.now();
+            mostrarBannerGeo(`⚠️ Você está ${Math.round(dist)}m da loja. Volte em ${GEO_MINUTOS_FORA} minutos ou a missão será pausada.`, 'amber');
+          }
+        } else {
+          // Dentro do raio — cancela contador
+          if (_geoForaDesde) { _geoForaDesde = null; removerBannerGeo(); }
+          return;
         }
-      } else {
-        // Dentro do raio — cancela contador
-        if (_geoForaDesde) { _geoForaDesde = null; removerBannerGeo(); }
-        return;
       }
     }
 
