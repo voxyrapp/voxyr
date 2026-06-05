@@ -1587,14 +1587,21 @@ function iniciarMonitoramentoGeo(reservaId, lojaLat, lojaLng) {
     }
 
     if (geo) {
-      // Envia ping de posição para o servidor (permite detecção server-side)
+      // Envia ping de posição para o servidor
       try {
-        await _sb.from('geo_pings').insert({
+        const { error: pingErr } = await _sb.from('geo_pings').insert({
           reservation_id: reservaId,
           lat: geo.lat,
           lng: geo.lng,
         });
-      } catch(_) {}
+        if (pingErr) {
+          console.error('[GEO PING] Erro ao inserir ping:', pingErr.message, pingErr.code, pingErr.details);
+        } else {
+          console.log('[GEO PING] Ping enviado:', geo.lat, geo.lng);
+        }
+      } catch(e) {
+        console.error('[GEO PING] Exceção:', e);
+      }
 
       if (latAtual && lngAtual) {
         const dist = distanciaMetros(geo.lat, geo.lng, latAtual, lngAtual);
