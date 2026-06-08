@@ -1497,8 +1497,9 @@ document.getElementById('btn-login').onclick = async () => {
     const role = (profile?.role || '').trim().toLowerCase();
 
     const pushAlreadyEnabled = localStorage.getItem('pushEnabled') === 'true';
+    const isNativeApp = window.Capacitor !== undefined || navigator.userAgent.includes('wv') || window.location.protocol === 'file:';
 
-if (!pushAlreadyEnabled) {
+if (!pushAlreadyEnabled && !isNativeApp) {
     showPwaModal();
     return;
 }

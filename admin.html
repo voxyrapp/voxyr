@@ -1607,7 +1607,7 @@ async function sendNotification(userId, status, message) {
     };
 
     try {
-        await emailjs.send('service_277hapn', 'template_gxhs8bv', templateParams);
+        await emailjs.send('service_ngdwr4g', 'template_gxhs8bv', templateParams);
         console.log("E-mail enviado com o novo formato!");
     } catch (error) {
         console.error("Erro ao enviar:", error);
@@ -2074,7 +2074,7 @@ if (error) {
               const toEmail = payloadBase.email || oldU.email;
               const toName = payloadBase.full_name || oldU.full_name || 'Autônomo';
               if (window.emailjs && toEmail && changes.length && st === 'aprovado') {
-                await emailjs.send('service_277hapn', 'template_gxhs8bv', {
+                await emailjs.send('service_ngdwr4g', 'template_gxhs8bv', {
                   to_email: toEmail,
                   to_name: toName,
                   assunto_texto: 'Atualização de cadastro',
@@ -5605,7 +5605,7 @@ async function notifyUsersForStore(storeId, date) {
     // 4) envia emails
     for (const user of targets) {
         try {
-            await emailjs.send('service_277hapn', 'template_gxhs8bv', {
+            await emailjs.send('service_ngdwr4g', 'template_gxhs8bv', {
                 to_name: user.full_name,
                 to_email: user.email,
                 assunto_texto: '🎉 Nova vaga na sua loja!',
@@ -6153,6 +6153,7 @@ async function renderDelayRequests() {
             slots:vacancy_id(
                 id,
                 date,
+                value,
                 stores(name),
                 shifts(start_time, end_time)
             )
@@ -6165,13 +6166,40 @@ async function renderDelayRequests() {
         return;
     }
 
-    if (!data || !data.length) {
-        container.innerHTML = `<div class="text-sm text-gray-500">Nenhuma solicitação pendente.</div>`;
-        return;
-    }
+    // Busca reservas com hora extra pendente (finalizadas depois do turno sem bônus aprovado)
+    const { data: overtimeRes } = await _supabase
+        .from('reservations')
+        .select(`
+            id, profile_id, finished_at, final_value, overtime_bonus, overtime_approved_at,
+            profiles:profile_id(full_name),
+            slots:vacancy_id(date, value, stores(name), shifts(start_time, end_time))
+        `)
+        .eq('status', 'check-out')
+        .is('overtime_approved_at', null)
+        .is('overtime_bonus', null)
+        .not('finished_at', 'is', null);
 
-    container.innerHTML = data.map(r => `
-        <div class="border rounded-xl p-4 bg-white">
+    // Filtra reservas que finalizaram depois do horário do turno
+    const now = new Date();
+    const overtime = (overtimeRes || []).filter(r => {
+        const slotDate = r.slots?.date;
+        const endHHMM = r.slots?.shifts?.end_time;
+        if (!slotDate || !endHHMM || !r.finished_at) return false;
+        const [eh, em] = endHHMM.split(':').map(Number);
+        const shiftEnd = new Date(`${slotDate}T${String(eh).padStart(2,'0')}:${String(em).padStart(2,'0')}:00`);
+        const finishedAt = new Date(r.finished_at);
+        return finishedAt > shiftEnd && (finishedAt - shiftEnd) > 5 * 60 * 1000; // mais de 5min depois
+    });
+
+    let html = '';
+
+    // Seção de atrasos pendentes
+    if (!data || !data.length) {
+        html += `<p class="text-sm text-slate-400 italic mb-4">Nenhum atraso pendente.</p>`;
+    } else {
+        html += `<h4 class="text-xs font-black text-slate-500 uppercase tracking-widest mb-3">⏰ Atrasos pendentes</h4>`;
+        html += data.map(r => `
+        <div class="border rounded-xl p-4 bg-white mb-3">
             <div class="flex items-start justify-between gap-4">
                 <div>
                     <p class="text-xs font-black uppercase text-slate-400">Autônomo</p>
@@ -6183,20 +6211,119 @@ async function renderDelayRequests() {
                     <p class="text-lg font-black text-amber-600">${r.expected_arrival_time || '--:--'}</p>
                 </div>
             </div>
-
             <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mt-4 text-sm">
                 <div><span class="font-bold">Loja:</span> ${r.slots?.stores?.name || '-'}</div>
                 <div><span class="font-bold">Data:</span> ${r.slots?.date || '-'}</div>
                 <div><span class="font-bold">Turno:</span> ${r.slots?.shifts?.start_time || ''} - ${r.slots?.shifts?.end_time || ''}</div>
             </div>
-
             <div class="mt-4 flex gap-2">
                 <input id="approved-until-${r.id}" type="time" class="border rounded-lg px-3 py-2 text-sm" />
                 <button onclick="aprovarAtraso('${r.id}')" class="px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-bold">Aprovar</button>
                 <button onclick="recusarAtraso('${r.id}')" class="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-bold">Recusar</button>
             </div>
         </div>
-    `).join('');
+        `).join('');
+    }
+
+    // Seção de hora extra pendente
+    if (overtime.length) {
+        html += `<h4 class="text-xs font-black text-slate-500 uppercase tracking-widest mb-3 mt-6">⭐ Hora extra — aguardando aprovação de bônus</h4>`;
+        html += overtime.map(r => {
+            const slotDate = r.slots?.date;
+            const endHHMM = r.slots?.shifts?.end_time;
+            const [eh, em] = (endHHMM || '00:00').split(':').map(Number);
+            const shiftEnd = new Date(`${slotDate}T${String(eh).padStart(2,'0')}:${String(em).padStart(2,'0')}:00`);
+            const finishedAt = new Date(r.finished_at);
+            const extraMin = Math.round((finishedAt - shiftEnd) / 60000);
+            const gross = Number(r.slots?.value || 0);
+            const shiftMin = (() => {
+                const startHHMM = r.slots?.shifts?.start_time || '00:00';
+                const [sh, sm] = startHHMM.split(':').map(Number);
+                let diff = (eh * 60 + em) - (sh * 60 + sm);
+                if (diff < 0) diff += 1440;
+                return Math.max(diff, 1);
+            })();
+            const bonusSugerido = (gross / shiftMin * extraMin).toFixed(2);
+
+            return `
+            <div class="border border-amber-200 rounded-xl p-4 bg-amber-50 mb-3">
+                <div class="flex items-start justify-between gap-4">
+                    <div>
+                        <p class="text-xs font-black uppercase text-slate-400">Autônomo</p>
+                        <h4 class="text-base font-black text-slate-800">${r.profiles?.full_name || 'Sem nome'}</h4>
+                        <p class="text-xs text-slate-500">${r.slots?.stores?.name || ''} · ${slotDate || ''}</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-xs font-black uppercase text-slate-400">Tempo extra</p>
+                        <p class="text-xl font-black text-amber-700">+${extraMin} min</p>
+                        <p class="text-xs text-amber-600">Bônus sugerido: R$ ${bonusSugerido}</p>
+                    </div>
+                </div>
+                <div class="mt-3 text-sm text-slate-600">
+                    Turno: ${r.slots?.shifts?.start_time || ''} — ${endHHMM || ''} · Saída real: ${finishedAt.toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'})}
+                </div>
+                <div class="mt-3 flex gap-2 items-center">
+                    <span class="text-sm font-bold text-slate-600">Bônus: R$</span>
+                    <input id="overtime-bonus-${r.id}" type="number" step="0.01" min="0" value="${bonusSugerido}" class="border rounded-lg px-3 py-2 text-sm w-28" />
+                    <button onclick="aprovarHoraExtra('${r.id}')" class="px-4 py-2 rounded-lg bg-amber-600 text-white text-sm font-bold">Aprovar bônus</button>
+                    <button onclick="recusarHoraExtra('${r.id}')" class="px-4 py-2 rounded-lg bg-slate-200 text-slate-600 text-sm font-bold">Recusar</button>
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    container.innerHTML = html || `<div class="text-sm text-gray-500">Nenhuma solicitação pendente.</div>`;
+}
+
+async function aprovarHoraExtra(rid) {
+    const input = document.getElementById(`overtime-bonus-${rid}`);
+    const bonus = parseFloat(input?.value || '0');
+    if (isNaN(bonus) || bonus < 0) { alert('Valor inválido.'); return; }
+
+    const { data: { session } } = await _supabase.auth.getSession();
+    const { error } = await _supabase
+        .from('reservations')
+        .update({
+            overtime_bonus: bonus,
+            overtime_approved_by: session?.user?.id || null,
+            overtime_approved_at: new Date().toISOString()
+        })
+        .eq('id', rid);
+
+    if (error) { alert('Erro: ' + error.message); return; }
+
+    // Atualiza final_value somando o bônus
+    const { data: res } = await _supabase.from('reservations').select('final_value, paid_amount, profile_id').eq('id', rid).single();
+    const base = Number(res?.final_value ?? res?.paid_amount ?? 0);
+    const total = base + bonus;
+    await _supabase.from('reservations').update({ final_value: total, paid_amount: total }).eq('id', rid);
+
+    // Notifica o autônomo
+    await _supabase.functions.invoke('send-push', {
+        body: {
+            user_id: res?.profile_id,
+            title: '⭐ Bônus de hora extra aprovado!',
+            body: `Você recebeu um bônus de R$ ${bonus.toFixed(2)} pela hora extra. Confira no Financeiro.`,
+            data: { url: '/autonomo.html' }
+        }
+    });
+
+    alert('Bônus aprovado com sucesso!');
+    await renderDelayRequests();
+}
+
+async function recusarHoraExtra(rid) {
+    const { error } = await _supabase
+        .from('reservations')
+        .update({
+            overtime_bonus: 0,
+            overtime_approved_at: new Date().toISOString()
+        })
+        .eq('id', rid);
+
+    if (error) { alert('Erro: ' + error.message); return; }
+    alert('Hora extra recusada.');
+    await renderDelayRequests();
 }
 function minutesLateAfterApprovedLimit(dateISO, approvedHHMM) {
     if (!dateISO || !approvedHHMM) return 0;
