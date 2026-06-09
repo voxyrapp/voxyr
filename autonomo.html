@@ -2085,112 +2085,211 @@ function calcularTempo(inicio) {
         async function renderFinanceiro() {
     switchTab('nav-financeiro', 'Financeiro');
     showLoading(true);
+
     const container = document.getElementById('view-container');
     container.innerHTML = '<p class="text-center py-20 font-black text-slate-300 uppercase">Carregando...</p>';
+
     const hojeISO = todayLocalISO();
 
-    // Busca todas as reservas finalizadas
-    const { data: res, error: queryError } = await _sb
-        .from('reservations')
-        .select('id, status, created_at, finished_at, final_value, paid_amount, paid, paid_at, overtime_bonus, slots:vacancy_id(id, date, value, stores(name), shifts(start_time, end_time))')
-        .eq('profile_id', currentUser.id)
-        .eq('status', 'check-out')
-        .order('created_at', { ascending: false });
+    function minutesBetween(startHHMM, endHHMM) {
+        if (!startHHMM || !endHHMM) return 0;
+        const [sh, sm] = startHHMM.split(':').map(Number);
+        const [eh, em] = endHHMM.split(':').map(Number);
+        let start = sh * 60 + sm;
+        let end = eh * 60 + em;
+        let diff = end - start;
+        if (diff < 0) diff += 1440;
+        return Math.max(diff, 0);
+    }
+
+    function calcNetProrata(gross, startHHMM, endHHMM, workedSeconds, penaltySeconds, payableMinOverride, shiftMinOverride) {
+        const gv = Number(gross || 0);
+        const ps = Number(penaltySeconds || 0);
+
+        const shiftMin = (shiftMinOverride !== null && shiftMinOverride !== undefined && String(shiftMinOverride) !== '')
+            ? Math.max(Number(shiftMinOverride) || 0, 0)
+            : minutesBetween(startHHMM, endHHMM);
+
+        const payableMin = (payableMinOverride !== null && payableMinOverride !== undefined && String(payableMinOverride) !== '')
+            ? Math.max(Number(payableMinOverride) || 0, 1)
+            : Math.max(shiftMin, 1);
+
+        const workedMin = Math.max(0, Math.min(payableMin, Math.floor(Number(workedSeconds || 0) / 60)));
+
+        const baseNet = gv * (workedMin / payableMin);
+
+        const blocks = Math.floor(ps / 300);
+        const perBlock = (gv / payableMin) * 5;
+        const penaltyDiscount = Math.max(0, blocks) * perBlock;
+
+        const net = Math.max(0, baseNet - penaltyDiscount);
+        const discount = Math.max(0, gv - net);
+
+        return {
+            gross: gv,
+            discount: Number(discount.toFixed(2)),
+            net: Number(net.toFixed(2)),
+            shiftMin,
+            payableMin,
+            workedMin,
+            blocks
+        };
+    }
+
+    let res = [];
+    let queryError = null;
+
+    try {
+        const r1 = await _sb
+            .from('reservations')
+            .select('id, status, created_at, finished_at, final_value, paid_amount, penalty_seconds, accumulated_seconds, paid, paid_at, shift_minutes_snapshot, payable_minutes_snapshot, slots:vacancy_id(id, date, value, stores(name), shifts(start_time, end_time))')
+            .eq('profile_id', currentUser.id)
+            .eq('status', 'check-out')
+            .order('created_at', { ascending: false });
+
+        res = r1.data || [];
+        queryError = r1.error || null;
+
+        if (queryError) throw queryError;
+    } catch (e) {
+        const r2 = await _sb
+            .from('reservations')
+            .select('id, status, created_at, finished_at, final_value, paid_amount, accumulated_seconds, paid, paid_at, shift_minutes_snapshot, payable_minutes_snapshot, slots:vacancy_id(id, date, value, stores(name), shifts(start_time, end_time))')
+            .eq('profile_id', currentUser.id)
+            .eq('status', 'check-out')
+            .order('created_at', { ascending: false });
+
+        res = r2.data || [];
+        queryError = r2.error || null;
+    }
 
     if (queryError) {
-        container.innerHTML = `<div class="p-6 border border-red-200 bg-red-50 rounded-2xl"><p class="font-black text-red-600 uppercase">Erro ao carregar</p></div>`;
+        container.innerHTML = `
+            <div class="p-6">
+                <div class="p-6 border border-red-200 bg-red-50 rounded-2xl">
+                    <p class="font-black text-red-600 uppercase">Erro ao carregar financeiro</p>
+                    <p class="text-xs text-red-600 mt-2">${queryError.message || queryError}</p>
+                </div>
+            </div>
+        `;
         showLoading(false);
         return;
     }
 
     const pendentes = (res || []).filter(r => !(r.paid === true || r.paid_at));
-    const pagas = (res || []).filter(r => r.paid === true || r.paid_at);
 
-    const calcNet = (r) => {
-        const frozen = r.final_value !== null && r.final_value !== undefined && String(r.final_value) !== ''
-            ? Number(r.final_value)
-            : r.paid_amount !== null && r.paid_amount !== undefined && String(r.paid_amount) !== ''
-            ? Number(r.paid_amount)
-            : Number(r.slots?.value || 0);
-        const bonus = Number(r.overtime_bonus || 0);
-        return { net: frozen, bonus, total: frozen + bonus };
-    };
-
-    const totalPendente = pendentes.reduce((a, r) => { const c = calcNet(r); return a + c.total; }, 0);
-    const totalRecebido = pagas.reduce((a, r) => { const c = calcNet(r); return a + c.total; }, 0);
-
-    const pixTipo = window.__profile?.pix_type || 'Não informado';
-    const pixChave = window.__profile?.pix_key || 'Não cadastrada';
-
-    const renderCard = (r) => {
+    const rows = pendentes.map(r => {
         const s = r.slots;
-        const date = s?.date ? s.date.split('-').reverse().join('/') : '—';
-        const store = s?.stores?.name || '—';
-        const shift = (s?.shifts?.start_time && s?.shifts?.end_time) ? `${s.shifts.start_time.slice(0,5)} — ${s.shifts.end_time.slice(0,5)}` : '—';
-        const { net, bonus, total } = calcNet(r);
-        const isPago = r.paid === true || r.paid_at;
-        const hasBonus = bonus > 0;
+        const gross = s?.value || 0;
+        const st = s?.shifts?.start_time || null;
+        const et = s?.shifts?.end_time || null;
+        const pen = r.penalty_seconds || 0;
+        const workedSeconds = r.accumulated_seconds || 0;
 
-        return `
-        <div class="bg-white rounded-2xl border ${isPago ? 'border-slate-100 opacity-70' : 'border-slate-200'} overflow-hidden">
-            <div class="flex items-center justify-between px-5 pt-5 pb-3">
+        const payableSnap = (r.payable_minutes_snapshot !== null && r.payable_minutes_snapshot !== undefined && String(r.payable_minutes_snapshot) !== '')
+            ? Number(r.payable_minutes_snapshot)
+            : null;
+
+        const shiftSnap = (r.shift_minutes_snapshot !== null && r.shift_minutes_snapshot !== undefined && String(r.shift_minutes_snapshot) !== '')
+            ? Number(r.shift_minutes_snapshot)
+            : null;
+
+        const computedShiftMin = minutesBetween(st, et);
+        const safeShiftSnap = (shiftSnap !== null && computedShiftMin > 0 && shiftSnap < computedShiftMin * 0.9) ? null : shiftSnap;
+        const safePayableSnap = (payableSnap !== null && computedShiftMin > 0 && payableSnap < computedShiftMin * 0.9) ? null : payableSnap;
+
+        const frozenNetRaw =
+            (r.final_value !== null && r.final_value !== undefined && String(r.final_value) !== '') ? r.final_value :
+            ((r.paid_amount !== null && r.paid_amount !== undefined && String(r.paid_amount) !== '') ? r.paid_amount : null);
+
+        const hasFinished = !!(r.finished_at || r.paid === true || r.paid_at);
+
+        const calc = calcNetProrata(gross, st, et, workedSeconds, pen, safePayableSnap, safeShiftSnap);
+
+        const netFinal = (hasFinished && frozenNetRaw !== null) ? (Number(frozenNetRaw) || 0) : calc.net;
+        const discountFinal = (hasFinished && frozenNetRaw !== null) ? Math.max(0, Number(gross || 0) - netFinal) : calc.discount;
+
+        return {
+            id: r.id,
+            date: s?.date || (r.created_at ? String(r.created_at).slice(0, 10) : hojeISO),
+            store: s?.stores?.name || '—',
+            shift: (st && et) ? `${st} - ${et}` : '—',
+            gross: calc.gross,
+            discount: Number(discountFinal.toFixed(2)),
+            net: Number(netFinal.toFixed(2)),
+            workedMin: calc.workedMin,
+            payableMin: calc.payableMin
+        };
+    });
+
+    const totalGross = rows.reduce((a, x) => a + x.gross, 0);
+    const totalDiscount = rows.reduce((a, x) => a + x.discount, 0);
+    const totalNet = rows.reduce((a, x) => a + x.net, 0);
+
+    const pixTipoAtual = window.__profile?.pix_type || 'Não informado';
+    const pixChaveAtual = window.__profile?.pix_key || 'Não cadastrada';
+
+    const listHTML = rows.map(r => `
+        <div class="border rounded-2xl p-4 bg-white">
+            <div class="flex justify-between items-start gap-4">
                 <div>
-                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">${date} · ${shift}</p>
-                    <p class="text-base font-black text-slate-800 uppercase mt-0.5">${store}</p>
-                    ${hasBonus ? `<span class="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-100 text-amber-700">⭐ Bônus hora extra aprovado</span>` : ''}
+                    <p class="text-[10px] font-black text-slate-400 uppercase">${r.date.split('-').reverse().join('/')}</p>
+                    <p class="text-sm font-black text-slate-800 uppercase">${r.store}</p>
+                    <p class="text-xs font-bold text-slate-500 uppercase">${r.shift}</p>
                 </div>
                 <div class="text-right">
-                    <p class="text-[10px] font-black text-slate-400 uppercase">${isPago ? 'Recebido' : 'A receber'}</p>
-                    <p class="text-2xl font-black ${isPago ? 'text-slate-400' : 'text-emerald-600'}">R$ ${total.toFixed(2)}</p>
-                    ${hasBonus ? `<p class="text-[10px] font-bold text-amber-600">Missão: R$ ${net.toFixed(2)} + Bônus: R$ ${bonus.toFixed(2)}</p>` : ''}
+                    <p class="text-[10px] font-black text-slate-400 uppercase">Líquido</p>
+                    <p class="text-lg font-black text-emerald-600">R$ ${r.net.toFixed(2)}</p>
                 </div>
             </div>
-            ${isPago ? `<div class="px-5 pb-4"><span class="inline-flex items-center gap-1 text-[10px] font-black text-emerald-700 bg-emerald-50 px-3 py-1 rounded-full">✅ Pago${r.paid_at ? ' em ' + new Date(r.paid_at).toLocaleDateString('pt-BR') : ''}</span></div>` : ''}
-        </div>`;
-    };
+
+            <div class="grid grid-cols-3 gap-3 mt-4 text-center">
+                <div class="bg-slate-50 rounded-xl p-3">
+                    <p class="text-[10px] font-black text-slate-400 uppercase">Bruto</p>
+                    <p class="text-sm font-black text-slate-800">R$ ${r.gross.toFixed(2)}</p>
+                </div>
+                <div class="bg-slate-50 rounded-xl p-3">
+                    <p class="text-[10px] font-black text-slate-400 uppercase">Desconto</p>
+                    <p class="text-sm font-black text-red-500">R$ ${r.discount.toFixed(2)}</p>
+                </div>
+                <div class="bg-slate-50 rounded-xl p-3">
+                    <p class="text-[10px] font-black text-slate-400 uppercase">Min. pagos</p>
+                    <p class="text-sm font-black text-slate-800">${r.workedMin}/${r.payableMin}</p>
+                </div>
+            </div>
+        </div>
+    `).join('');
 
     container.innerHTML = `
-        <div class="space-y-6">
-            <!-- Resumo -->
-            <div class="grid grid-cols-2 gap-4">
-                <div class="bg-slate-900 rounded-2xl p-5 text-white">
-                    <p class="text-[10px] font-black text-slate-400 uppercase mb-1">A receber</p>
-                    <p class="text-3xl font-black text-emerald-400">R$ ${totalPendente.toFixed(2)}</p>
-                    <p class="text-xs text-slate-500 mt-1">${pendentes.length} missão(ões)</p>
-                </div>
-                <div class="bg-white rounded-2xl border border-slate-200 p-5">
-                    <p class="text-[10px] font-black text-slate-400 uppercase mb-1">Já recebido</p>
-                    <p class="text-3xl font-black text-slate-700">R$ ${totalRecebido.toFixed(2)}</p>
-                    <p class="text-xs text-slate-400 mt-1">${pagas.length} missão(ões)</p>
-                </div>
-            </div>
+        <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+            <div class="card-nexo border-none">
+                <h3 class="text-xl font-black uppercase italic text-slate-800 mb-4">Resumo</h3>
 
-            <!-- PIX -->
-            <div class="bg-white rounded-2xl border border-slate-200 p-5 flex items-center justify-between gap-4">
-                <div>
-                    <p class="text-[10px] font-black text-slate-400 uppercase mb-1">Chave PIX cadastrada</p>
-                    <p class="text-sm font-bold text-slate-700">${pixTipo} · <span class="font-mono">${pixChave}</span></p>
+                <div class="space-y-2 mb-6">
+                    <div class="text-sm font-bold text-slate-500 uppercase">Bruto: <span class="text-slate-800">R$ ${totalGross.toFixed(2)}</span></div>
+                    <div class="text-sm font-bold text-red-500 uppercase">Desconto: <span class="text-red-600">R$ ${totalDiscount.toFixed(2)}</span></div>
+                    <div class="text-lg font-black text-emerald-600 uppercase">Pendente: R$ ${totalNet.toFixed(2)}</div>
                 </div>
-                <button onclick="abrirPixModal()" class="flex-shrink-0 px-4 py-2 bg-slate-900 text-white rounded-xl font-black text-xs uppercase hover:bg-emerald-600 transition">
-                    Atualizar
+
+                <button onclick="abrirPixModal()" class="btn-action bg-slate-900 text-white hover:bg-emerald-600">
+                    Atualizar chave PIX
                 </button>
+
+                <div class="mt-4 p-4 bg-slate-50 border rounded-2xl">
+                    <p class="text-[10px] font-black text-slate-400 uppercase mb-2">Chave atual</p>
+                    <p class="text-sm font-bold text-slate-700">Tipo: ${pixTipoAtual}</p>
+                    <p class="text-sm font-bold text-slate-700 mt-1 break-all">Chave: ${pixChaveAtual}</p>
+                </div>
             </div>
 
-            <!-- Pendentes -->
-            ${pendentes.length ? `
-            <div>
-                <p class="text-xs font-black text-slate-400 uppercase tracking-widest mb-3">💰 Aguardando pagamento</p>
-                <div class="space-y-3">${pendentes.map(renderCard).join('')}</div>
-            </div>` : ''}
-
-            <!-- Pagas -->
-            ${pagas.length ? `
-            <div>
-                <p class="text-xs font-black text-slate-400 uppercase tracking-widest mb-3">✅ Histórico de recebimentos</p>
-                <div class="space-y-3">${pagas.map(renderCard).join('')}</div>
-            </div>` : ''}
-
-            ${!pendentes.length && !pagas.length ? `<p class="text-center py-20 font-black text-slate-300 uppercase">Nenhuma missão finalizada ainda.</p>` : ''}
+            <div class="card-nexo border-none xl:col-span-2">
+                <h3 class="text-xl font-black uppercase italic text-slate-800 mb-4">Detalhamento</h3>
+                ${
+                    rows.length
+                        ? `<div class="space-y-4">${listHTML}</div>`
+                        : `<p class="text-center py-20 font-black text-slate-300 uppercase">Nenhum valor pendente.</p>`
+                }
+            </div>
         </div>
     `;
 
@@ -4512,7 +4611,9 @@ function openScreenFromUrl() {
   </div>
 </div>
 <script>
-  if ('serviceWorker' in navigator) {
+  const _isNativeAppPush = window.Capacitor !== undefined || navigator.userAgent.includes('wv') || window.location.protocol === 'file:';
+
+  if (!_isNativeAppPush && 'serviceWorker' in navigator) {
     window.addEventListener('load', async () => {
       try {
         await navigator.serviceWorker.register('/sw.js');
@@ -4521,6 +4622,77 @@ function openScreenFromUrl() {
         console.error('Erro ao registrar Service Worker:', err);
       }
     });
+  }
+
+  // Registra token FCM sempre que o app nativo abre (garante que token está atualizado)
+  if (_isNativeAppPush) {
+    window.addEventListener('load', async () => {
+      try {
+        const { PushNotifications } = window.Capacitor.Plugins;
+        if (!PushNotifications) return;
+
+        const permResult = await PushNotifications.requestPermissions();
+        if (permResult.receive !== 'granted') return;
+
+        await PushNotifications.register();
+
+        PushNotifications.addListener('registration', async (token) => {
+          console.log('FCM Token:', token.value);
+          await saveFCMToken(token.value);
+        });
+
+        PushNotifications.addListener('registrationError', (err) => {
+          console.error('Erro FCM:', err);
+        });
+
+        PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
+          const url = action.notification.data?.url;
+          if (url) window.location.href = url;
+        });
+      } catch (err) {
+        console.error('Erro ao inicializar push:', err);
+      }
+    });
+  }
+
+  async function saveFCMToken(fcmToken) {
+    try {
+      const sbClient = (typeof _sb !== 'undefined') ? _sb : null;
+      if (!sbClient) return;
+
+      const { data: userData } = await sbClient.auth.getUser();
+      if (!userData?.user) return;
+      const userId = userData.user.id;
+
+      const { data: existing } = await sbClient
+        .from('push_subscriptions')
+        .select('id')
+        .eq('fcm_token', fcmToken)
+        .maybeSingle();
+
+      if (!existing) {
+        const { error } = await sbClient.from('push_subscriptions').insert([{
+          user_id: userId,
+          fcm_token: fcmToken,
+          endpoint: null,
+          p256dh: null,
+          auth: null,
+          user_agent: navigator.userAgent,
+          updated_at: new Date().toISOString()
+        }]);
+        if (error) console.error('Erro ao salvar FCM token:', error.message);
+        else console.log('FCM token salvo com sucesso');
+      } else {
+        await sbClient.from('push_subscriptions').update({
+          user_id: userId,
+          user_agent: navigator.userAgent,
+          updated_at: new Date().toISOString()
+        }).eq('fcm_token', fcmToken);
+        console.log('FCM token atualizado');
+      }
+    } catch (err) {
+      console.error('Erro ao salvar FCM token:', err);
+    }
   }
 </script>
 </body>
