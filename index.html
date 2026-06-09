@@ -193,10 +193,10 @@
 <div class="step hidden" data-step="2">
   <input id="cep" class="input" placeholder="CEP" maxlength="8">
   <input id="street" class="input" placeholder="Rua" readonly>
-  <input id="number" class="input" placeholder="Número">
   <input id="neighborhood" class="input" placeholder="Bairro" readonly>
   <input id="city" class="input" placeholder="Cidade" readonly>
   <input id="state" class="input" placeholder="Estado" readonly>
+  <input id="number" class="input" placeholder="Número">
 </div>
 
 <div class="step hidden" data-step="3">
@@ -272,46 +272,44 @@
   <h2 class="text-2xl font-bold mb-2 text-gray-900">Sua função</h2>
   <p class="text-sm text-gray-500 mb-4">Selecione a função que você irá desempenhar nas missões.</p>
 
-  <input type="hidden" id="jobFunction" value="">
+  <div class="grid grid-cols-1 gap-3 mb-6">
 
-  <div class="grid grid-cols-1 gap-3 mb-6" id="jobFunctionCards">
-
-    <label onclick="selecionarFuncao('separador')" id="card-separador"
-      class="job-card border-2 border-gray-200 rounded-2xl p-4 cursor-pointer transition-all hover:border-teal-500 flex items-center gap-4">
-      <div class="w-12 h-12 rounded-xl bg-teal-50 flex items-center justify-center flex-shrink-0">
-        <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-teal-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10"/>
+    <label style="display:flex;align-items:center;gap:16px;border:2px solid #e5e7eb;border-radius:16px;padding:16px;cursor:pointer;">
+      <input type="radio" name="jobFunction" id="jobFunction" value="separador" style="width:20px;height:20px;accent-color:#14b8a6;flex-shrink:0;">
+      <div style="width:48px;height:48px;border-radius:12px;background:#f0fdfa;display:flex;align-items:center;justify-content:flex-start;flex-shrink:0;padding:10px;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="#0d9488" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10"/>
         </svg>
       </div>
       <div>
-        <p class="font-black text-slate-800 text-sm uppercase">Separador de Pedidos</p>
-        <p class="text-xs text-slate-500 mt-0.5">Separação e organização de pedidos e-commerce</p>
+        <p style="font-weight:900;color:#1e293b;font-size:13px;text-transform:uppercase;">Separador de Pedidos</p>
+        <p style="font-size:12px;color:#64748b;margin-top:2px;">Separação e organização de pedidos e-commerce</p>
       </div>
     </label>
 
-    <label onclick="selecionarFuncao('repositor')" id="card-repositor"
-      class="job-card border-2 border-gray-200 rounded-2xl p-4 cursor-pointer transition-all hover:border-teal-500 flex items-center gap-4">
-      <div class="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
-        <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/>
+    <label style="display:flex;align-items:center;gap:16px;border:2px solid #e5e7eb;border-radius:16px;padding:16px;cursor:pointer;">
+      <input type="radio" name="jobFunction" value="repositor" style="width:20px;height:20px;accent-color:#14b8a6;flex-shrink:0;">
+      <div style="width:48px;height:48px;border-radius:12px;background:#eff6ff;display:flex;align-items:center;flex-shrink:0;padding:10px;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="#2563eb" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 10h16M4 14h16M4 18h16"/>
         </svg>
       </div>
       <div>
-        <p class="font-black text-slate-800 text-sm uppercase">Repositor de Mercadorias</p>
-        <p class="text-xs text-slate-500 mt-0.5">Reposição de produtos nas gôndolas e corredores</p>
+        <p style="font-weight:900;color:#1e293b;font-size:13px;text-transform:uppercase;">Repositor de Mercadorias</p>
+        <p style="font-size:12px;color:#64748b;margin-top:2px;">Reposição de produtos nas gôndolas e corredores</p>
       </div>
     </label>
 
-    <label onclick="selecionarFuncao('operador_caixa')" id="card-operador_caixa"
-      class="job-card border-2 border-gray-200 rounded-2xl p-4 cursor-pointer transition-all hover:border-teal-500 flex items-center gap-4">
-      <div class="w-12 h-12 rounded-xl bg-purple-50 flex items-center justify-center flex-shrink-0">
-        <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>
+    <label style="display:flex;align-items:center;gap:16px;border:2px solid #e5e7eb;border-radius:16px;padding:16px;cursor:pointer;">
+      <input type="radio" name="jobFunction" value="operador_caixa" style="width:20px;height:20px;accent-color:#14b8a6;flex-shrink:0;">
+      <div style="width:48px;height:48px;border-radius:12px;background:#faf5ff;display:flex;align-items:center;flex-shrink:0;padding:10px;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="#7c3aed" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>
         </svg>
       </div>
       <div>
-        <p class="font-black text-slate-800 text-sm uppercase">Operador de Caixa</p>
-        <p class="text-xs text-slate-500 mt-0.5">Operação e fechamento de caixas</p>
+        <p style="font-weight:900;color:#1e293b;font-size:13px;text-transform:uppercase;">Operador de Caixa</p>
+        <p style="font-size:12px;color:#64748b;margin-top:2px;">Operação e fechamento de caixas</p>
       </div>
     </label>
 
@@ -1606,8 +1604,10 @@ document.getElementById('btn-fix-register').onclick = async () => {
 
     // PIX
     const jf = p.job_function || '';
-    document.getElementById('jobFunction').value = jf;
-    if (jf) selecionarFuncao(jf);
+    if (jf) {
+      const radio = document.querySelector(`input[name="jobFunction"][value="${jf}"]`);
+      if (radio) radio.checked = true;
+    }
     document.getElementById('pixType').value = p.pix_type || '';
     document.getElementById('pixKey').value = p.pix_key || '';
 
@@ -1990,7 +1990,7 @@ next.onclick = async () => {
 
   if (step === 4) {
     // valida função obrigatória
-    const jf = document.getElementById('jobFunction').value;
+    const jf = document.querySelector('input[name="jobFunction"]:checked')?.value || '';
     if (!jf) { alert('Selecione sua função antes de continuar'); return; }
 
     // etapa 4 só valida se PIX foi solicitado
@@ -2108,7 +2108,7 @@ const payload = {
   state: state.value,
   store_id: selectedStore?.id || null,
 
-  job_function: document.getElementById('jobFunction')?.value || 'separador',
+  job_function: document.querySelector('input[name="jobFunction"]:checked')?.value || '',
   pix_type: document.getElementById('pixType').value,
   pix_key: document.getElementById('pixKey').value,
 
