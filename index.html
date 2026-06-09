@@ -1841,13 +1841,13 @@ showStep();
 function selecionarFuncao(valor) {
   document.getElementById('jobFunction').value = valor;
   document.querySelectorAll('.job-card').forEach(c => {
-    c.classList.remove('border-teal-500', 'bg-teal-50/30');
-    c.classList.add('border-gray-200');
+    c.style.borderColor = '#e5e7eb';
+    c.style.backgroundColor = '';
   });
   const card = document.getElementById('card-' + valor);
   if (card) {
-    card.classList.remove('border-gray-200');
-    card.classList.add('border-teal-500', 'bg-teal-50/30');
+    card.style.borderColor = '#14b8a6';
+    card.style.backgroundColor = '#f0fdfa';
   }
 }
 
@@ -1989,6 +1989,10 @@ next.onclick = async () => {
   }
 
   if (step === 4) {
+    // valida função obrigatória
+    const jf = document.getElementById('jobFunction').value;
+    if (!jf) { alert('Selecione sua função antes de continuar'); return; }
+
     // etapa 4 só valida se PIX foi solicitado
     if (!isCorrection || corr.pix) {
       const pType = document.getElementById('pixType').value;
