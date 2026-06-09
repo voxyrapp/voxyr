@@ -14,7 +14,7 @@
 <link rel="apple-touch-icon" href="/icon-192.png">
 </head>
 
-<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
+<body class="min-h-screen flex items-center justify-center p-4" style="background:#e8f0f7;">
 
 <!-- SPLASH SCREEN PWA -->
 <div id="pwa-splash" style="
@@ -113,7 +113,191 @@
   </div>
 </div>
 
-<div class="bg-white max-w-3xl w-full rounded-xl shadow p-6">
+<!-- ═══════════════════════════════════════════════════════
+     ONBOARDING SCREEN
+════════════════════════════════════════════════════════ -->
+<div id="onboarding-screen" class="hidden fixed inset-0 z-40 overflow-hidden" style="background:#e8f0f7;">
+
+  <!-- Animated background lines -->
+  <div class="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
+    <svg class="absolute inset-0 w-full h-full" style="opacity:0.07" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="lg1" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" style="stop-color:#0d9488"/>
+          <stop offset="100%" style="stop-color:#0891b2"/>
+        </linearGradient>
+      </defs>
+      <line x1="0" y1="30%" x2="100%" y2="60%" stroke="url(#lg1)" stroke-width="1"/>
+      <line x1="0" y1="60%" x2="100%" y2="20%" stroke="url(#lg1)" stroke-width="1"/>
+      <line x1="20%" y1="0" x2="80%" y2="100%" stroke="url(#lg1)" stroke-width="1"/>
+      <line x1="70%" y1="0" x2="30%" y2="100%" stroke="url(#lg1)" stroke-width="0.5"/>
+      <circle cx="80%" cy="20%" r="120" stroke="url(#lg1)" stroke-width="1" fill="none"/>
+      <circle cx="20%" cy="80%" r="80" stroke="url(#lg1)" stroke-width="0.5" fill="none"/>
+    </svg>
+    <!-- Glow top-right -->
+    <div style="position:absolute;top:-100px;right:-100px;width:400px;height:400px;background:radial-gradient(circle,rgba(13,148,136,0.18) 0%,transparent 70%);border-radius:50%;"></div>
+    <!-- Glow bottom-left -->
+    <div style="position:absolute;bottom:-80px;left:-80px;width:300px;height:300px;background:radial-gradient(circle,rgba(8,145,178,0.12) 0%,transparent 70%);border-radius:50%;"></div>
+  </div>
+
+  <!-- Logo top -->
+  <div class="absolute top-0 left-0 right-0 flex items-center justify-center px-6 pt-10 pb-4 z-10">
+    <p style="color:#0f172a;font-family:Inter,sans-serif;font-size:22px;font-weight:900;letter-spacing:-1px;margin:0;">
+      Vox<span style="color:#0d9488;">yr</span>
+    </p>
+  </div>
+
+  <!-- Slides wrapper -->
+  <div class="absolute inset-0 flex flex-col" style="padding-top:72px;padding-bottom:0;">
+
+    <!-- Slides track -->
+    <div id="ob-track" style="flex:1;overflow:hidden;position:relative;">
+      <div id="ob-slides" style="display:flex;height:100%;transition:transform 0.4s cubic-bezier(.4,0,.2,1);will-change:transform;">
+
+        <!-- Slide 1 -->
+        <div class="ob-slide" style="min-width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px 32px 0;">
+          <div style="width:100%;max-width:420px;margin:0 auto;text-align:center;">
+            <div style="display:inline-flex;align-items:center;gap:8px;background:rgba(13,148,136,0.12);border:1.5px solid rgba(13,148,136,0.35);border-radius:100px;padding:6px 16px;margin-bottom:20px;">
+              <span style="font-size:14px;">🧑‍💼</span>
+              <span style="color:#0f766e;font-size:11px;font-weight:800;letter-spacing:2px;text-transform:uppercase;">Exclusivo para Autônomos</span>
+            </div>
+            <h2 style="color:#0f172a;font-size:clamp(26px,6vw,36px);font-weight:900;line-height:1.15;letter-spacing:-0.5px;margin-bottom:16px;">
+              Trabalhe quando<br>e onde quiser
+            </h2>
+            <p style="color:#475569;font-size:15px;line-height:1.65;max-width:320px;margin:0 auto 24px;">
+              A Voxyr é uma plataforma feita para autônomos. Você se cadastra, escolhe seus turnos e recebe por cada missão concluída — sem vínculo, sem burocracia.
+            </p>
+            <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+              <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:8px 14px;display:flex;align-items:center;gap:6px;">
+                <span style="font-size:15px;">✅</span><span style="color:#334155;font-size:12px;font-weight:700;">Sem vínculo</span>
+              </div>
+              <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:8px 14px;display:flex;align-items:center;gap:6px;">
+                <span style="font-size:15px;">📅</span><span style="color:#334155;font-size:12px;font-weight:700;">Você escolhe o dia</span>
+              </div>
+              <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:8px 14px;display:flex;align-items:center;gap:6px;">
+                <span style="font-size:15px;">💰</span><span style="color:#334155;font-size:12px;font-weight:700;">Renda extra real</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Slide 2 -->
+        <div class="ob-slide" style="min-width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px 32px 0;">
+          <div style="width:100%;max-width:420px;margin:0 auto;text-align:center;">
+            <div style="width:80px;height:80px;border-radius:24px;background:#e0f2fe;border:1.5px solid #bae6fd;display:flex;align-items:center;justify-content:center;margin:0 auto 24px;font-size:36px;">📋</div>
+            <p style="color:#0369a1;font-size:11px;font-weight:800;letter-spacing:3px;text-transform:uppercase;margin-bottom:12px;">Missões disponíveis</p>
+            <h2 style="color:#0f172a;font-size:clamp(26px,6vw,34px);font-weight:900;line-height:1.15;letter-spacing:-0.5px;margin-bottom:16px;">
+              Escolha a missão<br>certa para você
+            </h2>
+            <p style="color:#475569;font-size:15px;line-height:1.65;max-width:320px;margin:0 auto 24px;">
+              Separação de pedidos, reposição de mercadorias e muito mais. Veja as missões na sua região e reserve com um toque.
+            </p>
+            <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+              <div style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:10px 16px;display:flex;align-items:center;gap:8px;">
+                <span style="font-size:18px;">📦</span><span style="color:#334155;font-size:12px;font-weight:700;">Separador</span>
+              </div>
+              <div style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:10px 16px;display:flex;align-items:center;gap:8px;">
+                <span style="font-size:18px;">🛒</span><span style="color:#334155;font-size:12px;font-weight:700;">Repositor</span>
+              </div>
+              <div style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:10px 16px;display:flex;align-items:center;gap:8px;">
+                <span style="font-size:18px;">🏪</span><span style="color:#334155;font-size:12px;font-weight:700;">Auxiliar</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Slide 3 -->
+        <div class="ob-slide" style="min-width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px 32px 0;">
+          <div style="width:100%;max-width:420px;margin:0 auto;text-align:center;">
+            <div style="width:80px;height:80px;border-radius:24px;background:#ede9fe;border:1.5px solid #ddd6fe;display:flex;align-items:center;justify-content:center;margin:0 auto 24px;font-size:36px;">💸</div>
+            <p style="color:#6d28d9;font-size:11px;font-weight:800;letter-spacing:3px;text-transform:uppercase;margin-bottom:12px;">Pagamento transparente</p>
+            <h2 style="color:#0f172a;font-size:clamp(26px,6vw,34px);font-weight:900;line-height:1.15;letter-spacing:-0.5px;margin-bottom:16px;">
+              Ganhe por cada<br>missão concluída
+            </h2>
+            <p style="color:#475569;font-size:15px;line-height:1.65;max-width:320px;margin:0 auto 24px;">
+              Acompanhe seus ganhos em tempo real. Histórico financeiro completo, sem surpresas.
+            </p>
+            <div style="display:flex;gap:16px;justify-content:center;">
+              <div style="background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:16px 20px;text-align:center;">
+                <p style="color:#0d9488;font-size:22px;font-weight:900;margin:0 0 4px;">R$100+</p>
+                <p style="color:#6b7280;font-size:11px;font-weight:600;margin:0;">por missão</p>
+              </div>
+              <div style="background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:16px 20px;text-align:center;">
+                <p style="color:#0891b2;font-size:22px;font-weight:900;margin:0 0 4px;">100%</p>
+                <p style="color:#6b7280;font-size:11px;font-weight:600;margin:0;">transparente</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Slide 4 -->
+        <div class="ob-slide" style="min-width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px 32px 0;">
+          <div style="width:100%;max-width:420px;margin:0 auto;text-align:center;">
+            <div style="width:80px;height:80px;border-radius:24px;background:#d1fae5;border:1.5px solid #a7f3d0;display:flex;align-items:center;justify-content:center;margin:0 auto 24px;font-size:36px;">🚀</div>
+            <p style="color:#065f46;font-size:11px;font-weight:800;letter-spacing:3px;text-transform:uppercase;margin-bottom:12px;">Comece agora</p>
+            <h2 style="color:#0f172a;font-size:clamp(26px,6vw,34px);font-weight:900;line-height:1.15;letter-spacing:-0.5px;margin-bottom:16px;">
+              Pronto para<br>sua primeira missão?
+            </h2>
+            <p style="color:#475569;font-size:15px;line-height:1.65;max-width:320px;margin:0 auto;">
+              Cadastro rápido, aprovação ágil. Em poucos passos você já estará elegível para reservar missões na sua região.
+            </p>
+          </div>
+        </div>
+
+      </div><!-- /ob-slides -->
+    </div><!-- /ob-track -->
+
+    <!-- Bottom area: dots + botões (iguais em todos os slides) -->
+    <div style="padding:20px 24px 36px;width:100%;max-width:480px;margin:0 auto;box-sizing:border-box;">
+
+      <!-- Dots -->
+      <div id="ob-dots" style="display:flex;justify-content:center;gap:8px;margin-bottom:20px;">
+        <div class="ob-dot ob-dot-active"></div>
+        <div class="ob-dot"></div>
+        <div class="ob-dot"></div>
+        <div class="ob-dot"></div>
+      </div>
+
+      <!-- Botão próximo / começar -->
+      <button class="ob-next-slide-btn" onclick="obNext()"
+        style="width:100%;padding:16px;border-radius:16px;background:linear-gradient(135deg,#0d9488,#0891b2);color:#fff;font-size:14px;font-weight:800;letter-spacing:0.5px;border:none;cursor:pointer;margin-bottom:10px;text-transform:uppercase;">
+        Próximo
+      </button>
+
+      <!-- Botões fixos de login/cadastro -->
+      <div style="display:flex;gap:10px;">
+        <button onclick="showOnboardingAuth('register')"
+          style="flex:1;padding:14px;border-radius:14px;background:#fff;border:1.5px solid #e2e8f0;color:#0f172a;font-size:13px;font-weight:700;cursor:pointer;text-transform:uppercase;letter-spacing:0.3px;">
+          Cadastrar
+        </button>
+        <button onclick="showOnboardingAuth('login')"
+          style="flex:1;padding:14px;border-radius:14px;background:#fff;border:1.5px solid #e2e8f0;color:#0f172a;font-size:13px;font-weight:700;cursor:pointer;text-transform:uppercase;letter-spacing:0.3px;">
+          Entrar
+        </button>
+      </div>
+
+    </div>
+  </div><!-- /flex col -->
+
+</div><!-- /onboarding-screen -->
+
+<style>
+  .ob-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: #cbd5e1;
+    transition: all 0.3s ease;
+  }
+  .ob-dot-active {
+    width: 24px;
+    border-radius: 4px;
+    background: #0d9488;
+  }
+</style>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+
+<div class="max-w-3xl w-full rounded-xl shadow p-6" style="background:#ffffff;">
 
 <div id="login-panel">
   <h2 class="text-2xl font-bold mb-4">Login</h2>
@@ -343,12 +527,12 @@
     class="hidden"
   >
 
-  <div class="border-2 border-dashed border-teal-300 rounded-2xl p-6 text-center bg-teal-50 cursor-pointer hover:bg-teal-100 transition">
+  <div class="border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition" style="border-color:#0d9488;background:#f0fdfa;" onmouseover="this.style.background='#ccfbf1'" onmouseout="this.style.background='#f0fdfa'">
     <div class="text-4xl mb-2">📸</div>
-    <p class="font-semibold text-teal-800">
+    <p class="font-semibold" style="color:#0f766e;">
       Selfie segurando a frente do documento
     </p>
-    <p class="text-xs text-gray-500 mt-1">
+    <p class="text-xs mt-1" style="color:#6b7280;">
       Use a câmera frontal
     </p>
   </div>
@@ -372,12 +556,12 @@
     class="hidden"
   >
 
-  <div class="border-2 border-dashed border-blue-300 rounded-2xl p-6 text-center bg-blue-50 cursor-pointer hover:bg-blue-100 transition">
+  <div class="border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition" style="border-color:#0891b2;background:#f0f9ff;" onmouseover="this.style.background='#e0f2fe'" onmouseout="this.style.background='#f0f9ff'">
     <div class="text-4xl mb-2">🪪</div>
-    <p class="font-semibold text-blue-800">
+    <p class="font-semibold" style="color:#0369a1;">
       Documento aberto "Frente e verso"
     </p>
-    <p class="text-xs text-gray-500 mt-1">
+    <p class="text-xs mt-1" style="color:#6b7280;">
       Use a câmera traseira
     </p>
   </div>
@@ -387,9 +571,9 @@
   id="docPreview"
   class="hidden w-full max-h-72 object-contain border rounded-2xl mt-3 mb-4 bg-gray-50"
 />
-  <div id="termsStep" class="mt-4 p-3 bg-gray-50 border rounded">
-    <h4 class="text-sm font-bold mb-2 uppercase text-gray-700">Termos de Uso</h4>
-    <div class="text-sm text-gray-700 max-h-80 overflow-y-auto border-t pt-3 leading-relaxed space-y-3 pr-2">
+  <div id="termsStep" class="mt-4 p-3 rounded" style="background:#f8fafc;border:1px solid #e2e8f0;">
+    <h4 class="text-sm font-bold mb-2 uppercase" style="color:#475569;">Termos de Uso</h4>
+    <div class="text-sm max-h-80 overflow-y-auto pt-3 leading-relaxed space-y-3 pr-2" style="color:#374151;border-top:1px solid #e2e8f0;">
       <p> <!-- TERMOS Voxyr (HTML ESTRUTURADO) — basta colar no lugar do conteúdo antigo -->
 <section class="terms">
   <header class="terms__header">
@@ -851,43 +1035,40 @@ concordar integralmente com estes Termos e responsabilizar-se por todas as açõ
 .date-input{
   width:100%;
   min-height:52px;
-  background:#fff;
-  color:#111827;
+  background:#f8fafc;
+  color:#1e293b;
   font-size:16px;
 }
 
 .input{
   width:100%;
-  border:1px solid #ccc;
+  border:1px solid #cbd5e1;
   padding:12px;
   border-radius:10px;
   margin-bottom:12px;
   box-sizing:border-box;
   font-size:16px;
-  background:#fff;
+  background:#f8fafc;
+  color:#1e293b;
 }
-.btn{background:#0d9488;color:#fff;padding:8px 16px;border-radius:6px}
-.btn-gray{background:#ccc;padding:8px 16px;border-radius:6px}
+.input::placeholder{ color:#94a3b8; }
+.btn{background:#0d9488;color:#fff;padding:8px 16px;border-radius:6px;}
+.btn-gray{background:#e2e8f0;color:#475569;padding:8px 16px;border-radius:6px;}
 
 #registerNavButtons{
   display:flex !important;
   gap:12px;
   position:sticky;
   bottom:0;
-  background:white;
+  background:#ffffff;
   padding-top:14px;
   padding-bottom:6px;
   z-index:20;
 }
 
-#prev,
-#next{
-  min-height:44px;
-}
+#prev, #next{ min-height:44px; }
 
-.progress-wrapper{
-  margin-bottom:28px;
-}
+.progress-wrapper{ margin-bottom:28px; }
 
 .progress-top{
   display:flex;
@@ -915,6 +1096,50 @@ concordar integralmente com estes Termos e responsabilizar-se por todas as açõ
   transition:all .25s ease;
 }
 
+/* Textos gerais */
+#login-panel h2, #register-panel h2, #recovery-panel h2, #status-panel h2 { color:#0f172a; }
+#login-panel p, #register-panel p, #recovery-panel p, #status-panel p { color:#475569; }
+label { color:#334155; }
+
+/* Overrides Tailwind */
+.text-gray-800, .text-slate-800, .text-gray-900, .text-slate-900,
+.text-teal-800 { color:#0f172a !important; }
+.text-gray-700 { color:#374151 !important; }
+.text-gray-600, .text-slate-600 { color:#4b5563 !important; }
+.text-gray-500, .text-slate-500 { color:#6b7280 !important; }
+.text-gray-400, .text-slate-400 { color:#9ca3af !important; }
+
+/* Bordas e backgrounds internos */
+.border { border-color:#e2e8f0 !important; }
+.bg-white { background:#ffffff !important; }
+.bg-gray-50, .bg-slate-50 { background:#f8fafc !important; }
+.bg-gray-100 { background:#f1f5f9 !important; }
+.bg-amber-50 { background:#fffbeb !important; }
+.border-amber-200 { border-color:#fde68a !important; }
+
+/* Select e opções */
+select.input option { background:#f8fafc; color:#1e293b; }
+
+/* Radio cards */
+label[style*="border"] { background:#f8fafc !important; color:#1e293b !important; }
+
+/* Lista de lojas no modal */
+#storesList button {
+  background:#f8fafc !important;
+  color:#1e293b !important;
+  border-color:#e2e8f0 !important;
+}
+#storesList button:hover { background:#e0f2fe !important; }
+
+/* Textarea */
+textarea.input { background:#f8fafc; color:#1e293b; border-color:#cbd5e1; }
+
+/* Links teal */
+.text-teal-600 { color:#0d9488 !important; }
+
+/* Termos headings */
+#termsStep h1, #termsStep h2 { color:#374151; font-size:13px; margin-top:12px; }
+#termsStep strong { color:#1e293b; }
 </style>
 
 <script>
@@ -970,7 +1195,14 @@ if (isRecovery) {
         window.location.href = 'autonomo.html';
       }
     }
-  }}
+  } else {
+    // Usuário não está logado — mostra onboarding se ainda não viu
+    window._sb = _supabase;
+    if (typeof window.__showOnboardingIfNeeded === 'function') {
+      window.__showOnboardingIfNeeded();
+    }
+  }
+}
 
 // mostrar modal automaticamente ao abrir
 setTimeout(() => {
@@ -1442,7 +1674,7 @@ if (openStoreSelect) {
       list.forEach(loja => {
         const btn = document.createElement('button');
         btn.type = 'button';
-        btn.className = 'w-full text-left p-3 border rounded mb-2 hover:bg-gray-50';
+        btn.className = 'w-full text-left p-3 border rounded mb-2';
         btn.innerHTML = `<strong>${loja.name}</strong><br><span class="text-xs text-gray-500">${loja.city}</span>`;
         btn.onclick = () => {
           selectedStore = loja;
@@ -2174,23 +2406,23 @@ prev.onclick = () => {
 });
 </script>
 
-<div id="storeModal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-  <div class="bg-white w-full max-w-md rounded-lg p-4">
-    <h3 class="font-bold mb-3">Selecione uma loja</h3>
+<div id="storeModal" class="hidden fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+  <div class="w-full max-w-md rounded-xl p-4 shadow-xl" style="background:#ffffff;border:1px solid #e2e8f0;">
+    <h3 class="font-bold mb-3" style="color:#0f172a;">Selecione uma loja</h3>
     <input id="storeSearch" type="text" class="input mb-3" placeholder="Pesquisar loja ou cidade" />
     <div id="storesList" class="space-y-2 max-h-60 overflow-auto"></div>
     <button id="closeStoreModal" type="button" class="btn-gray w-full mt-4">Fechar</button>
   </div>
 </div>
 
-<div id="pixConfirmModal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
-  <div class="bg-white w-full max-w-md rounded-lg p-6 shadow-2xl">
-    <h3 class="font-bold text-xl mb-4 text-teal-800">Confirme seus Dados</h3>
-    <div class="bg-gray-100 p-4 rounded mb-4">
-      <p class="text-sm text-gray-600">Tipo: <span id="displayPixType" class="font-bold text-black"></span></p>
-      <p class="text-sm text-gray-600">Chave: <span id="displayPixKey" class="font-bold text-black"></span></p>
+<div id="pixConfirmModal" class="hidden fixed inset-0 bg-black/40 flex items-center justify-center z-[60] p-4">
+  <div class="w-full max-w-md rounded-xl p-6 shadow-xl" style="background:#ffffff;border:1px solid #e2e8f0;">
+    <h3 class="font-bold text-xl mb-4" style="color:#0f766e;">Confirme seus Dados</h3>
+    <div class="p-4 rounded mb-4" style="background:#f0fdf4;border:1px solid #d1fae5;">
+      <p class="text-sm" style="color:#374151;">Tipo: <span id="displayPixType" class="font-bold" style="color:#0f172a;"></span></p>
+      <p class="text-sm" style="color:#374151;">Chave: <span id="displayPixKey" class="font-bold" style="color:#0f172a;"></span></p>
     </div>
-    <div class="text-xs text-red-600 mb-6">
+    <div class="text-xs mb-6" style="color:#dc2626;">
       <p>A VOXYR realiza as transferências utilizando os dados informados pelo próprio profissional no momento do cadastro.</p>
       <p></p>
       <p>Antes de finalizar, confirme se sua chave PIX está correta e vinculada à sua titularidade para evitar inconsistências no recebimento dos valores.</p>
@@ -2198,7 +2430,6 @@ prev.onclick = () => {
     <div class="flex gap-3">
       <button id="btnEditPix" type="button" class="btn-gray flex-1">Corrigir</button>
       <button id="btnConfirmPix" type="button" class="btn flex-1">Confirmar</button>
-
     </div>
   </div>
 </div>
@@ -2288,6 +2519,97 @@ birthInput?.addEventListener('input', (e) => {
   e.target.value = v;
 });
 
+</script>
+
+<script>
+// ── ONBOARDING ──────────────────────────────────────────
+(function () {
+  let obCurrent = 0;
+  const obTotal = 4;
+
+  function showOnboarding() {
+    const el = document.getElementById('onboarding-screen');
+    if (el) { el.style.opacity = '1'; el.classList.remove('hidden'); }
+  }
+
+  function hideOnboarding() {
+    const el = document.getElementById('onboarding-screen');
+    if (el) {
+      el.style.opacity = '0';
+      el.style.transition = 'opacity 0.35s ease';
+      setTimeout(() => el.classList.add('hidden'), 350);
+    }
+  }
+
+  function obGoTo(idx) {
+    obCurrent = idx;
+    const slides = document.getElementById('ob-slides');
+    if (slides) slides.style.transform = `translateX(-${idx * 100}%)`;
+
+    document.querySelectorAll('.ob-dot').forEach((d, i) => {
+      d.classList.toggle('ob-dot-active', i === idx);
+    });
+
+    // Atualiza botão "Próximo" em todos os slides
+    document.querySelectorAll('.ob-next-slide-btn').forEach(btn => {
+      btn.textContent = idx === obTotal - 1 ? 'Começar' : 'Próximo';
+    });
+  }
+
+  window.obNext = function () {
+    if (obCurrent < obTotal - 1) obGoTo(obCurrent + 1);
+    else showOnboardingAuth('register');
+  };
+
+  window.showOnboardingAuth = function (mode) {
+    hideOnboarding();
+    setTimeout(() => {
+      if (mode === 'register') {
+        document.getElementById('login-panel')?.classList.add('hidden');
+        document.getElementById('register-panel')?.classList.remove('hidden');
+      } else {
+        document.getElementById('login-panel')?.classList.remove('hidden');
+        document.getElementById('register-panel')?.classList.add('hidden');
+      }
+    }, 380);
+  };
+
+  // Swipe touch + mouse drag
+  (function initSwipe() {
+    const track = document.getElementById('ob-track');
+    if (!track) return;
+    let startX = 0, isDragging = false;
+    track.addEventListener('touchstart', e => { startX = e.touches[0].clientX; isDragging = true; }, { passive: true });
+    track.addEventListener('touchend', e => {
+      if (!isDragging) return; isDragging = false;
+      const diff = startX - e.changedTouches[0].clientX;
+      if (Math.abs(diff) > 40) {
+        if (diff > 0 && obCurrent < obTotal - 1) obGoTo(obCurrent + 1);
+        else if (diff < 0 && obCurrent > 0) obGoTo(obCurrent - 1);
+      }
+    }, { passive: true });
+    track.addEventListener('mousedown', e => { startX = e.clientX; isDragging = true; });
+    track.addEventListener('mouseup', e => {
+      if (!isDragging) return; isDragging = false;
+      const diff = startX - e.clientX;
+      if (Math.abs(diff) > 40) {
+        if (diff > 0 && obCurrent < obTotal - 1) obGoTo(obCurrent + 1);
+        else if (diff < 0 && obCurrent > 0) obGoTo(obCurrent - 1);
+      }
+    });
+  })();
+
+  // Sempre mostra para usuários não logados
+  window.__showOnboardingIfNeeded = function () {
+    if (window._sb) {
+      window._sb.auth.getSession().then(({ data }) => {
+        if (!data?.session) showOnboarding();
+      });
+    } else {
+      showOnboarding();
+    }
+  };
+})();
 </script>
 
 </body>

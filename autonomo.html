@@ -1482,50 +1482,7 @@ function canStartCheckin(slot){
 // 📍 GEOLOCALIZAÇÃO — Check-in/out por raio
 // ============================================================
 
-const GEO_RAIO_METROS   = 300;  // raio de tolerância
-const GEO_MINUTOS_FORA  = 5;    // minutos fora do raio antes de pausar
-const GEO_INTERVALO_MS  = 60000;// verifica a cada 1 minuto
-
-let _geoWatchId        = null;
-let _geoForaDesde      = null; // timestamp quando saiu do raio
-let _geoReservaAtiva   = null; // id da reserva em andamento
-let _geoLojaLat        = null;
-let _geoLojaLng        = null;
-
-// Detecta se está no app nativo
-const _isNativeApp = window.Capacitor !== undefined || navigator.userAgent.includes('wv') || window.location.protocol === 'file:';
-
-// ── Background Geolocation (app nativo) ──
-let _bgGeoWatcherId = null;
-
-async function iniciarBgGeo(reservaId, lojaLat, lojaLng) {
-  if (!_isNativeApp) return false;
-  try {
-    const { VoxyrGeo } = window.Capacitor.Plugins;
-    if (!VoxyrGeo) { console.warn('[VOXYR GEO] Plugin nativo não disponível'); return false; }
-    await VoxyrGeo.startTracking({
-      reservationId: reservaId,
-      lojaLat: lojaLat || 0,
-      lojaLng: lojaLng || 0,
-    });
-    console.log('[VOXYR GEO] Rastreamento iniciado para reserva', reservaId);
-    return true;
-  } catch(e) {
-    console.error('[VOXYR GEO] Erro ao iniciar:', e);
-    return false;
-  }
-}
-
-async function pararBgGeo() {
-  if (!_isNativeApp) return;
-  try {
-    const { VoxyrGeo } = window.Capacitor.Plugins;
-    if (VoxyrGeo) await VoxyrGeo.stopTracking();
-    console.log('[VOXYR GEO] Rastreamento parado');
-  } catch(e) {
-    console.error('[VOXYR GEO] Erro ao parar:', e);
-  }
-}
+const GEO_RAIO_METROS = 300; // raio de tolerância
 
 function distanciaMetros(lat1, lng1, lat2, lng2) {
   const R = 6371000;
@@ -1611,126 +1568,7 @@ async function verificarRaioLoja(lojaLat, lojaLng) {
   return { dentro: dist <= GEO_RAIO_METROS, distancia: Math.round(dist), geo };
 }
 
-function iniciarMonitoramentoGeo(reservaId, lojaLat, lojaLng) {
-  pararMonitoramentoGeo();
 
-  // No app nativo usa o serviço Java nativo (roda com app fechado)
-  if (_isNativeApp) {
-    iniciarBgGeo(reservaId, lojaLat, lojaLng);
-    return;
-  }
-
-  // No PWA usa setInterval normal
-  _geoReservaAtiva = reservaId;
-  _geoLojaLat      = lojaLat;
-  _geoLojaLng      = lojaLng;
-  _geoForaDesde    = null;
-
-  _geoWatchId = setInterval(async () => {
-    const res = await _sb.from('reservations').select('status').eq('id', reservaId).maybeSingle();
-    const st  = normStatus(res?.data?.status);
-    if (st !== 'check-in') { pararMonitoramentoGeo(); return; }
-
-    let latAtual = _geoLojaLat, lngAtual = _geoLojaLng;
-    try {
-      const { data: resData } = await _sb
-        .from('reservations')
-        .select('slots:slot_id(stores:store_id(lat, lng))')
-        .eq('id', reservaId).maybeSingle();
-      const coords = resData?.slots?.stores;
-      if (coords?.lat && coords?.lng) { latAtual = coords.lat; lngAtual = coords.lng; }
-    } catch(_) {}
-
-    let geo = null;
-    try {
-      geo = await Promise.race([
-        obterGeolocalizacao(),
-        new Promise((_,reject) => setTimeout(() => reject(new Error('TIMEOUT')), 50000))
-      ]);
-    } catch(e) {
-      if (!_geoForaDesde) {
-        _geoForaDesde = Date.now();
-        mostrarBannerGeo('⚠️ GPS desativado. Reative a localização ou a missão será pausada em 5 minutos.', 'amber');
-      }
-    }
-
-    if (geo) {
-      try {
-        const { error: pingErr } = await _sb.from('geo_pings').insert({ reservation_id: reservaId, lat: geo.lat, lng: geo.lng });
-        if (pingErr) { console.error('[GEO PING] Erro:', pingErr.message); }
-        else { atualizarStatusGeo(`📍 Ping enviado ${new Date().toLocaleTimeString('pt-BR')}`, 'green'); }
-      } catch(e) { console.error('[GEO PING] Exceção:', e); }
-
-      if (latAtual && lngAtual) {
-        const dist = distanciaMetros(geo.lat, geo.lng, latAtual, lngAtual);
-        if (dist > GEO_RAIO_METROS) {
-          if (!_geoForaDesde) {
-            _geoForaDesde = Date.now();
-            mostrarBannerGeo(`⚠️ Você está ${Math.round(dist)}m da loja. Volte em ${GEO_MINUTOS_FORA} minutos ou a missão será pausada.`, 'amber');
-          }
-        } else {
-          if (_geoForaDesde) { _geoForaDesde = null; removerBannerGeo(); }
-          return;
-        }
-      }
-    }
-
-    if (_geoForaDesde) {
-      const minFora = (Date.now() - _geoForaDesde) / 60000;
-      if (minFora >= GEO_MINUTOS_FORA) {
-        pararMonitoramentoGeo();
-        mostrarBannerGeo('⏸️ Missão pausada automaticamente — localização fora do raio da loja.', 'red');
-        await _sb.from('reservations').update({
-          status: 'pausa',
-          geo_auto_paused: true,
-          geo_paused_at: new Date().toISOString(),
-          geo_paused_dist: geo && latAtual ? Math.round(distanciaMetros(geo.lat, geo.lng, latAtual, lngAtual)) : null,
-        }).eq('id', reservaId);
-        await renderAgenda();
-      }
-    }
-  }, GEO_INTERVALO_MS);
-}
-
-function pararMonitoramentoGeo() {
-  if (_geoWatchId) { clearInterval(_geoWatchId); _geoWatchId = null; }
-  if (_isNativeApp) { pararBgGeo(); }
-  _geoForaDesde = null;
-  _geoReservaAtiva = null;
-}
-
-function mostrarBannerGeo(msg, cor) {
-  removerBannerGeo();
-  const cores = {
-    amber: 'bg-amber-50 border-amber-300 text-amber-800',
-    red:   'bg-red-50 border-red-300 text-red-800',
-    green: 'bg-emerald-50 border-emerald-300 text-emerald-800',
-  };
-  const banner = document.createElement('div');
-  banner.id = 'geo-banner';
-  banner.className = `fixed bottom-20 left-4 right-4 z-50 border rounded-2xl px-4 py-3 text-sm font-bold shadow-lg ${cores[cor]||cores.amber}`;
-  banner.textContent = msg;
-  document.body.appendChild(banner);
-  setTimeout(removerBannerGeo, 8000);
-}
-function removerBannerGeo() {
-  document.getElementById('geo-banner')?.remove();
-}
-
-function atualizarStatusGeo(msg, cor) {
-  let el = document.getElementById('geo-status-pill');
-  if (!el) {
-    el = document.createElement('div');
-    el.id = 'geo-status-pill';
-    el.className = 'fixed top-4 right-4 z-50 text-[10px] font-bold px-3 py-1.5 rounded-full shadow-lg max-w-xs';
-    document.body.appendChild(el);
-  }
-  el.textContent = msg;
-  el.style.background = cor === 'green' ? '#dcfce7' : cor === 'red' ? '#fee2e2' : '#fef3c7';
-  el.style.color = cor === 'green' ? '#166534' : cor === 'red' ? '#991b1b' : '#92400e';
-  clearTimeout(el._timeout);
-  el._timeout = setTimeout(() => el?.remove(), 10000);
-}
 
 // ── Substitui o QR code no fluxo por verificação de geolocalização ──
 async function fluxo(rid, status, horaEsperada) {
@@ -1739,6 +1577,7 @@ async function fluxo(rid, status, horaEsperada) {
 
     const precisaGeo = (nextNorm === 'check-in' && curNorm === 'confirmada') ||
                        (nextNorm === 'check-in'  && curNorm === 'pausa')     ||  // retomar
+                       (nextNorm === 'pausa'     && curNorm === 'check-in')  ||  // pausar
                        (nextNorm === 'check-out');
 
     let atrasoSinalizado = false;
@@ -1764,15 +1603,16 @@ async function fluxo(rid, status, horaEsperada) {
         let lojaLat = null, lojaLng = null;
         try {
             const { data: resData } = await _sb.from('reservations')
-                .select('slot_id, slots:slot_id(store_id, stores:store_id(lat, lng, name))')
+                .select('vacancy_id, slots:vacancy_id(store_id, stores:store_id(lat, lng, name))')
                 .eq('id', rid).maybeSingle();
             lojaLat = resData?.slots?.stores?.lat;
             lojaLng = resData?.slots?.stores?.lng;
         } catch(_) {}
 
         if (!lojaLat || !lojaLng) {
-            // Loja sem coordenadas cadastradas — permite sem verificação
-            console.warn('[GEO] Loja sem coordenadas — check-in liberado sem validação de raio.');
+            showLoading(false);
+            alert('📍 Esta loja ainda não tem localização cadastrada.\n\nEntre em contato com o suporte para regularizar.');
+            return;
         } else {
             // Verifica raio
             showLoading(true);
@@ -1791,60 +1631,15 @@ async function fluxo(rid, status, horaEsperada) {
             showLoading(false);
 
             if (!geoResult.dentro) {
-                const acao = nextNorm === 'check-out' ? 'finalizar' : curNorm === 'pausa' ? 'retomar' : 'iniciar';
+                let acao = 'iniciar';
+                if (nextNorm === 'check-out') acao = 'finalizar';
+                else if (nextNorm === 'pausa') acao = 'pausar';
+                else if (nextNorm === 'check-in' && curNorm === 'pausa') acao = 'retomar';
                 alert(`📍 Você está a ${geoResult.distancia}m da loja.\n\nPrecisa estar a menos de ${GEO_RAIO_METROS}m para ${acao} a missão.\n\nAproximie-se da loja e tente novamente.`);
                 return;
             }
 
-            // Dentro do raio — salva coords para monitoramento
-            if (nextNorm === 'check-in') {
-                // No app nativo, mostra orientação de bateria na primeira vez
-                const bgGeoOrientado = localStorage.getItem('bgGeoOrientado');
-                const isNative = window.Capacitor !== undefined || navigator.userAgent.includes('wv');
-                if (isNative && !bgGeoOrientado) {
-                    await new Promise(resolve => {
-                        const m = document.createElement('div');
-                        m.id = 'modal-bggeo';
-                        m.className = 'fixed inset-0 z-[9999] flex items-end justify-center bg-black/60 p-4';
-                        m.innerHTML = `
-                          <div class="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl">
-                            <div class="text-4xl text-center mb-3">📍</div>
-                            <h2 class="text-lg font-black text-slate-900 text-center mb-2">Ativar rastreamento em segundo plano</h2>
-                            <p class="text-sm text-slate-600 text-center mb-4">Para monitorar sua localização mesmo com o app minimizado, siga os passos abaixo:</p>
-                            <div class="space-y-3 mb-5">
-                              <div class="flex items-start gap-3 bg-slate-50 rounded-2xl p-3">
-                                <span class="text-lg">1️⃣</span>
-                                <p class="text-sm text-slate-700">Abra <strong>Configurações → Apps → Voxyr → Bateria</strong></p>
-                              </div>
-                              <div class="flex items-start gap-3 bg-slate-50 rounded-2xl p-3">
-                                <span class="text-lg">2️⃣</span>
-                                <p class="text-sm text-slate-700">Selecione <strong>"Sem restrições"</strong></p>
-                              </div>
-                              <div class="flex items-start gap-3 bg-slate-50 rounded-2xl p-3">
-                                <span class="text-lg">3️⃣</span>
-                                <p class="text-sm text-slate-700">Volte aqui e toque em <strong>"Entendido"</strong></p>
-                              </div>
-                            </div>
-                            <button id="btn-bggeo-ok" class="w-full py-4 bg-slate-900 text-white rounded-2xl font-black text-sm uppercase">✅ Entendido, já configurei</button>
-                            <button id="btn-bggeo-skip" class="w-full py-3 text-slate-400 text-sm font-bold mt-2">Configurar depois</button>
-                          </div>`;
-                        document.body.appendChild(m);
-                        document.getElementById('btn-bggeo-ok').onclick = () => {
-                            localStorage.setItem('bgGeoOrientado', '1');
-                            m.remove();
-                            resolve();
-                        };
-                        document.getElementById('btn-bggeo-skip').onclick = () => {
-                            m.remove();
-                            resolve();
-                        };
-                    });
-                }
-                setTimeout(() => iniciarMonitoramentoGeo(rid, lojaLat, lojaLng), 2000);
-            }
-            if (nextNorm === 'check-out') {
-                pararMonitoramentoGeo();
-            }
+            // Dentro do raio — prossegue sem monitoramento contínuo
         }
     }
 
@@ -3813,20 +3608,28 @@ async function openAcademiaStep(stepId) {
     showLoading(true);
     const container = document.getElementById('view-container');
 
-    const [{ data: step }, { data: contents }, { data: questions }] = await Promise.all([
+    const [{ data: step }, { data: contents }, { data: questions }, { data: existingProgress }] = await Promise.all([
         _sb.from('academy_steps').select('*').eq('id', stepId).maybeSingle(),
         _sb.from('academy_step_contents').select('*').eq('step_id', stepId).order('order_index'),
         _sb.from('academy_quiz_questions').select('*, academy_quiz_options(*)').eq('step_id', stepId).order('order_index'),
+        _sb.from('academy_progress').select('step_id, completed').eq('profile_id', currentUser.id).eq('step_id', stepId).maybeSingle(),
     ]);
     showLoading(false);
     if (!step) return;
+
+    // Se a etapa já foi concluída no banco (ex: após reinstalação), não exige re-assistir vídeos
+    const stepAlreadyCompleted = existingProgress?.completed === true;
 
     // Track which videos need to be watched
     const videoContents = (contents||[]).filter(c => c.type === 'video');
     const videoIds = videoContents.map(c => c.id);
     window.__videosWatched = window.__videosWatched || {};
     window.__videosWatched[stepId] = window.__videosWatched[stepId] || new Set();
-    const allVideosRequired = videoIds.length > 0;
+    // Se já concluído, marca todos os vídeos como assistidos automaticamente
+    if (stepAlreadyCompleted) {
+        videoIds.forEach(id => window.__videosWatched[stepId].add(id));
+    }
+    const allVideosRequired = videoIds.length > 0 && !stepAlreadyCompleted;
 
     const renderContent = (c, idx) => {
         // Title OUTSIDE the card
