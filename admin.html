@@ -218,12 +218,12 @@ nav::-webkit-scrollbar-thumb:hover {
         </header>
 
         <div class="px-8 py-6 flex gap-3 overflow-x-auto shrink-0">
-            <button onclick="renderMarketTab('sistemas')" class="subtab-btn">⚙️ Sistemas</button>
-            <button onclick="renderMarketTab('bandeiras')" class="subtab-btn">🏷️ Bandeiras</button>
             <button onclick="renderMarketTab('stores')" class="subtab-btn active">🏪 Mercados</button>
             <button onclick="renderMarketTab('shifts')" class="subtab-btn">⏰ Turnos</button>
             <button onclick="renderMarketTab('slots')" class="subtab-btn">📅 Vagas (CSV)</button>
-            <button onclick="renderMarketTab('bookings')" class="subtab-btn">📝 Reservas</button>  
+            <button onclick="renderMarketTab('bookings')" class="subtab-btn">📝 Reservas</button>
+            <button onclick="renderMarketTab('bandeiras')" class="subtab-btn">🏷️ Bandeiras</button>
+            <button onclick="renderMarketTab('sistemas')" class="subtab-btn">⚙️ Sistemas</button>
         </div>
 
         <div id="market-display" class="flex-1 overflow-y-auto px-8 pb-8"></div>
@@ -2186,15 +2186,15 @@ document.getElementById('analysis-created').innerText = 'Cadastro em: ' + (creat
               if (before !== after) changedSensitive.push(sensitiveLabels[k] || k);
             }
 
-            // Atualiza no Supabase com fallback sem ifood_pass se coluna não existir
-            // Remove colunas que não existem no schema
+            // Atualiza no Supabase
             let payload = { ...payloadBase };
             delete payload.credentials;
             delete payload.third_platform_url;
-            delete payload.ifood_user;
-            delete payload.ifood_pass;
-            delete payload.janis_user;
-            delete payload.janis_pass;
+            // Grava campos legados — null se removidos, valores se presentes
+            payload.ifood_user = firstIfood?.username || null;
+            payload.ifood_pass = firstIfood?.password || null;
+            payload.janis_user = firstJanis?.username || null;
+            payload.janis_pass = firstJanis?.password || null;
             let { error } = await _supabase.from('profiles').update(payload).eq('id', currentUserId);
             if (error) console.warn('[PROFILE SAVE] error:', JSON.stringify(error));
 
@@ -2278,29 +2278,44 @@ mensagem_corpo: 'Seus dados foram atualizados pelo administrador:\n\n' + changes
 
             // Grava também em profile_store_credentials para sincronizar com tela de pendentes
             try {
-              const storeId = document.getElementById('edit-store-id')?.value
-                || window.__credCurrentStoreId
-                || null;
+              const storeId = window.__credCurrentStoreId || null;
               const storeSystems = window.__credStoreSystems || [];
-              console.log('[CRED SAVE] storeId:', storeId, '| storeSystems:', storeSystems.length, '| creds:', creds.length);
-              if (storeId && creds.length) {
+
+              if (storeId) {
+                const activePlatforms = creds
+                  .filter(c => c.platform && c.username)
+                  .map(c => c.platform.toLowerCase());
+
+                const { data: existing } = await _supabase
+                  .from('profile_store_credentials')
+                  .select('id, platform, system_id')
+                  .eq('profile_id', currentUserId)
+                  .eq('store_id', storeId);
+
+                for (const ex of (existing || [])) {
+                  const platform = (ex.platform || '').toLowerCase();
+                  if (!activePlatforms.includes(platform)) {
+                    await _supabase.from('profile_store_credentials').delete().eq('id', ex.id);
+                  }
+                }
+
+                // Upsert das credenciais ativas
                 for (const cred of creds) {
                   if (!cred.platform || !cred.username) continue;
                   const sys = storeSystems.find(s => s.name.toLowerCase() === cred.platform.toLowerCase());
-                  console.log('[CRED SAVE] platform:', cred.platform, '| sys found:', sys?.id);
-                  if (!sys) continue;
-                  const { error: upsertErr } = await _supabase.from('profile_store_credentials').upsert({
+                  const upsertData = {
                     profile_id: currentUserId,
                     store_id: storeId,
-                    system_id: sys.id,
-                    platform: sys.name,
+                    platform: cred.platform,
                     username: cred.username,
                     password: cred.password || null,
                     is_active: true,
                     updated_at: new Date().toISOString()
-                  }, { onConflict: 'profile_id,store_id,system_id' });
-                  if (upsertErr) console.warn('[CRED SAVE] upsert error:', JSON.stringify(upsertErr));
-                  else console.log('[CRED SAVE] upserted OK');
+                  };
+                  if (sys) upsertData.system_id = sys.id;
+
+                  await _supabase.from('profile_store_credentials')
+                    .upsert(upsertData, { onConflict: sys ? 'profile_id,store_id,system_id' : 'profile_id,store_id,platform' });
                 }
               }
               // Expira cache da tela de pendentes
