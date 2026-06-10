@@ -692,7 +692,12 @@ async function init() {
 
             titleEl.textContent = ann?.title?.trim() ? ann.title : 'Comunicado';
             metaEl.textContent  = `Enviado em ${fmtDT(ann?.created_at)}${ann?.require_ack ? ' • Exige confirmação' : ''}`;
-msgEl.innerHTML     = escHTML(ann?.message || '').replace(/\n/g, '<br>');
+            msgEl.innerHTML     = escHTML(ann?.message || '').replace(/\n/g, '<br>');
+
+            // Grava read_at imediatamente ao abrir o modal (independente de confirmar)
+            if (!readRow?.read_at) {
+                upsertAnnouncementRead(ann.id);
+            }
 
             // Se exige confirmação, não deixa fechar (trava)
             if (ann?.require_ack) {
@@ -701,8 +706,6 @@ msgEl.innerHTML     = escHTML(ann?.message || '').replace(/\n/g, '<br>');
                 btnAck.onclick = async () => {
                     btnAck.disabled = true;
                     btnAck.textContent = 'CONFIRMANDO...';
-                    // garante leitura registrada
-                    await upsertAnnouncementRead(ann.id);
                     const ok = await confirmAnnouncementRead(ann.id);
                     if (!ok) {
                         btnAck.disabled = false;
@@ -840,16 +843,18 @@ if (error) {
                 let lateDiscountMin = 0;
                 if (lateCheckinAt && startHHMM) {
                     const [sh, sm] = startHHMM.split(':').map(Number);
-                    const shiftStart = new Date(lateCheckinAt);
-                    shiftStart.setHours(sh, sm, 0, 0);
+                    const BRT_OFFSET_MS = -3 * 60 * 60 * 1000;
+                    const lateCheckinBRT = new Date(lateCheckinAt.getTime() + BRT_OFFSET_MS);
+                    const shiftStart = new Date(lateCheckinBRT);
+                    shiftStart.setUTCHours(sh, sm, 0, 0);
 
                     if (delayStatus === 'aprovado' && approvedUntil) {
                         const [ah, am] = String(approvedUntil).split(':').map(Number);
-                        const approvedLimit = new Date(lateCheckinAt);
-                        approvedLimit.setHours(ah, am, 0, 0);
-                        lateDiscountMin = Math.max(0, Math.floor((lateCheckinAt - approvedLimit) / 60000));
+                        const approvedLimit = new Date(lateCheckinBRT);
+                        approvedLimit.setUTCHours(ah, am, 0, 0);
+                        lateDiscountMin = Math.max(0, Math.floor((lateCheckinBRT - approvedLimit) / 60000));
                     } else {
-                        const totalLateMin = Math.max(0, Math.floor((lateCheckinAt - shiftStart) / 60000));
+                        const totalLateMin = Math.max(0, Math.floor((lateCheckinBRT - shiftStart) / 60000));
                         lateDiscountMin = Math.max(0, totalLateMin - 10);
                     }
                 }
@@ -859,13 +864,21 @@ if (error) {
                 const pauseExcessMin = Math.max(0, Math.floor(pauseSeconds / 60) - 60);
 
                 // === DESCONTO DE SAÍDA ANTECIPADA ===
+                // Usa o horário de Brasília (-03:00) para comparar com end_time do turno,
+                // evitando desconto indevido por diferença de fuso entre UTC e horário local.
                 let earlyLeaveMin = 0;
                 const finishedAt = extraParams?.finishedAt ? new Date(extraParams.finishedAt) : null;
                 if (finishedAt && endHHMM) {
                     const [eh, em] = endHHMM.split(':').map(Number);
-                    const shiftEnd = new Date(finishedAt);
-                    shiftEnd.setHours(eh, em, 0, 0);
-                    earlyLeaveMin = Math.max(0, Math.floor((shiftEnd - finishedAt) / 60000));
+                    // Converte finished_at para horário de Brasília (UTC-3)
+                    const BRT_OFFSET_MS = -3 * 60 * 60 * 1000;
+                    const finishedBRT = new Date(finishedAt.getTime() + BRT_OFFSET_MS);
+                    // Reconstrói shiftEnd no mesmo dia BRT
+                    const shiftEnd = new Date(finishedBRT);
+                    shiftEnd.setUTCHours(eh, em, 0, 0);
+                    // Se shiftEnd ficou antes de finishedBRT (virada de dia), ajusta +1 dia
+                    if (shiftEnd < finishedBRT) shiftEnd.setUTCDate(shiftEnd.getUTCDate() + 1);
+                    earlyLeaveMin = Math.max(0, Math.floor((shiftEnd - finishedBRT) / 60000));
                 }
 
                 // === TOTAL DESCONTADO ===

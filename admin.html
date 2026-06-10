@@ -97,6 +97,30 @@
   padding:10px 12px;
   background:#fff;
 }
+
+/* Scrollbar fino e discreto para o menu lateral e modal de loja */
+nav::-webkit-scrollbar,
+#modal-store .overflow-y-auto::-webkit-scrollbar {
+  width: 4px;
+}
+nav::-webkit-scrollbar-track,
+#modal-store .overflow-y-auto::-webkit-scrollbar-track {
+  background: transparent;
+}
+nav::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.15);
+  border-radius: 99px;
+}
+nav::-webkit-scrollbar-thumb:hover {
+  background: rgba(255,255,255,0.3);
+}
+#modal-store .overflow-y-auto::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 99px;
+}
+#modal-store .overflow-y-auto::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
 </style>
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#0f172a">
@@ -107,9 +131,9 @@
 </head>
 <body class="h-screen flex overflow-hidden">
 
-    <aside class="w-64 bg-gray-900 text-white flex flex-col shrink-0">
-        <div class="p-6 text-xl font-bold border-b border-gray-800 text-emerald-400">Voxyr</div>
-        <nav class="flex-1 p-4 space-y-2">
+    <aside class="w-64 bg-gray-900 text-white flex flex-col shrink-0 overflow-hidden">
+        <div class="p-6 text-xl font-bold border-b border-gray-800 text-emerald-400 shrink-0">Voxyr</div>
+        <nav class="flex-1 p-4 space-y-2 overflow-y-auto">
     <button onclick="switchTab('profiles')" id="nav-profiles" class="w-full text-left px-4 py-3 rounded bg-gray-800 text-emerald-400 border-l-4 border-emerald-400 font-bold">👥 Autônomos</button>
     
     <button onclick="switchTab('markets')" id="nav-markets" class="w-full text-left px-4 py-3 rounded text-gray-400 hover:bg-gray-800 hover:text-white transition-colors font-bold border-l-4 border-transparent">🏢 Gestão Mercados</button>
@@ -150,6 +174,12 @@
             <div class="flex gap-4 flex-wrap">
                 <input type="text" id="filter-name" oninput="applyFilters()" placeholder="Nome ou CPF..." readonly onfocus="this.removeAttribute('readonly')" class="border rounded-lg px-4 py-2 text-sm w-64 outline-none focus:ring-2 focus:ring-emerald-500">
                 <input type="text" id="store-search" oninput="applyFilters()" placeholder="Filtrar por nome da loja..." readonly onfocus="this.removeAttribute('readonly')" class="border rounded-lg px-4 py-2 text-sm w-64 outline-none focus:ring-2 focus:ring-emerald-500">
+                <div class="relative">
+                    <input type="text" id="profile-chain-picker" data-onchange="_onProfileChainChange"
+                        placeholder="Bandeira..." autocomplete="off"
+                        class="border rounded-lg px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500 w-48">
+                    <div id="profile-chain-picker-dd" class="hidden absolute z-50 mt-1 w-56 bg-white border rounded-xl shadow-lg overflow-hidden max-h-64 overflow-y-auto"></div>
+                </div>
                 <select id="filter-job-function" onchange="applyFilters()" class="border rounded-lg px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500 bg-white">
                     <option value="">Todas as funções</option>
                     <option value="separador">📦 Separador</option>
@@ -191,15 +221,39 @@
             <button onclick="renderMarketTab('shifts')" class="subtab-btn">⏰ Turnos</button>
             <button onclick="renderMarketTab('slots')" class="subtab-btn">📅 Vagas (CSV)</button>
             <button onclick="renderMarketTab('bookings')" class="subtab-btn">📝 Reservas</button>
+            <button onclick="renderMarketTab('bandeiras')" class="subtab-btn">🏷️ Bandeiras</button>
         </div>
 
         <div id="market-display" class="flex-1 overflow-y-auto px-8 pb-8"></div>
     </div>
 
     <div id="mod-metrics" class="module-container bg-white">
-        <header class="h-16 border-b flex items-center px-8 shrink-0">
+        <header class="h-16 border-b flex items-center px-8 justify-between shrink-0">
             <h2 class="text-xl font-semibold text-gray-800">Dashboard de Performance</h2>
         </header>
+        <div class="bg-gray-50 border-b px-8 py-3 flex items-center gap-3 flex-wrap shrink-0">
+            <div>
+                <label class="text-[10px] font-bold text-gray-400 uppercase block mb-1">Bandeira</label>
+                <div class="relative">
+                    <input type="text" id="metrics-chain-picker" data-onchange="_onMetricsChainChange"
+                        placeholder="Bandeira..." autocomplete="off"
+                        class="border rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-emerald-500 w-44">
+                    <div id="metrics-chain-picker-dd" class="hidden absolute z-50 mt-1 w-52 bg-white border rounded-xl shadow-lg overflow-hidden max-h-64 overflow-y-auto"></div>
+                </div>
+            </div>
+            <div>
+                <label class="text-[10px] font-bold text-gray-400 uppercase block mb-1">Loja</label>
+                <div class="relative">
+                    <input type="text" id="metrics-store-picker" placeholder="Loja..." autocomplete="off"
+                        oninput="_onMetricsStoreInput(this.value)"
+                        class="border rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-emerald-500 w-52">
+                    <div id="metrics-store-picker-dd" class="hidden absolute z-50 mt-1 w-60 bg-white border rounded-xl shadow-lg overflow-hidden max-h-64 overflow-y-auto"></div>
+                </div>
+            </div>
+            <div class="self-end">
+                <button onclick="_clearMetricsFilters()" class="px-3 py-1.5 text-sm font-bold border rounded-lg text-gray-500 hover:bg-gray-100">Limpar</button>
+            </div>
+        </div>
         <div id="metrics-content" class="p-8 overflow-y-auto flex-1"></div>
     </div>
 
@@ -220,8 +274,8 @@
                 <h2 class="text-xl font-semibold text-gray-800">Reservas sem credenciais</h2>
             </div>
         </header>
-        <div class="p-6 overflow-y-auto flex-1">
-            <div class="bg-gray-50 border rounded-xl p-4 mb-4">
+        <div class="flex flex-col flex-1 overflow-hidden">
+            <div class="bg-gray-50 border-b p-4 shrink-0">
                 <div class="grid grid-cols-1 md:grid-cols-6 gap-3 items-end">
                     <div class="md:col-span-2 relative">
                         <label class="text-xs text-gray-500 font-semibold">LOJAS</label>
@@ -229,35 +283,39 @@
                         <div id="cred-store-dd" class="hidden absolute mt-2 w-full bg-white border rounded-xl shadow-lg p-2 max-h-64 overflow-y-auto z-50"></div>
                         <div id="cred-store-pill" class="text-xs text-gray-500 mt-2 min-h-[16px]"></div>
                     </div>
-
-                    <div class="md:col-span-2">
+                    <div class="relative">
+                        <label class="text-xs text-gray-500 font-semibold">Bandeira</label>
+                        <input type="text" id="cred-chain-picker" placeholder="Todas..." autocomplete="off"
+                            class="w-full border rounded-lg px-3 py-2 text-sm">
+                        <div id="cred-chain-picker-dd" class="hidden absolute z-50 mt-1 w-52 bg-white border rounded-xl shadow-lg overflow-hidden max-h-64 overflow-y-auto"></div>
+                        <div class="text-xs text-transparent mt-2 min-h-[16px]">.</div>
+                    </div>
+                    <div>
                         <label class="text-xs text-gray-500 font-semibold">Buscar autônomo</label>
                         <input id="cred-worker-search" type="text" placeholder="Nome ou e-mail..." class="w-full border rounded-lg px-3 py-2 text-sm" autocomplete="off">
                         <div class="text-xs text-transparent mt-2 min-h-[16px]">.</div>
                     </div>
-
                     <div>
                         <label class="text-xs text-gray-500 font-semibold">Início</label>
                         <input id="cred-date-from" type="date" class="w-full border rounded-lg px-3 py-2 text-sm">
                         <div class="text-xs text-transparent mt-2 min-h-[16px]">.</div>
                     </div>
-
                     <div>
                         <label class="text-xs text-gray-500 font-semibold">Fim</label>
                         <input id="cred-date-to" type="date" class="w-full border rounded-lg px-3 py-2 text-sm">
                         <div class="text-xs text-transparent mt-2 min-h-[16px]">.</div>
                     </div>
-
-                    <div class="md:col-span-1 flex items-end">
-    <button id="cred-clear"
-        class="w-full px-4 py-2 rounded-lg bg-gray-200 text-gray-800 text-sm font-bold h-[40px]"> Limpar
-    </button>
-</div>
-
+                    <div class="flex items-end">
+                        <button id="cred-clear" class="w-full px-4 py-2 rounded-lg bg-gray-200 text-gray-800 text-sm font-bold h-[40px]">Limpar</button>
+                    </div>
                 </div>
             </div>
-
-            <div id="cred-results" class="space-y-3"></div>
+            <!-- Abas por sistema -->
+            <div id="cred-tabs-bar" class="hidden bg-white border-b px-6 flex gap-1 overflow-x-auto shrink-0"></div>
+            <!-- Resultados -->
+            <div class="flex-1 overflow-y-auto p-6">
+                <div id="cred-results" class="space-y-3"></div>
+            </div>
         </div>
     </div>
 
@@ -349,6 +407,14 @@
     <div class="px-8 pb-4">
       <div class="bg-gray-50 border rounded-2xl p-4">
         <div class="flex flex-col lg:flex-row lg:items-end gap-4">
+          <div class="lg:w-52">
+            <label class="text-[11px] font-black uppercase text-slate-500">Bandeira</label>
+            <div class="relative mt-1">
+              <input type="text" id="orders-chain-picker" placeholder="Todas as bandeiras..." autocomplete="off"
+                class="w-full border rounded-xl bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-emerald-500">
+              <div id="orders-chain-picker-dd" class="hidden absolute z-50 mt-1 w-full bg-white border rounded-xl shadow-xl overflow-hidden max-h-64 overflow-y-auto"></div>
+            </div>
+          </div>
           <div class="flex-1 min-w-0">
             <label class="text-[11px] font-black uppercase text-slate-500">Filtro geral de lojas</label>
             <div class="relative mt-1" id="global-store-filter-wrap">
@@ -368,8 +434,7 @@
                 <div id="global-store-options" class="max-h-64 overflow-auto space-y-1"></div>
 
                 <div class="flex gap-2 mt-3 pt-3 border-t">
-                  <button id="global-store-apply" type="button" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase text-xs py-3 rounded-xl">Aplicar</button>
-                  <button id="global-store-close" type="button" class="px-4 bg-slate-200 hover:bg-slate-300 text-slate-800 font-black uppercase text-xs py-3 rounded-xl">Fechar</button>
+                  <button id="global-store-close" type="button" class="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-800 font-black uppercase text-xs py-3 rounded-xl">Fechar</button>
                 </div>
               </div>
             </div>
@@ -408,151 +473,143 @@
       <header class="h-16 border-b flex items-center px-8 justify-between shrink-0">
         <div>
           <h2 class="text-xl font-semibold text-gray-800">Comunicados</h2>
-          <p class="text-xs text-gray-500">Envie um comunicado e exija confirmação de leitura ao abrir o app</p>
+          <p class="text-xs text-gray-500">Envie comunicados e acompanhe leituras e confirmações</p>
         </div>
       </header>
 
-      <div class="p-6 overflow-y-auto flex-1 space-y-6">
-        <div class="bg-gray-50 border rounded-2xl p-5">
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label class="text-xs text-gray-500 font-semibold">Destino</label>
-              <select id="ann-scope" class="w-full border rounded-lg px-3 py-2 text-sm">
-                <option value="all">Todos os autônomos</option>
-                <option value="store">Uma loja específica</option>
-                <option value="profile">Um autônomo específico</option>
-              </select>
-            </div>
-            <div id="ann-store-wrap" class="hidden">
-              <label class="text-xs text-gray-500 font-semibold">Loja</label>
-              <select id="ann-store" class="w-full border rounded-lg px-3 py-2 text-sm"></select>
-            </div>
-            <div id="ann-profile-wrap" class="hidden">
-              <label class="text-xs text-gray-500 font-semibold">Autônomo</label>
-              <input id="ann-profile-search" type="text" placeholder="Digite nome / e-mail / CPF..." class="w-full border rounded-lg px-3 py-2 text-sm" autocomplete="off">
-              <div id="ann-profile-dd" class="hidden mt-2 bg-white border rounded-xl shadow-lg p-2 max-h-56 overflow-y-auto"></div>
-              <input id="ann-profile-id" type="hidden">
-              <div id="ann-profile-picked" class="text-xs text-gray-600 mt-2 hidden"></div>
-            </div>
-          </div>
+      <!-- Sub-abas -->
+      <div class="flex gap-1 px-8 border-b shrink-0">
+        <button id="ann-tab-send" onclick="annSwitchTab('send')"
+          class="px-5 py-3 text-sm font-bold border-b-2 border-emerald-500 text-emerald-600 -mb-px">
+          📢 Enviar
+        </button>
+        <button id="ann-tab-sent" onclick="annSwitchTab('sent')"
+          class="px-5 py-3 text-sm font-bold border-b-2 border-transparent text-gray-500 hover:text-gray-800 -mb-px">
+          📋 Comunicados enviados
+        </button>
+        <button id="ann-tab-reads" onclick="annSwitchTab('reads')"
+          class="px-5 py-3 text-sm font-bold border-b-2 border-transparent text-gray-500 hover:text-gray-800 -mb-px">
+          👁️ Leituras
+        </button>
+      </div>
 
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-            <div>
-              <label class="text-xs text-gray-500 font-semibold">Título (opcional)</label>
-              <input id="ann-title" type="text" placeholder="Ex: Atualização importante" class="w-full border rounded-lg px-3 py-2 text-sm">
+      <div class="p-6 overflow-y-auto flex-1">
+
+        <!-- Aba Enviar -->
+        <div id="ann-panel-send">
+          <div class="max-w-2xl">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label class="text-xs text-gray-500 font-semibold">Destino</label>
+                <select id="ann-scope" class="w-full border rounded-lg px-3 py-2 text-sm">
+                  <option value="all">Todos os autônomos</option>
+                  <option value="store">Uma loja específica</option>
+                  <option value="profile">Um autônomo específico</option>
+                </select>
+              </div>
+              <div id="ann-store-wrap" class="hidden">
+                <label class="text-xs text-gray-500 font-semibold">Loja</label>
+                <select id="ann-store" class="w-full border rounded-lg px-3 py-2 text-sm"></select>
+              </div>
+              <div id="ann-profile-wrap" class="hidden">
+                <label class="text-xs text-gray-500 font-semibold">Autônomo</label>
+                <input id="ann-profile-search" type="text" placeholder="Digite nome / e-mail / CPF..." class="w-full border rounded-lg px-3 py-2 text-sm" autocomplete="off">
+                <div id="ann-profile-dd" class="hidden mt-2 bg-white border rounded-xl shadow-lg p-2 max-h-56 overflow-y-auto"></div>
+                <input id="ann-profile-id" type="hidden">
+                <div id="ann-profile-picked" class="text-xs text-gray-600 mt-2 hidden"></div>
+              </div>
             </div>
-            <div class="flex items-end gap-3">
-              <label class="inline-flex items-center gap-2 text-sm font-semibold text-gray-700">
-                <input id="ann-require-ack" type="checkbox" class="accent-emerald-600" checked>
-                Exigir confirmação de leitura
-              </label>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+              <div>
+                <label class="text-xs text-gray-500 font-semibold">Título (opcional)</label>
+                <input id="ann-title" type="text" placeholder="Ex: Atualização importante" class="w-full border rounded-lg px-3 py-2 text-sm">
+              </div>
+              <div class="flex items-end gap-3">
+                <label class="inline-flex items-center gap-2 text-sm font-semibold text-gray-700">
+                  <input id="ann-require-ack" type="checkbox" class="accent-emerald-600" checked>
+                  Exigir confirmação de leitura
+                </label>
+              </div>
             </div>
-          </div>
 
-          <div class="mt-4">
-            <label class="text-xs text-gray-500 font-semibold">Mensagem</label>
-            <textarea id="ann-message" rows="5" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="Digite o comunicado..."></textarea>
-          </div>
+            <div class="mt-4">
+              <label class="text-xs text-gray-500 font-semibold">Mensagem</label>
+              <textarea id="ann-message" rows="5" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="Digite o comunicado..."></textarea>
+            </div>
 
-          <div class="mt-4 flex gap-3">
-            <button id="ann-send" class="px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-black uppercase">Enviar comunicado</button>
-            <button id="ann-clear" class="px-4 py-2 rounded-lg bg-gray-200 text-gray-800 text-sm font-black uppercase">Limpar</button>
+            <div class="mt-4 flex gap-3">
+              <button id="ann-send" class="px-5 py-2 rounded-lg bg-emerald-600 text-white text-sm font-black uppercase">Enviar comunicado</button>
+              <button id="ann-clear" class="px-4 py-2 rounded-lg bg-gray-200 text-gray-800 text-sm font-black uppercase">Limpar</button>
+            </div>
+            <div id="ann-status" class="mt-3 text-sm font-semibold"></div>
           </div>
-
-          <div id="ann-status" class="mt-3 text-sm font-semibold"></div>
         </div>
 
-        <div class="bg-white border rounded-2xl p-5">
-          <div class="flex items-center justify-between mb-3">
-            <h3 class="font-black text-gray-800 uppercase text-sm">Últimos comunicados</h3>
-            <button id="ann-refresh" class="px-3 py-2 rounded-lg bg-gray-100 text-gray-700 text-xs font-black uppercase">Atualizar</button>
+        <!-- Aba Enviados -->
+        <div id="ann-panel-sent" class="hidden">
+          <div class="flex items-center justify-between mb-4">
+            <input type="text" id="ann-sent-search" placeholder="Buscar por título..." autocomplete="off"
+              class="border rounded-xl px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500 w-72">
+            <button id="ann-refresh" class="px-4 py-2 border rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-50">Atualizar</button>
           </div>
-
-          <!-- Compacto: evita empilhar vários cards -->
-          <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
-            <div class="md:col-span-5">
-              <label class="text-xs text-gray-500 font-semibold">Selecionar comunicado</label>
-              <input id="ann-last-input" list="ann-last-list" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="Digite para buscar..." autocomplete="off" />
-              <datalist id="ann-last-list"></datalist>
-              <input type="hidden" id="ann-last-id" />
-            </div>
-            <div class="md:col-span-3">
-              <label class="text-xs text-gray-500 font-semibold opacity-0">Ação</label>
-              <button id="ann-last-deactivate" class="w-full px-4 py-2 rounded-lg bg-gray-200 text-gray-800 text-sm font-bold uppercase border border-gray-300" disabled>Desativar</button>
-            </div>
-            <div class="md:col-span-12">
-              <div id="ann-last-preview" class="mt-2 border rounded-xl p-3 bg-gray-50 text-sm text-gray-700 whitespace-pre-wrap max-h-[180px] overflow-y-auto">
-  Selecione um comunicado para visualizar o conteúdo.
-</div>
-            </div>
-          </div>
-
-          <!-- Mantém o container para compatibilidade com JS antigo (agora não renderiza cards) -->
+          <div id="ann-sent-list" class="space-y-2"></div>
+          <!-- mantido para compatibilidade -->
           <div id="ann-list" class="hidden"></div>
+          <input type="hidden" id="ann-last-id" />
+          <datalist id="ann-last-list"></datalist>
         </div>
-      
-        <div class="bg-white border rounded-2xl p-5">
-          <div class="flex items-center justify-between mb-3">
-            <h3 class="font-black text-gray-800 uppercase text-sm">Leituras & confirmações</h3>
-            <button id="ann-reads-refresh" class="px-3 py-2 rounded-lg bg-gray-100 text-gray-700 text-xs font-black uppercase">Atualizar</button>
-          </div>
 
-          <div class="bg-gray-50 border rounded-xl p-4">
-            <div class="grid grid-cols-1 md:grid-cols-10 gap-3 items-end">
-              <div class="md:col-span-3">
+        <!-- Aba Leituras -->
+        <div id="ann-panel-reads" class="hidden">
+          <div class="bg-gray-50 border rounded-xl p-4 mb-4">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
+              <div class="md:col-span-2">
                 <label class="text-xs text-gray-500 font-semibold">Comunicado</label>
                 <input id="ann-reads-announcement" type="text" placeholder="Digite para buscar e selecione..." class="w-full border rounded-lg px-3 py-2 text-sm" list="ann-reads-announcement-list" autocomplete="off">
                 <datalist id="ann-reads-announcement-list"></datalist>
                 <input id="ann-reads-announcement-id" type="hidden" value="">
               </div>
-
-              <div class="md:col-span-2">
+              <div>
                 <label class="text-xs text-gray-500 font-semibold">Status</label>
                 <select id="ann-reads-status" class="w-full border rounded-lg px-3 py-2 text-sm">
                   <option value="all">Todos</option>
-                  <option value="confirmed">Confirmados</option>
-                  <option value="read">Lidos (sem confirmação)</option>
-                  <option value="pending">Pendentes</option>
+                  <option value="confirmed">✅ Confirmados</option>
+                  <option value="read">👁️ Lidos (sem confirmação)</option>
+                  <option value="pending">⏳ Pendentes (não leram)</option>
                 </select>
               </div>
-
-              <div class="md:col-span-2">
-                <label class="text-xs text-gray-500 font-semibold">Buscar por nome</label>
-                <input id="ann-reads-name" type="text" placeholder="Digite o nome do autônomo..." class="w-full border rounded-lg px-3 py-2 text-sm" autocomplete="off">
+              <div>
+                <label class="text-xs text-gray-500 font-semibold">Buscar autônomo</label>
+                <input id="ann-reads-name" type="text" placeholder="Nome..." class="w-full border rounded-lg px-3 py-2 text-sm" autocomplete="off">
               </div>
-
-              <div class="md:col-span-2">
+              <div>
                 <label class="text-xs text-gray-500 font-semibold">Loja</label>
                 <select id="ann-reads-store" class="w-full border rounded-lg px-3 py-2 text-sm"></select>
               </div>
-
-              <div class="md:col-span-1 flex items-end">
-                <button id="ann-reads-clear" class="w-full px-4 py-2 rounded-lg bg-gray-200 text-gray-800 text-sm font-bold">Limpar</button>
-              </div>
-
-              <div class="md:col-span-2">
-                <label class="text-xs text-gray-500 font-semibold">De (data)</label>
+              <div>
+                <label class="text-xs text-gray-500 font-semibold">De</label>
                 <input id="ann-reads-from" type="date" class="w-full border rounded-lg px-3 py-2 text-sm">
               </div>
-
-              <div class="md:col-span-2">
-                <label class="text-xs text-gray-500 font-semibold">Até (data)</label>
+              <div>
+                <label class="text-xs text-gray-500 font-semibold">Até</label>
                 <input id="ann-reads-to" type="date" class="w-full border rounded-lg px-3 py-2 text-sm">
               </div>
-
-              <div class="md:col-span-6">
-                <div id="ann-reads-summary" class="text-xs font-bold text-gray-500 mt-2 md:mt-0"></div>
+              <div class="flex items-end gap-2">
+                <button id="ann-reads-refresh" class="px-3 py-2 rounded-lg bg-emerald-600 text-white text-xs font-black uppercase">Buscar</button>
+                <button id="ann-reads-clear" class="px-3 py-2 rounded-lg bg-gray-200 text-gray-800 text-xs font-bold">Limpar</button>
               </div>
             </div>
+            <div id="ann-reads-summary" class="text-xs font-bold text-gray-500 mt-3"></div>
           </div>
 
-          <div id="ann-reads-results" class="mt-4 border rounded-xl overflow-hidden bg-white">
+          <div id="ann-reads-results" class="border rounded-xl overflow-hidden bg-white">
             <div class="p-4 text-sm text-gray-500">Selecione um comunicado para visualizar as leituras.</div>
           </div>
-
           <div id="ann-reads-statusline" class="mt-3 text-xs font-bold"></div>
         </div>
-</div>
+
+      </div>
     </div>
 
 </main>
@@ -890,16 +947,31 @@ let allUsers = [];
         // ==== FIM TRAVA ====
 
         async function loadData() {
-            const { data: stores } = await _supabase.from('stores').select('id, name').order('name');
+            const { data: stores } = await _supabase.from('stores').select('id, name, chain_id').order('name');
             allStores = stores || [];
-            // expõe para componentes que usam window.* (top-level `let` não vira window automaticamente)
             window.allStores = allStores;
             if (!window.__admExtras) window.__admExtras = {};
             window.__admExtras.stores = allStores;
 
+            // Popula filtro de bandeiras
+            try {
+                const { data: chains } = await _supabase.from('store_chains').select('id,name').order('name');
+                const chainSel = document.getElementById('filter-chain');
+                if (chainSel && chains) {
+                    chains.forEach(c => {
+                        if (!chainSel.querySelector(`option[value="${c.id}"]`)) {
+                            const opt = document.createElement('option');
+                            opt.value = c.id; opt.textContent = c.name;
+                            chainSel.appendChild(opt);
+                        }
+                    });
+                }
+            } catch(e) {}
+
             const { data: users } = await _supabase.from('profiles').select('*').or('role.is.null,role.eq.autonomo');
             allUsers = users || [];
             applyFilters();
+            setupChainPickers();
         }
 
         function calculateTime(dateString) {
@@ -941,17 +1013,22 @@ let allUsers = [];
             applyFilters();
         }
 
+        function _onProfileChainChange(val) { applyFilters(); }
+
         function applyFilters() {
             const search = document.getElementById('filter-name').value.toLowerCase();
             const storeSearch = document.getElementById('store-search').value.toLowerCase();
             const jobFnFilter = document.getElementById('filter-job-function')?.value || '';
+            const chainFilter = document.getElementById('profile-chain-picker')?._getChainId?.() || '';
             const list = allUsers.filter(u => {
                 const matchStatus = (u.status || 'pendente').toLowerCase() === currentStatusTab;
                 const matchName = (u.full_name || "").toLowerCase().includes(search) || (u.cpf || "").includes(search);
-                const storeName = allStores.find(s => s.id === u.store_id)?.name || "";
+                const store = allStores.find(s => s.id === u.store_id);
+                const storeName = store?.name || "";
                 const matchStore = storeSearch === "" || storeName.toLowerCase().includes(storeSearch);
+                const matchChain = chainFilter === "" || String(store?.chain_id || '') === chainFilter;
                 const matchJobFn = jobFnFilter === "" || (u.job_function || 'separador') === jobFnFilter;
-                return matchStatus && matchName && matchStore && matchJobFn;
+                return matchStatus && matchName && matchStore && matchChain && matchJobFn;
             });
             document.getElementById('counter').innerText = list.length;
             document.getElementById('list-container').innerHTML = list.map(u => {
@@ -1103,30 +1180,41 @@ const isPaid = (r) => {
   // UI
   container.innerHTML = `
     <div class="flex flex-col gap-4">
-      <div class="flex flex-col lg:flex-row lg:items-end gap-3 p-4 bg-white rounded-xl border">
-        <div class="flex flex-col">
-          <label class="text-xs font-bold text-gray-600">Início</label>
-          <input id="finance-start" type="date" class="px-3 py-2 border rounded-lg" value="${filters.start || ''}">
+      <div class="flex flex-col gap-3 p-4 bg-white rounded-xl border">
+        <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Filtros</p>
+        <div class="flex flex-col lg:flex-row lg:items-end gap-3 flex-wrap">
+          <div class="flex flex-col">
+            <label class="text-xs font-bold text-gray-600">Bandeira</label>
+            <div class="relative">
+              <input type="text" id="finance-chain-picker" placeholder="Todas as bandeiras..." autocomplete="off"
+                class="px-3 py-2 border rounded-lg text-sm w-44 outline-none focus:ring-2 focus:ring-emerald-500">
+              <div id="finance-chain-picker-dd" class="hidden absolute z-50 mt-1 w-52 bg-white border rounded-xl shadow-lg overflow-hidden max-h-64 overflow-y-auto"></div>
+            </div>
+          </div>
+          <div class="flex flex-col">
+            <label class="text-xs font-bold text-gray-600">Início</label>
+            <input id="finance-start" type="date" class="px-3 py-2 border rounded-lg" value="${filters.start || ''}">
+          </div>
+          <div class="flex flex-col">
+            <label class="text-xs font-bold text-gray-600">Fim</label>
+            <input id="finance-end" type="date" class="px-3 py-2 border rounded-lg" value="${filters.end || ''}">
+          </div>
+          <div class="flex flex-col">
+            <label class="text-xs font-bold text-gray-600">Status</label>
+            <select id="finance-status" class="px-3 py-2 border rounded-lg">
+              <option value="pendente" ${filters.status==='pendente'?'selected':''}>Pendente</option>
+              <option value="confirmado" ${filters.status==='confirmado'?'selected':''}>Confirmado</option>
+              <option value="todos" ${filters.status==='todos'?'selected':''}>Todos</option>
+            </select>
+          </div>
         </div>
-        <div class="flex flex-col">
-          <label class="text-xs font-bold text-gray-600">Fim</label>
-          <input id="finance-end" type="date" class="px-3 py-2 border rounded-lg" value="${filters.end || ''}">
+        <div class="border-t pt-3 flex gap-2 flex-wrap">
+          <button id="finance-confirm-all" type="button" class="px-4 py-2 rounded-lg bg-indigo-600 text-white font-bold hover:bg-indigo-700 text-sm">Confirmar todos</button>
+          <button id="finance-export" type="button" class="px-4 py-2 rounded-lg bg-gray-900 text-white font-bold hover:bg-black text-sm">Exportar CSV</button>
+          <button id="finance-export-cnab" type="button" class="px-4 py-2 rounded-lg bg-emerald-600 text-white font-bold hover:bg-emerald-700 text-sm">🏦 Baixar CNAB (Inter)</button>
+          <button id="finance-pix-lock" type="button" class="px-4 py-2 rounded-lg bg-red-600 text-white font-bold hover:bg-red-700 text-sm">🔒 Bloquear PIX</button>
+          <button id="finance-pix-unlock" type="button" class="px-4 py-2 rounded-lg bg-emerald-700 text-white font-bold hover:bg-emerald-800 text-sm">🔓 Liberar PIX</button>
         </div>
-        <div class="flex flex-col">
-          <label class="text-xs font-bold text-gray-600">Status</label>
-          <select id="finance-status" class="px-3 py-2 border rounded-lg">
-            <option value="pendente" ${filters.status==='pendente'?'selected':''}>Pendente</option>
-            <option value="confirmado" ${filters.status==='confirmado'?'selected':''}>Confirmado</option>
-            <option value="todos" ${filters.status==='todos'?'selected':''}>Todos</option>
-          </select>
-        </div>
-        <div class="flex gap-2 flex-wrap">
-  <button id="finance-confirm-all" type="button" class="px-4 py-2 rounded-lg bg-indigo-600 text-white font-bold hover:bg-indigo-700">Confirmar todos</button>
-  <button id="finance-export" type="button" class="px-4 py-2 rounded-lg bg-gray-900 text-white font-bold hover:bg-black">Exportar CSV</button>
-  <button id="finance-export-cnab" type="button" class="px-4 py-2 rounded-lg bg-emerald-600 text-white font-bold hover:bg-emerald-700">🏦 Baixar CNAB (Inter)</button>
-  <button id="finance-pix-lock" type="button" class="px-4 py-2 rounded-lg bg-red-600 text-white font-bold hover:bg-red-700">🔒 Bloquear PIX</button>
-  <button id="finance-pix-unlock" type="button" class="px-4 py-2 rounded-lg bg-emerald-700 text-white font-bold hover:bg-emerald-800">🔓 Liberar PIX</button>
-</div>
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -1181,9 +1269,21 @@ const isPaid = (r) => {
     filters.start = stEl ? (stEl.value || '') : '';
     filters.end = enEl ? (enEl.value || '') : '';
     filters.status = ssEl ? (ssEl.value || 'pendente') : 'pendente';
+    filters.chainId = document.getElementById('finance-chain-picker')?._getChainId?.() || '';
     window.__financeFilters = filters;
     await loadFinanceData();
   };
+
+  // Inicializa picker de bandeira
+  setupChainPicker({
+    inputId: 'finance-chain-picker',
+    ddId: 'finance-chain-picker-dd',
+    getChains: () => window.__allChains || [],
+    onChange: () => applyFilters()
+  });
+  if (!window.__allChains) {
+    _supabase.from('store_chains').select('id,name').order('name').then(({ data }) => { window.__allChains = data || []; });
+  }
 
   const financeApplyBtn = document.getElementById('finance-apply');
 if (financeApplyBtn) {
@@ -1247,7 +1347,7 @@ if (financeClearBtn) {
     const slotIds = [...new Set(reservations.map(r => r.vacancy_id).filter(Boolean))];
     const { data: slots, error: eSlots } = await _supabase
       .from('slots')
-      .select('id, date, value, shift_id')
+      .select('id, date, value, shift_id, store_id')
       .in('id', slotIds);
 
     if (eSlots) {
@@ -1286,9 +1386,18 @@ if (financeClearBtn) {
     const profileMap = {};
     (profiles || []).forEach(p => profileMap[p.id] = p);
 
-    // Apply date filter and status filter at reservation-level
+    // Apply date filter, status filter, and chain filter at reservation-level
     const startD = filters.start ? new Date(filters.start + 'T00:00:00') : null;
     const endD = filters.end ? new Date(filters.end + 'T23:59:59') : null;
+    const chainId = filters.chainId || '';
+
+    // Se bandeira selecionada, pega IDs das lojas dessa bandeira
+    let chainStoreIds = null;
+    if (chainId && window.__admExtras?.stores) {
+      chainStoreIds = new Set(
+        (window.__admExtras.stores).filter(s => String(s.chain_id||'') === chainId).map(s => s.id)
+      );
+    }
 
     const filtered = reservations.filter(r => {
       const slot = slotMap[r.vacancy_id];
@@ -1296,6 +1405,7 @@ if (financeClearBtn) {
       const d = new Date(String(slot.date) + 'T12:00:00');
       if (startD && d < startD) return false;
       if (endD && d > endD) return false;
+      if (chainStoreIds && slot.store_id && !chainStoreIds.has(slot.store_id)) return false;
 
       const paid = isPaid(r);
       if (filters.status === 'pendente') return !paid;
@@ -1607,7 +1717,7 @@ async function sendNotification(userId, status, message) {
     };
 
     try {
-        await emailjs.send('service_ngdwr4g', 'template_gxhs8bv', templateParams);
+        await emailjs.send('service_277hapn', 'template_gxhs8bv', templateParams);
         console.log("E-mail enviado com o novo formato!");
     } catch (error) {
         console.error("Erro ao enviar:", error);
@@ -2074,7 +2184,7 @@ if (error) {
               const toEmail = payloadBase.email || oldU.email;
               const toName = payloadBase.full_name || oldU.full_name || 'Autônomo';
               if (window.emailjs && toEmail && changes.length && st === 'aprovado') {
-                await emailjs.send('service_ngdwr4g', 'template_gxhs8bv', {
+                await emailjs.send('service_277hapn', 'template_gxhs8bv', {
                   to_email: toEmail,
                   to_name: toName,
                   assunto_texto: 'Atualização de cadastro',
@@ -2339,88 +2449,155 @@ async function renderManagers() {
   const container = document.getElementById('managers-content');
   if (!container) return;
 
-  // Carrega lojas para checklist
+  // Carrega lojas e bandeiras
   let stores = [];
   try {
-    const { data, error } = await _supabase
-      .from('stores')
-      .select('id,name')
-      .order('name', { ascending: true });
-
+    const { data, error } = await _supabase.from('stores').select('id,name,chain_id').order('name', { ascending: true });
     if (error) throw error;
     stores = data || [];
   } catch (err) {
     container.innerHTML = `<div class="alert alert-danger">Erro ao carregar lojas: ${escapeHtml(err.message || err)}</div>`;
     return;
   }
+  if (!window.__allChains) {
+    const { data } = await _supabase.from('store_chains').select('id,name').order('name');
+    window.__allChains = data || [];
+  }
 
   container.innerHTML = `
-    <div class="grid grid-2" style="align-items:start; gap:16px;">
-      <div class="card">
+    <div class="flex gap-1 mb-6 border-b">
+      <button id="mgr-tab-create" onclick="mgrSwitchTab('create')"
+        class="px-5 py-3 text-sm font-bold border-b-2 border-emerald-500 text-emerald-600 -mb-px">
+        ➕ Criar / Editar Gerente
+      </button>
+      <button id="mgr-tab-list" onclick="mgrSwitchTab('list')"
+        class="px-5 py-3 text-sm font-bold border-b-2 border-transparent text-gray-500 hover:text-gray-800 -mb-px">
+        👔 Gerentes Cadastrados
+      </button>
+    </div>
 
-        <form id="manager-form" class="form">
-          <div class="form-row">
-            <label>Nome</label>
-            <input id="mgr-name" type="text" placeholder="Nome do gerente" required />
+    <div id="mgr-panel-create">
+      <div class="max-w-xl">
+        <form id="manager-form" class="space-y-4">
+          <div>
+            <label class="text-xs font-bold text-gray-500 uppercase">Nome</label>
+            <input id="mgr-name" type="text" placeholder="Nome do gerente" required
+              class="w-full border rounded-xl px-4 py-3 text-sm mt-1 outline-none focus:ring-2 focus:ring-emerald-500" />
           </div>
-
-          <div class="form-row">
-            <label>E-mail</label>
-            <input id="mgr-email" type="email" placeholder="email@empresa.com" required />
+          <div>
+            <label class="text-xs font-bold text-gray-500 uppercase">E-mail</label>
+            <input id="mgr-email" type="email" placeholder="email@empresa.com" required
+              class="w-full border rounded-xl px-4 py-3 text-sm mt-1 outline-none focus:ring-2 focus:ring-emerald-500" />
           </div>
-
-          <div class="form-row">
-            <label>Senha</label>
-            <input id="mgr-password" type="password" placeholder="Defina uma senha" minlength="6" required />
+          <div>
+            <label class="text-xs font-bold text-gray-500 uppercase">Senha</label>
+            <input id="mgr-password" type="password" placeholder="Deixe em branco para manter a atual"
+              class="w-full border rounded-xl px-4 py-3 text-sm mt-1 outline-none focus:ring-2 focus:ring-emerald-500" />
           </div>
-
-          <div class="form-row">
-            <label>Permissões</label>
-            <div class="checks">
-              <label class="check"><input id="mgr-can-assign" type="checkbox" checked /> Atribuir pedidos</label>
-              <label class="check"><input id="mgr-can-checkin" type="checkbox" checked /> Gerar check-in</label>
-              <label class="check"><input id="mgr-can-checkout" type="checkbox" checked /> Gerar check-out</label>
+          <div>
+            <label class="text-xs font-bold text-gray-500 uppercase">Permissões</label>
+            <div class="flex flex-wrap gap-4 mt-2">
+              <label class="flex items-center gap-2 text-sm cursor-pointer">
+                <input id="mgr-can-assign" type="checkbox" checked /> Atribuir pedidos
+              </label>
+              <label class="flex items-center gap-2 text-sm cursor-pointer">
+                <input id="mgr-can-checkin" type="checkbox" checked /> Gerar check-in
+              </label>
+              <label class="flex items-center gap-2 text-sm cursor-pointer">
+                <input id="mgr-can-checkout" type="checkbox" checked /> Gerar check-out
+              </label>
             </div>
           </div>
-
-          <div class="form-row">
-            <label>Lojas (multi)</label>
-            <div id="mgr-stores" class="store-list">
+          <div>
+            <label class="text-xs font-bold text-gray-500 uppercase">Lojas</label>
+            <div class="flex gap-2 mt-2 mb-2 flex-wrap">
+              <input type="text" id="mgr-store-search" placeholder="Buscar loja..." autocomplete="off"
+                class="flex-1 min-w-[160px] border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500">
+              <div class="relative">
+                <input type="text" id="mgr-chain-picker" placeholder="Bandeira..." autocomplete="off"
+                  class="border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500 w-40">
+                <div id="mgr-chain-picker-dd" class="hidden absolute z-50 mt-1 w-52 bg-white border rounded-xl shadow-lg overflow-hidden max-h-64 overflow-y-auto"></div>
+              </div>
+              <button type="button" onclick="mgrSelectAllVisible()"
+                class="px-3 py-2 text-xs font-bold rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100">
+                Todas visíveis
+              </button>
+              <button type="button" onclick="mgrClearStores()"
+                class="px-3 py-2 text-xs font-bold rounded-xl bg-gray-100 border text-gray-600 hover:bg-gray-200">
+                Limpar
+              </button>
+            </div>
+            <div id="mgr-store-count" class="text-xs text-gray-400 mb-2">0 lojas selecionadas</div>
+            <div id="mgr-stores" class="border rounded-xl overflow-hidden max-h-72 overflow-y-auto">
               ${stores.map(s => `
-                <label class="check" style="display:flex; gap:8px; align-items:center;">
-                  <input type="checkbox" class="mgr-store" name="mgr-stores" value="${s.id}" />
-                  <span><strong>${escapeHtml(s.name || '')}</strong></span>
+                <label class="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 cursor-pointer border-b last:border-0 mgr-store-row" data-chain="${s.chain_id||''}" data-name="${(s.name||'').toLowerCase()}">
+                  <input type="checkbox" class="mgr-store scale-110" value="${s.id}" />
+                  <span class="text-sm text-gray-800">${escapeHtml(s.name || '')}</span>
                 </label>
               `).join('')}
             </div>
           </div>
-
-          <div class="form-row actions-row">
-            <button class="btn-primary" id="mgr-save" type="submit">Salvar gerente</button>
-            <button class="btn-secondary" type="button" id="mgr-clear">Limpar</button>
+          <div class="flex gap-3 pt-2">
+            <button class="flex-1 py-3 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 text-sm" id="mgr-save" type="submit">
+              Salvar gerente
+            </button>
+            <button class="px-6 py-3 border font-bold rounded-xl text-gray-600 hover:bg-gray-50 text-sm" type="button" id="mgr-clear">
+              Limpar
+            </button>
           </div>
-
-          <div id="mgr-msg" class="muted" style="margin-top:10px;"></div>
+          <div id="mgr-msg" class="text-sm mt-1"></div>
         </form>
       </div>
+    </div>
 
-      <div class="card">
-        <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
-          <div>
-            <h3 style="margin:0;">Gerentes cadastrados</h3>
-            <p class="muted" style="margin:4px 0 0;">Clique em “Editar” para carregar o gerente no formulário.</p>
-          </div>
-          <button id="mgr-refresh" class="btn btn-secondary">Atualizar</button>
-        </div>
-
-        <div style="margin-top:12px;">
-          <input id="mgr-search" type="text" placeholder="Buscar por nome ou e-mail..." />
-        </div>
-
-        <div id="mgr-list" style="margin-top:12px; display:flex; flex-direction:column; gap:10px;"></div>
+    <div id="mgr-panel-list" class="hidden">
+      <div class="flex items-center justify-between mb-4 gap-3">
+        <input id="mgr-search" type="text" placeholder="Buscar por nome ou e-mail..."
+          class="border rounded-xl px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500 flex-1 max-w-sm" />
+        <button id="mgr-refresh" class="px-4 py-2 border rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-50">
+          Atualizar
+        </button>
       </div>
+      <div id="mgr-list" class="flex flex-col gap-3"></div>
     </div>
   `;
+
+  window.mgrSwitchTab = (tab) => {
+    document.getElementById('mgr-panel-create').classList.toggle('hidden', tab !== 'create');
+    document.getElementById('mgr-panel-list').classList.toggle('hidden', tab !== 'list');
+    document.getElementById('mgr-tab-create').className = `px-5 py-3 text-sm font-bold border-b-2 -mb-px ${tab==='create' ? 'border-emerald-500 text-emerald-600' : 'border-transparent text-gray-500 hover:text-gray-800'}`;
+    document.getElementById('mgr-tab-list').className = `px-5 py-3 text-sm font-bold border-b-2 -mb-px ${tab==='list' ? 'border-emerald-500 text-emerald-600' : 'border-transparent text-gray-500 hover:text-gray-800'}`;
+    if (tab === 'list') loadManagersList();
+  };
+
+  const filterMgrStores = () => {
+    const q = (document.getElementById('mgr-store-search')?.value || '').toLowerCase().trim();
+    const chainId = document.getElementById('mgr-chain-picker')?._getChainId?.() || '';
+    document.querySelectorAll('.mgr-store-row').forEach(row => {
+      const ok = (!q || row.dataset.name.includes(q)) && (!chainId || row.dataset.chain === chainId);
+      row.style.display = ok ? '' : 'none';
+    });
+  };
+  document.getElementById('mgr-store-search')?.addEventListener('input', filterMgrStores);
+  setupChainPicker({ inputId:'mgr-chain-picker', ddId:'mgr-chain-picker-dd', getChains:()=>window.__allChains||[], onChange:()=>filterMgrStores() });
+
+  const updateMgrCount = () => {
+    const n = document.querySelectorAll('.mgr-store:checked').length;
+    const el = document.getElementById('mgr-store-count');
+    if (el) el.textContent = `${n} loja${n!==1?'s':''} selecionada${n!==1?'s':''}`;
+  };
+  document.getElementById('mgr-stores')?.addEventListener('change', updateMgrCount);
+
+  window.mgrSelectAllVisible = () => {
+    document.querySelectorAll('.mgr-store-row').forEach(row => {
+      if (row.style.display !== 'none') row.querySelector('.mgr-store').checked = true;
+    });
+    updateMgrCount();
+  };
+  window.mgrClearStores = () => {
+    document.querySelectorAll('.mgr-store').forEach(c => { c.checked = false; });
+    updateMgrCount();
+  };
 
   const msgEl = document.getElementById('mgr-msg');
   const form = document.getElementById('manager-form');
@@ -2508,17 +2685,20 @@ const store_access = storeIds.map(store_id => ({
   can_generate_checkout_code: !!canCheckout
 }));
 
-const res = await callEdgeFunction('upsert-manager', {
+const payload = {
   full_name: nome,
   email: email,
-  password: senha,
   can_assign_orders: !!canAssign,
   can_generate_checkin: !!canCheckin,
   can_generate_checkout: !!canCheckout,
   can_generate_checkin_code: !!canCheckin,
   can_generate_checkout_code: !!canCheckout,
   store_access
-});
+};
+if (senha) payload.password = senha;
+if (currentProfileId) payload.manager_id = currentProfileId;
+
+const res = await callEdgeFunction('upsert-manager', payload);
 
 if (!res || !res.ok) {
   throw new Error(res?.error || 'Erro ao criar gerente');
@@ -2527,9 +2707,8 @@ if (!res || !res.ok) {
 currentManagerId = res.manager_id;
 currentProfileId = res.manager_id;
 
+clearForm();
 setMsg('✅ Gerente salvo com sucesso.', 'alert alert-success');
-document.getElementById('mgr-password').value = '';
-
 await loadManagersList();
 
     } catch (err) {
@@ -2678,6 +2857,9 @@ await loadManagersList();
           const it = (items || []).find(x => x.manager_id === mid);
           if (!it) return;
 
+          // Muda para a aba de edição
+          if (typeof window.mgrSwitchTab === 'function') window.mgrSwitchTab('create');
+
           currentManagerId = it.manager_id;
           currentProfileId = it.manager_id;
 
@@ -2688,11 +2870,12 @@ await loadManagersList();
           (document.getElementById('mgr-can-checkin')).checked = !!it.can_generate_checkin;
           (document.getElementById('mgr-can-checkout')).checked = !!it.can_generate_checkout;
 
-// marca lojas (por ID)
 const storeIdsSet = new Set((it.store_ids || []).map(String));
 container.querySelectorAll('.mgr-store').forEach(c => {
   c.checked = storeIdsSet.has(String(c.value));
 });
+if (typeof updateMgrCount === 'function') updateMgrCount();
+else { const n = container.querySelectorAll('.mgr-store:checked').length; const el = document.getElementById('mgr-store-count'); if(el) el.textContent = `${n} loja${n!==1?'s':''} selecionada${n!==1?'s':''}`; }
 
           setMsg('Modo edição: ajuste e clique em "<button class="btn-primary" type="button">Salvar gerente</button>".', 'alert alert-info');
           window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -2728,6 +2911,84 @@ container.querySelectorAll('.mgr-store').forEach(c => {
 window.onload = loadData;
 
 async function showMetrics() {
+    // Inicializa picker de bandeira
+    setupChainPicker({
+        inputId: 'metrics-chain-picker',
+        ddId: 'metrics-chain-picker-dd',
+        getChains: () => window.__allChains || [],
+        onChange: (val) => _onMetricsChainChange(val)
+    });
+    // Carrega bandeiras se necessário
+    if (!window.__allChains) {
+        const { data } = await _supabase.from('store_chains').select('id,name').order('name');
+        window.__allChains = data || [];
+    }
+    // Carrega lojas para picker de loja
+    if (!window.__metricsStores) {
+        const { data } = await _supabase.from('stores').select('id,name,chain_id').order('name');
+        window.__metricsStores = data || [];
+    }
+    runMetricsLogic();
+}
+
+function _onMetricsChainChange(chainId) {
+    // Atualiza dropdown de lojas filtrando por bandeira
+    const storePicker = document.getElementById('metrics-store-picker');
+    const storeDd = document.getElementById('metrics-store-picker-dd');
+    if (storePicker && storeDd) {
+        storePicker.value = '';
+        storePicker._selectedStoreId = '';
+        storeDd.classList.add('hidden');
+    }
+    runMetricsLogic();
+}
+
+function _onMetricsStoreInput(val) {
+    const dd = document.getElementById('metrics-store-picker-dd');
+    const input = document.getElementById('metrics-store-picker');
+    if (!dd || !input) return;
+    const chainId = document.getElementById('metrics-chain-picker')?._getChainId?.() || '';
+    const q = (val || '').toLowerCase().trim();
+    const stores = (window.__metricsStores || []).filter(s => {
+        if (chainId && String(s.chain_id||'') !== chainId) return false;
+        return !q || (s.name||'').toLowerCase().includes(q);
+    });
+    dd.innerHTML = '';
+    const all = document.createElement('div');
+    all.className = 'px-3 py-2 text-sm hover:bg-gray-50 cursor-pointer font-semibold text-gray-500';
+    all.textContent = 'Todas as lojas';
+    all.addEventListener('mousedown', e => { e.preventDefault(); input.value=''; input._selectedStoreId=''; dd.classList.add('hidden'); runMetricsLogic(); });
+    dd.appendChild(all);
+    stores.forEach(s => {
+        const row = document.createElement('div');
+        row.className = 'px-3 py-2 text-sm hover:bg-emerald-50 cursor-pointer';
+        row.textContent = s.name;
+        row.addEventListener('mousedown', e => { e.preventDefault(); input.value=s.name; input._selectedStoreId=s.id; dd.classList.add('hidden'); runMetricsLogic(); });
+        dd.appendChild(row);
+    });
+    dd.classList.remove('hidden');
+}
+
+function _clearMetricsFilters() {
+    const cp = document.getElementById('metrics-chain-picker');
+    const sp = document.getElementById('metrics-store-picker');
+    if (cp) { cp.value=''; if(cp._clearChain) cp._clearChain(); }
+    if (sp) { sp.value=''; sp._selectedStoreId=''; }
+    document.getElementById('metrics-chain-picker-dd')?.classList.add('hidden');
+    document.getElementById('metrics-store-picker-dd')?.classList.add('hidden');
+    runMetricsLogic();
+}
+
+// fecha store picker ao clicar fora
+document.addEventListener('click', e => {
+    const sp = document.getElementById('metrics-store-picker');
+    const dd = document.getElementById('metrics-store-picker-dd');
+    if (sp && dd && !sp.contains(e.target) && !dd.contains(e.target)) {
+        dd.classList.add('hidden');
+        if (sp && !sp._selectedStoreId) sp.value = '';
+    }
+});
+async function _showMetricsSummary() {
             // 1. Esconde o título "Análise de Perfis" no Header
             const headerTitle = document.querySelector('header h2');
             if (headerTitle) headerTitle.classList.add('hidden');
@@ -2845,7 +3106,7 @@ if (tab === 'profiles') {
 } else if (tab === 'markets') {
     renderMarketTab('stores');
 } else if (tab === 'metrics') {
-    runMetricsLogic();
+    showMetrics();
 } else if (tab === 'credenciais') {
     renderPendingCredentials();
 } else if (tab === 'pontuacao') {
@@ -2877,7 +3138,7 @@ async function renderMarketTab(tab) {
   const btns = Array.from(document.querySelectorAll('#mod-markets .subtab-btn'));
   btns.forEach(b => b.classList.remove('active'));
 
-  const idx = tab === 'stores' ? 0 : tab === 'shifts' ? 1 : tab === 'slots' ? 2 : 3;
+  const idx = tab === 'stores' ? 0 : tab === 'shifts' ? 1 : tab === 'slots' ? 2 : tab === 'bookings' ? 3 : 4;
   if (btns[idx]) btns[idx].classList.add('active');
 
   const container = document.getElementById('market-display');
@@ -2894,9 +3155,99 @@ async function renderMarketTab(tab) {
   else if (tab === 'shifts') await renderShiftsTab(container);
   else if (tab === 'slots') await renderSlotsTab(container);
   else if (tab === 'bookings') await renderBookingsTab(container);
+  else if (tab === 'bandeiras') await renderBandeirasTab(container);
 }
 
 const renderMarketSubTab = renderMarketTab;
+
+// ABA BANDEIRAS
+async function renderBandeirasTab(container) {
+    const { data: chains, error } = await _supabase.from('store_chains').select('id,name,logo_url').order('name');
+    if (error) { container.innerHTML = `<div class="text-red-600 p-4">${error.message}</div>`; return; }
+
+    container.innerHTML = `
+        <div class="max-w-xl">
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="text-lg font-bold text-gray-800">Bandeiras cadastradas</h3>
+                <button onclick="openChainModal()" class="px-4 py-2 bg-emerald-600 text-white text-sm font-bold rounded-lg hover:bg-emerald-700">+ Nova bandeira</button>
+            </div>
+            <div id="chains-list" class="space-y-2">
+                ${(chains || []).length === 0
+                    ? `<div class="border rounded-xl p-6 text-center text-gray-400">Nenhuma bandeira cadastrada ainda.</div>`
+                    : (chains || []).map(c => `
+                        <div class="border rounded-xl p-4 bg-white flex items-center justify-between gap-3">
+                            <div class="flex items-center gap-3">
+                                ${c.logo_url
+                                    ? `<img src="${escapeHtml(c.logo_url)}" class="w-8 h-8 rounded object-contain border" onerror="this.style.display='none'">`
+                                    : `<div class="w-8 h-8 rounded bg-gray-100 flex items-center justify-content-center text-lg">🏷️</div>`}
+                                <span class="font-semibold text-gray-800">${escapeHtml(c.name)}</span>
+                            </div>
+                            <div class="flex gap-2">
+                                <button onclick="openChainModal('${c.id}','${escapeHtml(c.name)}','${escapeHtml(c.logo_url||'')}')"
+                                    class="px-3 py-1.5 text-xs font-bold border rounded-lg text-gray-600 hover:bg-gray-50">Editar</button>
+                                <button onclick="deleteChain('${c.id}')"
+                                    class="px-3 py-1.5 text-xs font-bold border rounded-lg text-red-500 hover:bg-red-50">Excluir</button>
+                            </div>
+                        </div>
+                    `).join('')}
+            </div>
+        </div>
+
+        <!-- Modal bandeira -->
+        <div id="chain-modal" class="hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+            <div class="bg-white rounded-2xl w-full max-w-sm shadow-xl p-6">
+                <h3 id="chain-modal-title" class="font-bold text-gray-800 uppercase mb-4">Nova Bandeira</h3>
+                <input type="hidden" id="chain-id">
+                <div class="mb-3">
+                    <label class="text-[10px] font-bold text-gray-400 uppercase">Nome da bandeira</label>
+                    <input type="text" id="chain-name" placeholder="Ex: Carrefour" class="w-full border p-2 rounded-lg text-sm mt-1">
+                </div>
+                <div class="mb-5">
+                    <label class="text-[10px] font-bold text-gray-400 uppercase">URL do logo (opcional)</label>
+                    <input type="text" id="chain-logo" placeholder="https://..." class="w-full border p-2 rounded-lg text-sm mt-1">
+                </div>
+                <div class="flex gap-3">
+                    <button onclick="document.getElementById('chain-modal').classList.add('hidden')"
+                        class="flex-1 py-2 text-sm font-bold text-gray-500 uppercase">Cancelar</button>
+                    <button onclick="saveChain()"
+                        class="flex-1 py-2 bg-emerald-600 text-white rounded-lg text-sm font-bold uppercase">Salvar</button>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function openChainModal(id='', name='', logo='') {
+    document.getElementById('chain-modal').classList.remove('hidden');
+    document.getElementById('chain-modal-title').textContent = id ? 'Editar Bandeira' : 'Nova Bandeira';
+    document.getElementById('chain-id').value = id;
+    document.getElementById('chain-name').value = name;
+    document.getElementById('chain-logo').value = logo;
+}
+
+async function saveChain() {
+    const id = document.getElementById('chain-id').value;
+    const name = document.getElementById('chain-name').value.trim();
+    const logo_url = document.getElementById('chain-logo').value.trim() || null;
+    if (!name) { alert('Informe o nome da bandeira.'); return; }
+
+    let error;
+    if (id) {
+        ({ error } = await _supabase.from('store_chains').update({ name, logo_url }).eq('id', id));
+    } else {
+        ({ error } = await _supabase.from('store_chains').insert([{ name, logo_url }]));
+    }
+    if (error) { alert('Erro: ' + error.message); return; }
+    document.getElementById('chain-modal').classList.add('hidden');
+    renderMarketTab('bandeiras');
+}
+
+async function deleteChain(id) {
+    if (!confirm('Excluir esta bandeira? As lojas vinculadas perderão a referência.')) return;
+    const { error } = await _supabase.from('store_chains').delete().eq('id', id);
+    if (error) { alert('Erro: ' + error.message); return; }
+    renderMarketTab('bandeiras');
+}
 
 // 1. ABA MERCADOS
 
@@ -2939,16 +3290,21 @@ let currentStoresData = []; // Variável para o filtro funcionar
 async function renderStoresTab(container) {
     const { data: stores, error } = await _supabase.from('stores').select('*').order('name');
     if (error) return alert("Erro ao carregar mercados: " + error.message);
-
-    
-    // mantém dataset em memória para o filtro funcionar
     currentStoresData = (stores || []);
+    // Garante chain_id no cache global
+    if (window.__admExtras) window.__admExtras.stores = currentStoresData;
 container.innerHTML = `
         <div class="flex flex-col h-full space-y-4">
             <div class="bg-white p-4 rounded-xl border shadow-sm flex flex-wrap gap-4 items-end">
                 <div class="flex-1 min-w-[200px]">
                     <label class="text-[10px] font-bold uppercase text-gray-400 tracking-wider">Pesquisar Mercado</label>
                     <input type="text" oninput="filterStoresList(this.value)" placeholder="Nome ou Cidade..." class="w-full border p-2 rounded-lg text-sm outline-none focus:ring-2 focus:ring-emerald-500">
+                </div>
+                <div class="relative">
+                    <label class="text-[10px] font-bold uppercase text-gray-400 tracking-wider">Bandeira</label>
+                    <input type="text" id="stores-chain-picker" placeholder="Todas..." autocomplete="off"
+                        class="w-full border p-2 rounded-lg text-sm outline-none focus:ring-2 focus:ring-emerald-500 min-w-[160px]">
+                    <div id="stores-chain-picker-dd" class="hidden absolute z-50 mt-1 w-52 bg-white border rounded-xl shadow-lg overflow-hidden max-h-64 overflow-y-auto"></div>
                 </div>
                 <button id="btn-new-store" type="button" onclick="openStoreModal()" class="bg-emerald-600 text-white px-6 py-2 rounded-lg font-bold uppercase text-xs hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-100">
                     + NOVO MERCADO
@@ -3029,11 +3385,16 @@ container.innerHTML = `
             </div>
         </div>
     `;
+    // Inicializa picker de bandeira APÓS o HTML estar no DOM
+    setupChainPickers();
 }
 
 function filterStoresList(val) {
     const term = String(val || '').trim().toLowerCase();
+    const chainPicker = document.getElementById('stores-chain-picker');
+    const chainId = chainPicker?._getChainId?.() || '';
     const filtered = (currentStoresData || []).filter(s => {
+        if (chainId && String(s.chain_id || '') !== chainId) return false;
         const name = String(s?.name || '').toLowerCase();
         const city = String(s?.city || '').toLowerCase();
         const state = String(s?.state || '').toLowerCase();
@@ -3042,6 +3403,13 @@ function filterStoresList(val) {
     });
     updateStoresTable(filtered);
 }
+
+function _onStoresChainChange() {
+    const nameInput = document.querySelector('input[oninput="filterStoresList(this.value)"]');
+    filterStoresList(nameInput?.value || '');
+}
+function _onCredChainChange() { applyCredFilters(); }
+function _onProfileChainChange() { applyFilters(); }
 
 function updateStoresTable(data) {
     const body = document.getElementById('stores-list-body');
@@ -3105,16 +3473,48 @@ async function updateStatus(id, status) {
 
 async function openStoreModal(id = null) {
     document.getElementById('modal-store').classList.remove('hidden');
-    // Reset leader fields
+    // Reset fields
     document.getElementById('m-leader-name').value = '';
     document.getElementById('m-leader-contact').value = '';
     document.getElementById('m-leader-instructions').value = '';
     document.getElementById('m-lat').value = '';
     document.getElementById('m-lng').value = '';
+
+    // Carrega bandeiras
+    const chainSel = document.getElementById('m-store-chain');
+    if (chainSel.options.length <= 1) {
+        const { data: chains } = await _supabase.from('store_chains').select('id,name').order('name');
+        (chains || []).forEach(c => {
+            const opt = document.createElement('option');
+            opt.value = c.id; opt.textContent = c.name;
+            chainSel.appendChild(opt);
+        });
+    }
+
+    // Carrega sistemas disponíveis
+    const sysList = document.getElementById('m-systems-list');
+    const { data: systems } = await _supabase.from('store_systems').select('id,name,icon').order('name');
+    window.__storeSystems = systems || [];
+
+    // Sistemas já vinculados à loja (se editando)
+    let linkedSystemIds = new Set();
+    if (id) {
+        const { data: linked } = await _supabase.from('store_chain_systems').select('system_id').eq('store_id', id);
+        linkedSystemIds = new Set((linked || []).map(x => x.system_id));
+    }
+
+    sysList.innerHTML = (systems || []).map(s => `
+        <label class="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" class="m-sys-check rounded text-emerald-600" value="${s.id}" ${linkedSystemIds.has(s.id) ? 'checked' : ''}>
+            <span class="text-sm text-gray-700">${s.icon || '🔧'} ${escapeHtml(s.name)}</span>
+        </label>
+    `).join('') || '<span class="text-xs text-gray-400">Nenhum sistema cadastrado</span>';
+
     if (id) {
         const { data } = await _supabase.from('stores').select('*').eq('id', id).maybeSingle();
         document.getElementById('edit-store-id').value = data.id;
         document.getElementById('m-store-name').value = data.name;
+        document.getElementById('m-store-chain').value = data.chain_id || '';
         document.getElementById('m-store-cep').value = data.cep || '';
         document.getElementById('m-store-num').value = data.number || '';
         document.getElementById('m-store-addr').value = data.address || '';
@@ -3127,9 +3527,12 @@ async function openStoreModal(id = null) {
         document.getElementById('m-leader-instructions').value = data.leader_instructions || '';
         document.getElementById('m-lat').value = data.lat || '';
         document.getElementById('m-lng').value = data.lng || '';
+        document.getElementById('m-city').value = data.city || '';
+        document.getElementById('m-state').value = data.state || '';
     } else {
         document.getElementById('edit-store-id').value = '';
         document.getElementById('m-store-name').value = '';
+        document.getElementById('m-store-chain').value = '';
         document.getElementById('m-has-separador').checked = true;
         document.getElementById('m-has-repositor').checked = false;
         document.getElementById('m-has-operador').checked = false;
@@ -3142,18 +3545,19 @@ function closeStoreModal() { document.getElementById('modal-store').classList.ad
 async function saveStore() {
     const id = document.getElementById('edit-store-id').value;
     
-    // Captura os valores dos campos ocultos preenchidos pelo CEP
     let city = document.getElementById('m-city').value;
     let state = document.getElementById('m-state').value;
 
-    // Validação de emergência: Se o estado estiver vazio, define um padrão ou avisa
     if (!state || state.length !== 2) {
         alert("Por favor, insira um CEP válido para identificar o Estado (UF).");
         return;
     }
 
+    const chainId = document.getElementById('m-store-chain').value || null;
+
     const payload = {
         name: document.getElementById('m-store-name').value,
+        chain_id: chainId,
         cep: document.getElementById('m-store-cep').value,
         number: document.getElementById('m-store-num').value,
         address: document.getElementById('m-store-addr').value,
@@ -3170,21 +3574,31 @@ async function saveStore() {
         lng: parseFloat(document.getElementById('m-lng').value) || null,
     };
 
-    let error;
-    if (id && id !== "") {
-        // Se tem ID, ele ATUALIZA
+    let error, savedId = id;
+    if (id && id !== '') {
         ({ error } = await _supabase.from('stores').update(payload).eq('id', id));
     } else {
-        // Se não tem ID, ele CRIA NOVO
-        ({ error } = await _supabase.from('stores').insert([payload]));
+        const { data: inserted, error: insErr } = await _supabase.from('stores').insert([payload]).select('id').single();
+        error = insErr;
+        if (inserted) savedId = inserted.id;
     }
 
-    if (error) alert("Erro: " + error.message);
-    else {
-        closeStoreModal();
-        document.getElementById('edit-store-id').value = ""; // Limpa o ID após salvar
-        renderMarketTab('stores');
+    if (error) { alert("Erro: " + error.message); return; }
+
+    // Salva sistemas vinculados
+    if (savedId) {
+        const checked = [...document.querySelectorAll('.m-sys-check:checked')].map(el => el.value);
+        await _supabase.from('store_chain_systems').delete().eq('store_id', savedId);
+        if (checked.length) {
+            await _supabase.from('store_chain_systems').insert(
+                checked.map(sysId => ({ store_id: savedId, system_id: sysId }))
+            );
+        }
     }
+
+    closeStoreModal();
+    document.getElementById('edit-store-id').value = '';
+    renderMarketTab('stores');
 }
 async function deleteStore(id) {
     if (!confirm("Confirmar exclusão?")) return;
@@ -3213,9 +3627,6 @@ async function fetchAddressModal(cep) {
         console.error("Erro ao buscar CEP", e);
     }
 }
-
-    // aplica render inicial para manter consistência com o filtro
-    try { updateStoresTable(currentStoresData); } catch(e) { /* noop */ }
 
 // 2. ABA TURNOS
 let currentShiftsData = [];
@@ -5062,10 +5473,23 @@ async function runMetricsLogic() {
     // 1) Slots do mês (para amarrar data/loja/valor/turno)
     const slotSelect = 'id, date, value, shift_id, store_id';
     const slotFallback = 'id, date, value, shift_id';
+    const metricsStoreFilter = document.getElementById('metrics-store-picker')?._selectedStoreId || '';
+    const metricsChainFilter = document.getElementById('metrics-chain-picker')?._getChainId?.() || '';
+    // Determina store_ids a filtrar
+    let metricStoreIds = null;
+    if(metricsStoreFilter) {
+        metricStoreIds = [metricsStoreFilter];
+    } else if(metricsChainFilter && window.__metricsStores) {
+        metricStoreIds = window.__metricsStores.filter(s=>String(s.chain_id||'')===metricsChainFilter).map(s=>s.id);
+    }
     const { data: slots, usedFallback: slotsFallback } = await safeQuery(
       'slots',
       slotSelect,
-      (q)=> q.gte('date', ymd(startMonth)).lt('date', ymd(nextMonth)),
+      (q)=> {
+        let qb = q.gte('date', ymd(startMonth)).lt('date', ymd(nextMonth));
+        if(metricStoreIds) qb = qb.in('store_id', metricStoreIds);
+        return qb;
+      },
       slotFallback
     );
 
@@ -5605,7 +6029,7 @@ async function notifyUsersForStore(storeId, date) {
     // 4) envia emails
     for (const user of targets) {
         try {
-            await emailjs.send('service_ngdwr4g', 'template_gxhs8bv', {
+            await emailjs.send('service_277hapn', 'template_gxhs8bv', {
                 to_name: user.full_name,
                 to_email: user.email,
                 assunto_texto: '🎉 Nova vaga na sua loja!',
@@ -5636,15 +6060,84 @@ const __admExtras = {
   points: { rows: [], dirty: new Map() }
 };
 
-async function loadStoresOnce(){
-  if(__admExtras.storesLoaded) return __admExtras.stores;
-  const { data, error } = await _supabase.from('stores').select('id,name').order('name', { ascending: true });
+async function loadStoresOnce(forceReload=false){
+  if(!forceReload && __admExtras.storesLoaded) return __admExtras.stores;
+  const { data, error } = await _supabase.from('stores').select('id,name,chain_id').order('name', { ascending: true });
   if(error){ console.warn('stores load error', error); __admExtras.stores = []; __admExtras.storesLoaded=true; return []; }
-  // dedupe by id
   const seen = new Set();
   __admExtras.stores = (data||[]).filter(s => s && s.id && !seen.has(s.id) && (seen.add(s.id), true));
+  window.allStores = __admExtras.stores;
   __admExtras.storesLoaded = true;
   return __admExtras.stores;
+}
+
+// ── Picker de bandeira (digitação + dropdown, seleção única) ──────────────
+function setupChainPicker({ inputId, ddId, onChange, getChains }) {
+  const input = document.getElementById(inputId);
+  const dd = document.getElementById(ddId);
+  if (!input || !dd) return;
+
+  let selectedId = '';
+  let selectedName = '';
+
+  const close = () => dd.classList.add('hidden');
+  const open  = () => dd.classList.remove('hidden');
+
+  const render = (q = '') => {
+    const query = (q || '').toLowerCase().trim();
+    const chains = (getChains ? getChains() : (window.__allChains || []));
+    const list = query ? chains.filter(c => (c.name||'').toLowerCase().includes(query)) : chains;
+
+    dd.innerHTML = '';
+    if (!list.length) {
+      dd.innerHTML = '<div class="px-3 py-2 text-xs text-gray-400">Nenhuma bandeira encontrada</div>';
+      open(); return;
+    }
+
+    // Opção "Todas"
+    const all = document.createElement('div');
+    all.className = 'px-3 py-2 text-sm hover:bg-gray-50 cursor-pointer font-semibold text-gray-500';
+    all.textContent = 'Todas as bandeiras';
+    all.addEventListener('mousedown', e => { e.preventDefault(); selectedId=''; selectedName=''; input.value=''; close(); onChange && onChange(''); });
+    dd.appendChild(all);
+
+    list.forEach(c => {
+      const row = document.createElement('div');
+      row.className = 'px-3 py-2 text-sm hover:bg-emerald-50 cursor-pointer' + (c.id === selectedId ? ' bg-emerald-50 font-bold text-emerald-700' : '');
+      row.textContent = c.name;
+      row.addEventListener('mousedown', e => {
+        e.preventDefault();
+        selectedId = c.id; selectedName = c.name;
+        input.value = c.name;
+        close(); onChange && onChange(c.id);
+      });
+      dd.appendChild(row);
+    });
+    open();
+  };
+
+  input.addEventListener('input', () => render(input.value));
+  input.addEventListener('focus', () => render(input.value));
+  input.addEventListener('blur', () => { setTimeout(close, 150); if (!selectedName) { input.value = ''; selectedId=''; } });
+
+  // Expõe getValue
+  input._getChainId = () => selectedId;
+  input._clearChain = () => { selectedId=''; selectedName=''; input.value=''; };
+}
+
+function setupChainPickers() {
+  const doSetup = (chains) => {
+    window.__allChains = chains;
+    [{id:'profile-chain-picker', cb:'_onProfileChainChange'}, {id:'cred-chain-picker', cb:'_onCredChainChange'}, {id:'stores-chain-picker', cb:'_onStoresChainChange'}].forEach(({ id, cb }) => {
+      const input = document.getElementById(id);
+      if (!input) return;
+      setupChainPicker({ inputId: id, ddId: id + '-dd', getChains: () => window.__allChains || [],
+        onChange: (val) => { if (cb && window[cb]) window[cb](val); }
+      });
+    });
+  };
+  if (window.__allChains) { doSetup(window.__allChains); return; }
+  _supabase.from('store_chains').select('id,name').order('name').then(({ data }) => doSetup(data || []));
 }
 
 function setupStoreMultiPicker({inputId, ddId, pillId, selectedSet, onChange}){
@@ -5841,7 +6334,6 @@ function bindAutoFilters(ids, fn){
 async function renderPendingCredentials(){
   await loadStoresOnce();
 
-  // set up store picker once
   if(!renderPendingCredentials.__inited){
     setupStoreMultiPicker({
       inputId:'cred-store-search', ddId:'cred-store-dd', pillId:'cred-store-pill',
@@ -5850,6 +6342,17 @@ async function renderPendingCredentials(){
     });
     bindAutoFilters(['cred-worker-search','cred-date-from','cred-date-to'], () => applyCredFilters());
 
+    // Inicializa picker de bandeira
+    if (!window.__allChains) {
+      const { data } = await _supabase.from('store_chains').select('id,name').order('name');
+      window.__allChains = data || [];
+    }
+    setupChainPicker({
+      inputId: 'cred-chain-picker', ddId: 'cred-chain-picker-dd',
+      getChains: () => window.__allChains || [],
+      onChange: () => applyCredFilters()
+    });
+
     const clear = document.getElementById('cred-clear');
     if(clear){
       clear.addEventListener('click', () => {
@@ -5857,7 +6360,10 @@ async function renderPendingCredentials(){
         ['cred-store-search','cred-worker-search','cred-date-from','cred-date-to'].forEach(id=>{
           const el=document.getElementById(id); if(el) el.value='';
         });
+        const cp = document.getElementById('cred-chain-picker');
+        if(cp && cp._clearChain) cp._clearChain();
         const pill=document.getElementById('cred-store-pill'); if(pill) pill.textContent='Todas as lojas';
+        window.__credActiveTab = null;
         applyCredFilters();
       });
     }
@@ -5943,15 +6449,31 @@ async function renderPendingCredentials(){
     }
     const profById = new Map(profiles.map(p=>[p.id,p]));
 
-    // 5) tenta credenciais por loja (tabela nova). Se não existir, segue só com legacy.
+    // 5) sistemas exigidos por loja
     const storeIds = [...new Set(slots.map(s=>s.store_id).filter(Boolean))];
+    let storeSystemsMap = new Map(); // store_id -> [{id, name, icon}]
+    if (storeIds.length) {
+        try {
+            const { data: scs } = await _supabase
+                .from('store_chain_systems')
+                .select('store_id, store_systems(id,name,icon)')
+                .in('store_id', storeIds);
+            (scs || []).forEach(row => {
+                if (!row.store_systems) return;
+                if (!storeSystemsMap.has(row.store_id)) storeSystemsMap.set(row.store_id, []);
+                storeSystemsMap.get(row.store_id).push(row.store_systems);
+            });
+        } catch(e) { /* tabela pode não existir ainda */ }
+    }
+
+    // 6) tenta credenciais por loja (tabela nova). Se não existir, segue só com legacy.
     let storeCreds = [];
     let hasStoreCredTable = true;
     if(profileIds.length && storeIds.length){
       try{
         const { data: cData, error: cErr } = await _supabase
           .from('profile_store_credentials')
-          .select('profile_id,store_id,platform,username,password,is_active')
+          .select('profile_id,store_id,system_id,platform,username,password,is_active')
           .in('profile_id', profileIds)
           .in('store_id', storeIds);
         if(cErr) throw cErr;
@@ -5961,13 +6483,13 @@ async function renderPendingCredentials(){
       }
     }
 
-    const credMap = new Map(); // key: profileId|storeId -> Map(platform -> {user,pass})
+    // credMap: profileId|storeId|systemId -> {user,pass}
+    const credMap = new Map();
     if(hasStoreCredTable && storeCreds.length){
       storeCreds.forEach(c=>{
         if(!c || c.is_active === false) return;
-        const key = `${c.profile_id}|${c.store_id}`;
-        if(!credMap.has(key)) credMap.set(key, new Map());
-        credMap.get(key).set(String(c.platform||'').toLowerCase(), {
+        const key = `${c.profile_id}|${c.store_id}|${c.system_id||c.platform||''}`;
+        credMap.set(key, {
           user: (c.username||'').toString().trim(),
           pass: (c.password||'').toString().trim()
         });
@@ -5981,16 +6503,24 @@ async function renderPendingCredentials(){
       if(!slot || !prof) return;
 
       const shift = shiftById.get(slot.shift_id) || null;
-
-      // when: expected_checkin ou date+start_time
       let when = null;
       if(r.expected_checkin) when = r.expected_checkin;
       else if(slot.date && shift && shift.start_time) when = `${slot.date}T${String(shift.start_time).slice(0,5)}:00`;
       else if(slot.date) when = `${slot.date}T00:00:00`;
 
-      const info = profileMissingCredForStore(prof, slot.store_id, credMap);
-      if(info.needs){
-        rows.push({ reservation:r, slot, shift, profile:prof, storeId: slot.store_id, when });
+      const storeSystems = storeSystemsMap.get(slot.store_id) || [];
+      const missingSystems = storeSystems.filter(sys => {
+          const key = `${prof.id}|${slot.store_id}|${sys.id}`;
+          const cred = credMap.get(key);
+          return !cred || !cred.user || !cred.pass;
+      });
+
+      // Fallback legado se loja não tem sistemas cadastrados
+      if (storeSystems.length === 0) {
+          const info = profileMissingCredLegacy(prof, slot.store_id, credMap);
+          if (info.needs) rows.push({ reservation:r, slot, shift, profile:prof, storeId: slot.store_id, when, missingSystems: [] });
+      } else if (missingSystems.length > 0) {
+          rows.push({ reservation:r, slot, shift, profile:prof, storeId: slot.store_id, when, missingSystems });
       }
     });
 
@@ -6019,30 +6549,17 @@ async function renderPendingCredentials(){
   }
 }
 
-function profileMissingCredForStore(profile, storeId, credMap){
-  // Regra nova: não existe mais "plataforma padrão".
-  // Considera OK se existir QUALQUER credencial ativa para (profile_id + store_id)
-  // ou, no legado (profiles), se existir pelo menos um par usuário+senha completo.
-  const key = `${profile.id}|${storeId}`;
-
-  // 1) tabela nova (profile_store_credentials)
+function profileMissingCredLegacy(profile, storeId, credMap){
+  const key = `${profile.id}|${storeId}|`;
   if(credMap && credMap.has(key)){
-    const mp = credMap.get(key);
-    for (const [, v] of mp.entries()){
-      const user = (v?.user || '').toString().trim();
-      const pass = (v?.pass || '').toString().trim();
-      if(user && pass) return { needs: false };
-    }
+    const v = credMap.get(key);
+    if(v.user && v.pass) return { needs: false };
   }
-
-  // 2) legado (profiles)
   const ifUser = (profile.ifood_user||'').toString().trim();
   const ifPass = (profile.ifood_pass||'').toString().trim();
   const jaUser = (profile.janis_user||'').toString().trim();
   const jaPass = (profile.janis_pass||'').toString().trim();
-
-  const hasLegacy = (ifUser && ifPass) || (jaUser && jaPass);
-  return { needs: !hasLegacy };
+  return { needs: !((ifUser && ifPass) || (jaUser && jaPass)) };
 }
 
 
@@ -6050,13 +6567,12 @@ function applyCredFilters(){
   const rows = __admExtras.cred.rows || [];
   const storeSet = __admExtras.cred.selectedStoreIds;
   const workerQ = (document.getElementById('cred-worker-search')?.value || '').toLowerCase().trim();
+  const chainFilter = document.getElementById('cred-chain-picker')?._getChainId?.() || '';
   const dFrom = document.getElementById('cred-date-from')?.value || '';
   const dTo = document.getElementById('cred-date-to')?.value || '';
 
   const fromT = dFrom ? new Date(dFrom+'T00:00:00').getTime() : null;
   const toT = dTo ? new Date(dTo+'T23:59:59').getTime() : null;
-
-  // default: hoje 00:00 até +7 dias 23:59
   const defaultFrom = (()=>{ const d=new Date(); d.setHours(0,0,0,0); return d.getTime(); })();
   const defaultTo = defaultFrom + 8*24*60*60*1000 - 1;
 
@@ -6067,48 +6583,77 @@ function applyCredFilters(){
       const e=(x.profile.email||'').toLowerCase();
       if(!n.includes(workerQ) && !e.includes(workerQ)) return false;
     }
-
+    if(chainFilter){
+      const store = (window.__admExtras?.stores||[]).find(s=>s.id===x.storeId);
+      if(String(store?.chain_id||'') !== chainFilter) return false;
+    }
     const dt = new Date(x.when || x.slot.date || x.reservation.created_at || 0).getTime();
     if(!dt) return false;
-
-    if(!fromT && !toT){
-      if(dt < defaultFrom || dt > defaultTo) return false;
-    }else{
-      if(fromT && dt < fromT) return false;
-      if(toT && dt > toT) return false;
-    }
+    if(!fromT && !toT){ if(dt < defaultFrom || dt > defaultTo) return false; }
+    else { if(fromT && dt < fromT) return false; if(toT && dt > toT) return false; }
     return true;
   });
 
   const host = document.getElementById('cred-results');
+  const tabsBar = document.getElementById('cred-tabs-bar');
   if(!host) return;
 
   if(filtered.length===0){
+    if(tabsBar) tabsBar.classList.add('hidden');
     host.innerHTML = `<div class="border rounded-xl p-6 text-center text-gray-500 font-semibold">Nenhuma reserva no filtro atual</div>`;
     return;
   }
 
-  host.innerHTML = filtered.map(x=>{
-    const storeName = (__admExtras.stores.find(s=>s.id===x.storeId)?.name) || x.storeId;
+  // Agrupa por sistema
+  const bySystem = new Map();
+  filtered.forEach(x => {
+    const systems = x.missingSystems && x.missingSystems.length > 0
+      ? x.missingSystems
+      : [{ id: '__legacy__', name: 'Sem sistema definido', icon: '🔐' }];
+    systems.forEach(sys => {
+      if (!bySystem.has(sys.id)) bySystem.set(sys.id, { sys, items: [] });
+      bySystem.get(sys.id).items.push(x);
+    });
+  });
+
+  const systemList = [...bySystem.values()];
+  const activeTab = window.__credActiveTab && bySystem.has(window.__credActiveTab)
+    ? window.__credActiveTab
+    : systemList[0]?.sys.id;
+  window.__credActiveTab = activeTab;
+
+  // Renderiza abas
+  if(tabsBar){
+    tabsBar.classList.remove('hidden');
+    tabsBar.innerHTML = systemList.map(({ sys, items }) => `
+      <button onclick="window.__credActiveTab='${sys.id}';applyCredFilters()"
+        class="flex items-center gap-2 px-4 py-3 text-sm font-bold border-b-2 whitespace-nowrap transition-colors ${sys.id === activeTab ? 'border-emerald-500 text-emerald-600' : 'border-transparent text-gray-500 hover:text-gray-800'}">
+        <span>${sys.icon || '🔧'}</span>
+        <span>${escapeHtml(sys.name)}</span>
+        <span class="ml-1 bg-red-100 text-red-600 text-[10px] font-black px-1.5 py-0.5 rounded-full">${items.length}</span>
+      </button>
+    `).join('');
+  }
+
+  // Renderiza itens da aba ativa
+  const activeGroup = bySystem.get(activeTab);
+  if(!activeGroup){ host.innerHTML=''; return; }
+
+  host.innerHTML = activeGroup.items.map(x => {
+    const storeName = ((window.__admExtras?.stores||[]).find(s=>s.id===x.storeId)?.name) || x.storeId;
     const whenStr = (() => {
       const d = new Date(x.when || x.slot.date || x.reservation.created_at || 0);
       if(!isFinite(d.getTime())) return '';
       return d.toLocaleString('pt-BR');
     })();
-
-        const statusLine = `<span class="text-xs text-gray-500">Sem credenciais salvas</span>`;
-
     return `
       <div class="border rounded-xl p-4 bg-white flex flex-col md:flex-row md:items-center md:justify-between gap-3">
         <div class="min-w-0">
           <div class="font-bold text-gray-800 truncate">${escapeHtml(x.profile.full_name || 'Autônomo')}</div>
-          <div class="text-sm text-gray-600 truncate">${escapeHtml(storeName)} • ${escapeHtml(x.shift?.name || 'Turno')} • ${escapeHtml(whenStr)}</div>
-          <div class="mt-2 flex flex-wrap gap-2">${statusLine}</div>
+          <div class="text-sm text-gray-500 truncate">${escapeHtml(storeName)} • ${escapeHtml(x.shift?.name || 'Turno')} • ${escapeHtml(whenStr)}</div>
         </div>
-        <div class="shrink-0 flex gap-2">
-          <button class="px-3 py-2 rounded-lg bg-emerald-600 text-white text-sm font-bold"
-                  onclick="openProfileCredentials('${escapeHtml(x.profile.id)}','${escapeHtml(x.storeId)}')">Cadastrar</button>
-        </div>
+        <button class="shrink-0 px-3 py-2 rounded-lg bg-emerald-600 text-white text-sm font-bold"
+          onclick="openProfileCredentials('${escapeHtml(x.profile.id)}','${escapeHtml(x.storeId)}')">Cadastrar</button>
       </div>
     `;
   }).join('');
@@ -6493,6 +7038,10 @@ async function savePointsLine(profileId){
 }
 
 async function renderAdminOrders(){
+  // Força reload do cache de lojas para garantir chain_id
+  if (!(__admExtras.stores||[]).some(s => 'chain_id' in s)) {
+    __admExtras.storesLoaded = false;
+  }
   await loadStoresOnce();
 
   const host = document.getElementById('view');
@@ -6529,21 +7078,37 @@ async function renderAdminOrders(){
 
   function renderStoreOptions(searchTerm=''){
     const q = String(searchTerm || '').toLowerCase().trim();
-    const activeIds = activeStoreIds();
     const hostOpts = document.getElementById('global-store-options');
     const allBox = document.getElementById('global-store-all');
     if(!hostOpts || !allBox) return;
 
-    const filtered = allStores.filter(s => !q || String(s.name||'').toLowerCase().includes(q));
+    const set = window.__admExtras?.orders?.selectedStoreIds;
+    const chainId = document.getElementById('orders-chain-picker')?._getChainId?.() || '';
+    const filtered = allStores.filter(s => {
+      if (chainId && String(s.chain_id||'') !== chainId) return false;
+      return !q || String(s.name||'').toLowerCase().includes(q);
+    });
 
     hostOpts.innerHTML = filtered.map(s => `
-      <label class="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-slate-50">
-        <input type="checkbox" class="global-store-item scale-110" value="${s.id}" ${activeIds.includes(s.id) ? 'checked' : ''}>
+      <label class="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-slate-50 cursor-pointer">
+        <input type="checkbox" class="global-store-item scale-110" value="${s.id}" ${set?.has(s.id) ? 'checked' : ''}>
         <span class="text-sm text-slate-800">${escapeHtml(s.name || 'Loja')}</span>
       </label>
     `).join('') || '<div class="text-sm text-slate-500 italic px-2 py-3">Nenhuma loja encontrada.</div>';
 
-    allBox.checked = activeIds.length === allStores.length;
+    allBox.checked = filtered.length > 0 && filtered.every(s => set?.has(s.id));
+
+    // Aplica imediatamente ao clicar em qualquer checkbox
+    hostOpts.querySelectorAll('.global-store-item').forEach(cb => {
+      cb.addEventListener('change', async () => {
+        const s = window.__admExtras?.orders?.selectedStoreIds;
+        if (!s) return;
+        if (cb.checked) s.add(cb.value); else s.delete(cb.value);
+        allBox.checked = filtered.every(st => s.has(st.id));
+        refreshStoreLabel();
+        await renderCurrentMainTab();
+      });
+    });
   }
 
   function openStorePanel(){
@@ -6676,23 +7241,24 @@ if (current === 'reservas') {
       renderStoreOptions(e.target.value || '');
     });
 
-    document.getElementById('global-store-all')?.addEventListener('change', (e) => {
-  const checks = Array.from(document.querySelectorAll('.global-store-item'));
-  checks.forEach(c => { c.checked = e.target.checked; });
-});
-
-document.getElementById('global-store-apply')?.addEventListener('click', async () => {
-  selectedSet.clear();
-  Array.from(document.querySelectorAll('.global-store-item:checked')).forEach(x => selectedSet.add(x.value));
-  refreshStoreLabel();
-  closeStorePanel();
-  await renderCurrentMainTab();
-});
+    document.getElementById('global-store-all')?.addEventListener('change', async (e) => {
+      const s = window.__admExtras?.orders?.selectedStoreIds;
+      if (!s) return;
+      const chainId = document.getElementById('orders-chain-picker')?._getChainId?.() || '';
+      const visibleStores = allStores.filter(st => !chainId || String(st.chain_id||'') === chainId);
+      s.clear();
+      if (e.target.checked) visibleStores.forEach(st => s.add(st.id));
+      document.querySelectorAll('.global-store-item').forEach(c => { c.checked = e.target.checked; });
+      refreshStoreLabel();
+      await renderCurrentMainTab();
+    });
 
     document.getElementById('global-store-clear')?.addEventListener('click', async () => {
-      selectedSet.clear();
+      if (window.__admExtras?.orders?.selectedStoreIds) window.__admExtras.orders.selectedStoreIds.clear();
       const search = document.getElementById('global-store-filter-search');
       if(search) search.value = '';
+      const cp = document.getElementById('orders-chain-picker');
+      if(cp && cp._clearChain) cp._clearChain();
       refreshStoreLabel();
       renderStoreOptions('');
       await renderCurrentMainTab();
@@ -6716,6 +7282,32 @@ document.getElementById('global-store-apply')?.addEventListener('click', async (
 });
 
        renderAdminOrders.__inited = true;
+  }
+
+  // Picker de bandeira — sempre re-inicializa para capturar closures atualizados
+  const ordersChainPicker = document.getElementById('orders-chain-picker');
+  if (ordersChainPicker) {
+    setupChainPicker({
+      inputId: 'orders-chain-picker',
+      ddId: 'orders-chain-picker-dd',
+      getChains: () => window.__allChains || [],
+      onChange: async (chainId) => {
+        const set = window.__admExtras?.orders?.selectedStoreIds;
+        if (!set) return;
+        set.clear();
+        if (chainId) {
+          (window.__admExtras?.stores || [])
+            .filter(s => String(s.chain_id||'') === chainId)
+            .forEach(s => set.add(s.id));
+        }
+        refreshStoreLabel();
+        renderStoreOptions('');
+        await renderCurrentMainTab();
+      }
+    });
+    if (!window.__allChains) {
+      _supabase.from('store_chains').select('id,name').order('name').then(({ data }) => { window.__allChains = data || []; });
+    }
   }
 
   refreshStoreLabel();
@@ -7323,7 +7915,7 @@ if (mode === 'assigned') {
   host.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-gray-500 font-semibold">Carregando pedidos...</td></tr>`;
 }
 
-const storeSet = __admExtras.orders.selectedStoreIds;
+const storeSet = window.__admExtras?.orders?.selectedStoreIds || new Set();
 const workerQ = (document.getElementById('orders-worker-search')?.value || '').toLowerCase().trim();
 const day = (
   mode === 'assigned'
@@ -7346,10 +7938,35 @@ const day = (
   let slotData = [];
   try{
     let q = _supabase.from('slots').select('id,store_id,shift_id,date').eq('date', day);
-    if(storeSet.size>0) q = q.in('store_id', [...storeSet]);
+
+    const chainId = document.getElementById('orders-chain-picker')?._getChainId?.() || '';
+
+    let effectiveStoreIds = null;
+
+    if (storeSet.size > 0) {
+      // Filtro de lojas explícito — usa direto
+      effectiveStoreIds = [...storeSet];
+    } else if (chainId) {
+      // Só bandeira selecionada — pega todas as lojas da bandeira
+      effectiveStoreIds = (window.__admExtras?.stores || [])
+        .filter(s => String(s.chain_id||'') === chainId)
+        .map(s => s.id);
+    }
+
+    if (effectiveStoreIds && effectiveStoreIds.length > 0) {
+      q = q.in('store_id', effectiveStoreIds);
+    }
+
     const { data, error } = await q;
     if(error) throw error;
-    slotData = data || [];
+
+    // Filtro client-side de segurança
+    if (effectiveStoreIds && effectiveStoreIds.length > 0) {
+      const ids = new Set(effectiveStoreIds);
+      slotData = (data || []).filter(s => ids.has(s.store_id));
+    } else {
+      slotData = data || [];
+    }
   }catch(e){
     host.innerHTML = `<div class="border rounded-xl p-4 text-red-600 font-bold">Erro ao carregar slots: ${escapeHtml(e.message||String(e))}</div>`;
     return;
@@ -8401,16 +9018,22 @@ try {
 
     <!-- Modal de Edição/Criação de Mercado -->
 <div id="modal-store" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
-            <div class="p-6 border-b flex justify-between items-center">
+        <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl flex flex-col" style="max-height:90vh;">
+            <div class="p-6 border-b flex justify-between items-center shrink-0">
                 <h3 id="modal-store-title" class="font-bold text-gray-800 uppercase">Mercado</h3>
                 <button onclick="closeStoreModal()" class="text-gray-400 hover:text-gray-600">✕</button>
             </div>
-            <div class="p-6 space-y-4">
+            <div class="p-6 space-y-4 overflow-y-auto flex-1">
                 <input type="hidden" id="edit-store-id">
                 <div>
                     <label class="text-[10px] font-bold text-gray-400 uppercase">Nome da Loja</label>
                     <input type="text" id="m-store-name" class="w-full border p-2 rounded-lg text-sm">
+                </div>
+                <div>
+                    <label class="text-[10px] font-bold text-gray-400 uppercase">Bandeira</label>
+                    <select id="m-store-chain" class="w-full border p-2 rounded-lg text-sm mt-1">
+                        <option value="">— Sem bandeira —</option>
+                    </select>
                 </div>
                 <div class="flex gap-2">
                     <div class="w-1/3">
@@ -8449,6 +9072,15 @@ try {
                 </div>
                 <input type="hidden" id="m-city"><input type="hidden" id="m-state">
 
+                <!-- Sistemas de acesso exigidos nesta loja -->
+                <div class="border-t pt-3">
+                    <p class="text-[10px] font-bold text-gray-400 uppercase mb-1">🔐 Sistemas de acesso</p>
+                    <p class="text-[10px] text-gray-400 mb-3">Selecione quais sistemas o autônomo precisará de login nesta loja.</p>
+                    <div id="m-systems-list" class="space-y-2">
+                        <span class="text-xs text-gray-400">Carregando sistemas…</span>
+                    </div>
+                </div>
+
                 <!-- Líder / Responsável -->
                 <div class="border-t pt-3">
                     <p class="text-[10px] font-bold text-gray-400 uppercase mb-2">📍 Coordenadas GPS</p>
@@ -8485,7 +9117,7 @@ try {
                     </div>
                 </div>
             </div>
-            <div class="p-6 bg-gray-50 flex gap-3">
+            <div class="p-6 bg-gray-50 flex gap-3 shrink-0 border-t rounded-b-2xl">
                 <button onclick="closeStoreModal()" class="flex-1 py-2 text-sm font-bold text-gray-500 uppercase">Cancelar</button>
                 <button onclick="saveStore()" class="flex-1 py-2 bg-emerald-600 text-white rounded-lg text-sm font-bold uppercase shadow-lg shadow-emerald-200">Salvar Alterações</button>
             </div>
@@ -8541,12 +9173,6 @@ try {
   async function ensureProfilesCache(){
     if (Array.isArray(window.__annProfilesCache) && window.__annProfilesCache.length) return window.__annProfilesCache;
 
-    // tenta reaproveitar cache global do painel
-    if (Array.isArray(window.allUsers) && window.allUsers.length){
-      window.__annProfilesCache = window.allUsers;
-      return window.__annProfilesCache;
-    }
-
     try{
       const { data, error } = await _supabase
         .from('profiles')
@@ -8555,7 +9181,12 @@ try {
       if (error) throw error;
       window.__annProfilesCache = data || [];
     }catch(e){
-      window.__annProfilesCache = [];
+      // fallback: tenta reaproveitar cache global (pode ter só aprovados)
+      if (Array.isArray(window.allUsers) && window.allUsers.length){
+        window.__annProfilesCache = window.allUsers;
+      } else {
+        window.__annProfilesCache = [];
+      }
     }
     return window.__annProfilesCache;
   }
@@ -8651,38 +9282,43 @@ function syncAnnouncementsIntoReadsSelect(list){
 
     const head = `
       <table class="min-w-full text-sm">
-        <thead class="bg-gray-50">
-          <tr class="text-left text-[10px] uppercase font-black text-gray-500">
-            <th class="p-3">Status</th>
-            <th class="p-3">Autônomo</th>
-            <th class="p-3">Loja</th>
-            <th class="p-3">Leu</th>
-            <th class="p-3">Confirmou em</th>
+        <thead class="bg-gray-50 sticky top-0 z-10">
+          <tr class="text-left text-[10px] uppercase font-black text-gray-500 border-b">
+            <th class="px-4 py-3">Autônomo</th>
+            <th class="px-4 py-3">Loja</th>
+            <th class="px-4 py-3 text-center">Leu?</th>
+            <th class="px-4 py-3">Quando leu</th>
+            <th class="px-4 py-3 text-center">Confirmou?</th>
+            <th class="px-4 py-3">Quando confirmou</th>
           </tr>
         </thead>
         <tbody class="divide-y">
     `;
 
-    const body = (rows || []).map(r=>{
-      
-const computedStatus = (r.confirmed_at ? 'confirmed' : (r.read_at ? 'read' : 'pending'));
-const badge = computedStatus==='confirmed'
-  ? '<span class="px-2 py-1 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-black uppercase">Confirmado</span>'
-  : (computedStatus==='read'
-    ? '<span class="px-2 py-1 rounded-full bg-amber-100 text-amber-800 text-[10px] font-black uppercase">Lido</span>'
-    : '<span class="px-2 py-1 rounded-full bg-gray-100 text-gray-700 text-[10px] font-black uppercase">Pendente</span>');
+    const body = (rows || []).map(r => {
+      const leuBadge = r.read_at_raw
+        ? `<span class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-blue-100 text-blue-700 text-[10px] font-black">✓ SIM</span>`
+        : `<span class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-red-100 text-red-600 text-[10px] font-black">✗ NÃO</span>`;
+
+      const confirmouBadge = r.confirmed_at_raw
+        ? `<span class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-black">✓ SIM</span>`
+        : `<span class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-gray-100 text-gray-500 text-[10px] font-black">— NÃO</span>`;
+
+      const rowBg = r.confirmed_at_raw ? '' : (r.read_at_raw ? 'bg-blue-50/30' : 'bg-red-50/30');
+
       return `
-        <tr class="hover:bg-gray-50">
-          <td class="p-3">${badge}</td>
-          <td class="p-3 font-bold text-gray-800">${esc(r.name || '—')}</td>
-          <td class="p-3 text-gray-700">${esc(r.store || '—')}</td>
-          <td class="p-3">${(() => {const isRead = !!r.read_at;return isRead ? '<span class="inline-flex items-center gap-2 text-emerald-700 text-xs font-black uppercase"><span class="w-2 h-2 rounded-full bg-emerald-500"></span>LEU</span>' : '<span class="inline-flex items-center gap-2 text-red-700 text-xs font-black uppercase"><span class="w-2 h-2 rounded-full bg-red-500"></span>NÃO LEU</span>';})()}</td>
-          <td class="p-3 font-mono text-[12px] text-gray-700">${esc(r.confirmed_at || '—')}</td>
+        <tr class="hover:bg-gray-50 ${rowBg}">
+          <td class="px-4 py-3 font-semibold text-gray-800">${esc(r.name || '—')}</td>
+          <td class="px-4 py-3 text-gray-600 text-xs">${esc(r.store || '—')}</td>
+          <td class="px-4 py-3 text-center">${leuBadge}</td>
+          <td class="px-4 py-3 text-xs text-gray-600 font-mono">${r.read_at_raw ? esc(fmtBRDateTime(r.read_at_raw)) : '<span class="text-gray-400">—</span>'}</td>
+          <td class="px-4 py-3 text-center">${confirmouBadge}</td>
+          <td class="px-4 py-3 text-xs text-gray-600 font-mono">${r.confirmed_at_raw ? esc(fmtBRDateTime(r.confirmed_at_raw)) : '<span class="text-gray-400">—</span>'}</td>
         </tr>
       `;
     }).join('');
 
-    box.innerHTML = head + body + '</tbody></table>';
+    box.innerHTML = `<div class="overflow-x-auto">${head}${body}</tbody></table></div>`;
   }
 
   async function loadAnnouncementReads(){
@@ -8723,7 +9359,10 @@ const badge = computedStatus==='confirmed'
       }
     }
 
-    // 2) recipients
+    // Força reload do cache de profiles a cada busca para garantir dados frescos
+    window.__annProfilesCache = null;
+
+    // 2) recipients — não filtra por isWorkerProfile quando scope=profile
     const profiles = (await ensureProfilesCache()) || [];
     const recipients = (ann.scope==='profile')
       ? profiles.filter(p=>p.id===ann.profile_id)
@@ -8767,6 +9406,7 @@ const badge = computedStatus==='confirmed'
       const r = readMap.get(p.id) || null;
       const readAt = r?.read_at || null;
       const confirmedAt = r?.confirmed_at || null;
+      // "Lido" só se tiver read_at real. Sem read_at = Pendente (não leu de verdade)
       const status = confirmedAt ? 'confirmed' : (readAt ? 'read' : 'pending');
       return {
         status,
@@ -8878,6 +9518,111 @@ const badge = computedStatus==='confirmed'
       };
     });
   }
+
+  // ── Sub-abas de comunicados ──────────────────────────
+  window.annSwitchTab = (tab) => {
+    ['send','sent','reads'].forEach(t => {
+      document.getElementById(`ann-panel-${t}`)?.classList.toggle('hidden', t !== tab);
+      const btn = document.getElementById(`ann-tab-${t}`);
+      if (btn) btn.className = `px-5 py-3 text-sm font-bold border-b-2 -mb-px ${t === tab ? 'border-emerald-500 text-emerald-600' : 'border-transparent text-gray-500 hover:text-gray-800'}`;
+    });
+    if (tab === 'sent') renderSentAnnouncements();
+    if (tab === 'reads') {
+      window.__annProfilesCache = null; // força reload com todos os profiles
+      syncAnnouncementsIntoReadsSelect(window.__announcementsCache || []);
+      loadStoresIntoReadsSelect();
+    }
+  };
+
+  async function renderSentAnnouncements() {
+    const host = document.getElementById('ann-sent-list');
+    if (!host) return;
+    host.innerHTML = '<div class="text-sm text-gray-400 p-4">Carregando...</div>';
+
+    try {
+      const { data, error } = await _supabase
+        .from('announcements')
+        .select('id,title,message,scope,store_id,profile_id,require_ack,active,created_at')
+        .order('created_at', { ascending: false })
+        .limit(100);
+      if (error) throw error;
+
+      const list = data || [];
+      window.__announcementsCache = list;
+      syncAnnouncementsIntoReadsSelect(list);
+
+      const q = (document.getElementById('ann-sent-search')?.value || '').toLowerCase().trim();
+      const filtered = q ? list.filter(a => (a.title||'').toLowerCase().includes(q) || (a.message||'').toLowerCase().includes(q)) : list;
+
+      if (!filtered.length) {
+        host.innerHTML = '<div class="text-sm text-gray-400 p-4">Nenhum comunicado encontrado.</div>';
+        return;
+      }
+
+      // Busca stores cache para mostrar nome da loja
+      await ensureStoresCache();
+
+      host.innerHTML = filtered.map(a => {
+        const scopeLabel = a.scope === 'store' ? `🏪 ${storeNameById(a.store_id)}` : a.scope === 'profile' ? '👤 Autônomo específico' : '👥 Todos';
+        const dateStr = a.created_at ? fmtBRDateTime(a.created_at) : '';
+        const activeLabel = a.active
+          ? '<span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-black">Ativo</span>'
+          : '<span class="px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 text-[10px] font-black">Inativo</span>';
+        const ackLabel = a.require_ack
+          ? '<span class="px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-[10px] font-black">Exige confirmação</span>'
+          : '';
+        return `
+          <div class="border rounded-xl p-4 bg-white hover:bg-gray-50 transition">
+            <div class="flex items-start justify-between gap-3">
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-2 flex-wrap mb-1">
+                  <span class="font-bold text-gray-800 text-sm">${esc(a.title || 'Sem título')}</span>
+                  ${activeLabel} ${ackLabel}
+                </div>
+                <div class="text-xs text-gray-500 mb-2">${esc(scopeLabel)} • ${esc(dateStr)}</div>
+                <div class="text-sm text-gray-600 line-clamp-2 whitespace-pre-wrap">${esc(a.message || '')}</div>
+              </div>
+              <div class="flex gap-2 shrink-0">
+                <button onclick="annViewReads('${a.id}')" class="px-3 py-1.5 text-xs font-bold border rounded-lg text-emerald-600 hover:bg-emerald-50">Ver leituras</button>
+                <button onclick="annToggleActive('${a.id}', ${!a.active})" class="px-3 py-1.5 text-xs font-bold border rounded-lg text-gray-600 hover:bg-gray-50">${a.active ? 'Desativar' : 'Ativar'}</button>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    } catch(e) {
+      host.innerHTML = `<div class="text-sm text-red-600 p-4">Erro: ${esc(e.message||'')}</div>`;
+    }
+  }
+
+  window.annViewReads = (annId) => {
+    // Muda para aba de leituras e pré-seleciona o comunicado
+    annSwitchTab('reads');
+    const ann = (window.__announcementsCache || []).find(a => a.id === annId);
+    if (!ann) return;
+    const title = (ann.title || 'Comunicado').toString().trim() || 'Comunicado';
+    const created = ann.created_at ? ` • ${fmtBRDateTime(ann.created_at)}` : '';
+    const label = `${title}${created}`;
+    const input = $('ann-reads-announcement');
+    const hidden = $('ann-reads-announcement-id');
+    if (input) input.value = label;
+    if (hidden) hidden.value = annId;
+    loadAnnouncementReads();
+  };
+
+  window.annToggleActive = async (annId, newActive) => {
+    try {
+      const { error } = await _supabase.from('announcements').update({ active: newActive }).eq('id', annId);
+      if (error) throw error;
+      renderSentAnnouncements();
+    } catch(e) {
+      alert('Erro ao atualizar: ' + (e.message || e));
+    }
+  };
+
+  // Busca em comunicados enviados
+  document.getElementById('ann-sent-search')?.addEventListener('input', () => renderSentAnnouncements());
+  document.getElementById('ann-refresh')?.addEventListener('click', () => renderSentAnnouncements());
 
   async function loadStoresIntoSelect(){
     const sel = $('ann-store');
