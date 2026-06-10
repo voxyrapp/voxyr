@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Voxyr</title>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
@@ -222,6 +223,7 @@ nav::-webkit-scrollbar-thumb:hover {
             <button onclick="renderMarketTab('slots')" class="subtab-btn">📅 Vagas (CSV)</button>
             <button onclick="renderMarketTab('bookings')" class="subtab-btn">📝 Reservas</button>
             <button onclick="renderMarketTab('bandeiras')" class="subtab-btn">🏷️ Bandeiras</button>
+            <button onclick="renderMarketTab('sistemas')" class="subtab-btn">⚙️ Sistemas</button>
         </div>
 
         <div id="market-display" class="flex-1 overflow-y-auto px-8 pb-8"></div>
@@ -272,6 +274,15 @@ nav::-webkit-scrollbar-thumb:hover {
         <header class="h-16 border-b flex items-center px-8 justify-between shrink-0">
             <div>
                 <h2 class="text-xl font-semibold text-gray-800">Reservas sem credenciais</h2>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="downloadCredsPlanilha()" class="px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-bold hover:bg-emerald-700 flex items-center gap-2">
+                    ⬇️ Baixar planilha
+                </button>
+                <label class="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 cursor-pointer flex items-center gap-2">
+                    ⬆️ Importar planilha
+                    <input type="file" id="cred-import-file" accept=".xlsx,.csv" class="hidden" onchange="importCredsPlanilha(this)">
+                </label>
             </div>
         </header>
         <div class="flex flex-col flex-1 overflow-hidden">
@@ -1952,6 +1963,46 @@ document.getElementById('analysis-created').innerText = 'Cadastro em: ' + (creat
 
         function _ensureCredDraft(u) {
             window.__credsDraft = _normalizeCredsFromProfile(u || {});
+            const storeId = window.__credCurrentStoreId;
+            if (storeId) {
+                // Carrega sistemas da loja E credenciais já salvas simultaneamente
+                Promise.all([
+                    _supabase.from('store_chain_systems')
+                        .select('store_systems(id,name,icon,url)')
+                        .eq('store_id', storeId),
+                    _supabase.from('profile_store_credentials')
+                        .select('system_id,platform,username,password,url')
+                        .eq('store_id', storeId)
+                        .eq('profile_id', u?.id || '')
+                        .eq('is_active', true)
+                ]).then(([sysRes, credRes]) => {
+                    window.__credStoreSystems = (sysRes.data || []).map(r => r.store_systems).filter(Boolean);
+
+                    // Se há credenciais salvas na tabela nova, usa elas
+                    const savedCreds = credRes.data || [];
+                    if (savedCreds.length) {
+                        window.__credsDraft = savedCreds.map(c => {
+                            // Se não tem url salvo, usa o url padrão do sistema
+                            const sys = (window.__credStoreSystems || []).find(s => s.name === c.platform);
+                            return {
+                                platform: c.platform || '',
+                                username: c.username || '',
+                                password: c.password || '',
+                                url: c.url || sys?.url || ''
+                            };
+                        });
+                        // Adiciona linha vazia se ainda faltam sistemas
+                        const usedPlatforms = new Set(window.__credsDraft.map(c => c.platform.toLowerCase()));
+                        const missing = window.__credStoreSystems.filter(s => !usedPlatforms.has(s.name.toLowerCase()));
+                        if (missing.length) {
+                            window.__credsDraft.push({ platform: '', username: '', password: '', url: '' });
+                        }
+                    }
+                    renderCredsList();
+                });
+            } else {
+                window.__credStoreSystems = [];
+            }
         }
 
         function addCredRow() {
@@ -1977,12 +2028,27 @@ document.getElementById('analysis-created').innerText = 'Cadastro em: ' + (creat
             const wrap = document.getElementById('creds-list');
             if (!wrap) return;
             const creds = window.__credsDraft || [];
-            const platformOptions = ['iFood', 'Janis', 'Outro'];
+
+            // Sistemas disponíveis para esta loja (carregados de forma assíncrona)
+            const storeSystems = window.__credStoreSystems || [];
+            // Plataformas já em uso nas outras credenciais
+            const usedPlatforms = creds.map(c => (c.platform||'').trim().toLowerCase()).filter(Boolean);
 
             wrap.innerHTML = creds.map((c, i) => {
-                const p = c.platform || '';
-                const isOutro = !(platformOptions.slice(0,2).includes(p)) && p !== '';
-                const selectVal = (p === 'iFood' || p === 'Janis') ? p : (p ? 'Outro' : '');
+                const currentPlatform = (c.platform || '').trim();
+
+                // Sistemas disponíveis = sistemas da loja - os já usados em outras linhas
+                const availableSystems = storeSystems.filter(s => {
+                    const sName = (s.name||'').trim().toLowerCase();
+                    // Mantém o sistema atual mesmo que já esteja em uso (é a própria linha)
+                    if (sName === currentPlatform.toLowerCase()) return true;
+                    return !usedPlatforms.filter((_, idx) => idx !== i).includes(sName);
+                });
+
+                const systemOptions = availableSystems.length > 0
+                    ? availableSystems.map(s => `<option value="${escapeHtml(s.name)}">${s.icon || ''} ${escapeHtml(s.name)}</option>`).join('')
+                    : `<option value="">Nenhum sistema configurado para esta loja</option>`;
+
                 return `
                     <div class="p-3 rounded-xl border bg-gray-50">
                         <div class="flex items-center justify-between mb-2">
@@ -1992,39 +2058,43 @@ document.getElementById('analysis-created').innerText = 'Cadastro em: ' + (creat
 
                         <div class="grid grid-cols-2 gap-2">
                             <div class="flex flex-col gap-1">
-                                <input type="text" class="border p-2 rounded text-xs font-bold" placeholder="Plataforma (ex: iFood, Janis, VTEX)" list="platform-datalist-${i}"
-                                    value="${(p||'').replace(/"/g,'&quot;')}"
+                                <select class="border p-2 rounded text-xs font-bold bg-white"
+                                    onchange="updateCredField(${i}, 'platform', this.value); const _sys=(window.__credStoreSystems||[]).find(s=>s.name===this.value); if(_sys&&_sys.url&&!window.__credsDraft[${i}]?.url) updateCredField(${i},'url',_sys.url); renderCredsList();">
+                                    <option value="">Selecionar sistema...</option>
+                                    ${systemOptions}
+                                    <option value="__outro__" ${!availableSystems.find(s=>s.name===currentPlatform) && currentPlatform ? 'selected' : ''}>Outro</option>
+                                </select>
+                                ${!availableSystems.find(s => s.name.toLowerCase() === currentPlatform.toLowerCase()) && currentPlatform && currentPlatform !== '__outro__' ? `
+                                <input type="text" class="border p-2 rounded text-xs" placeholder="Nome da plataforma"
+                                    value="${currentPlatform.replace(/"/g,'&quot;')}"
                                     oninput="updateCredField(${i}, 'platform', this.value)">
-                                <datalist id="platform-datalist-${i}">
-                                    <option value="iFood"></option>
-                                    <option value="Janis"></option>
-                                    <option value="VTEX"></option>
-                                    <option value="Outros"></option>
-                                </datalist>
+                                ` : currentPlatform === '__outro__' ? `
+                                <input type="text" class="border p-2 rounded text-xs" placeholder="Nome da plataforma"
+                                    oninput="updateCredField(${i}, 'platform', this.value)">
+                                ` : ''}
                             </div>
 
-
-                            <input type="url" class="border p-2 rounded text-xs" placeholder="Link (https://...)" value="${(c.url||'').replace(/"/g,'&quot;')}" 
+                            <input type="url" class="border p-2 rounded text-xs" placeholder="Link (https://...)" value="${(c.url||'').replace(/"/g,'&quot;')}"
                                 oninput="updateCredField(${i}, 'url', this.value)">
                         </div>
 
                         <div class="grid grid-cols-2 gap-2 mt-2">
-                            <input type="text" class="border p-2 rounded text-xs" placeholder="Usuário / Login" value="${(c.username||'').replace(/"/g,'&quot;')}" 
+                            <input type="text" class="border p-2 rounded text-xs" placeholder="Usuário / Login" value="${(c.username||'').replace(/"/g,'&quot;')}"
                                 oninput="updateCredField(${i}, 'username', this.value)">
-
-                            <input type="text" class="border p-2 rounded text-xs" placeholder="Senha" value="${(c.password||'').replace(/"/g,'&quot;')}" 
+                            <input type="text" class="border p-2 rounded text-xs" placeholder="Senha" value="${(c.password||'').replace(/"/g,'&quot;')}"
                                 oninput="updateCredField(${i}, 'password', this.value)">
                         </div>
-
-                        ${(selectVal==='Outro') ? `
-                        <div class="mt-2">
-                            <input type="text" class="border p-2 rounded text-xs w-full" placeholder="Nome da plataforma" value="${(p||'').replace(/"/g,'&quot;')}" 
-                                oninput="updateCredField(${i}, 'platform', this.value)">
-                        </div>` : ''}
-
                     </div>
                 `;
             }).join('');
+
+            // Seleciona o valor correto nos dropdowns após render
+            const selects = wrap.querySelectorAll('select');
+            selects.forEach((sel, i) => {
+                const platform = (creds[i]?.platform || '').trim();
+                const found = Array.from(sel.options).find(o => o.value.toLowerCase() === platform.toLowerCase());
+                if (found) sel.value = found.value;
+            });
         }
 
         function gatherCredsFromUI() {
@@ -2117,8 +2187,16 @@ document.getElementById('analysis-created').innerText = 'Cadastro em: ' + (creat
             }
 
             // Atualiza no Supabase com fallback sem ifood_pass se coluna não existir
+            // Remove colunas que não existem no schema
             let payload = { ...payloadBase };
+            delete payload.credentials;
+            delete payload.third_platform_url;
+            delete payload.ifood_user;
+            delete payload.ifood_pass;
+            delete payload.janis_user;
+            delete payload.janis_pass;
             let { error } = await _supabase.from('profiles').update(payload).eq('id', currentUserId);
+            if (error) console.warn('[PROFILE SAVE] error:', JSON.stringify(error));
 
             if (error && String(error.message || '').toLowerCase().includes('ifood_pass')) {
               // retry sem a coluna
@@ -2197,6 +2275,40 @@ mensagem_corpo: 'Seus dados foram atualizados pelo administrador:\n\n' + changes
             }
 
             alert('Salvo!');
+
+            // Grava também em profile_store_credentials para sincronizar com tela de pendentes
+            try {
+              const storeId = document.getElementById('edit-store-id')?.value
+                || window.__credCurrentStoreId
+                || null;
+              const storeSystems = window.__credStoreSystems || [];
+              console.log('[CRED SAVE] storeId:', storeId, '| storeSystems:', storeSystems.length, '| creds:', creds.length);
+              if (storeId && creds.length) {
+                for (const cred of creds) {
+                  if (!cred.platform || !cred.username) continue;
+                  const sys = storeSystems.find(s => s.name.toLowerCase() === cred.platform.toLowerCase());
+                  console.log('[CRED SAVE] platform:', cred.platform, '| sys found:', sys?.id);
+                  if (!sys) continue;
+                  const { error: upsertErr } = await _supabase.from('profile_store_credentials').upsert({
+                    profile_id: currentUserId,
+                    store_id: storeId,
+                    system_id: sys.id,
+                    platform: sys.name,
+                    username: cred.username,
+                    password: cred.password || null,
+                    is_active: true,
+                    updated_at: new Date().toISOString()
+                  }, { onConflict: 'profile_id,store_id,system_id' });
+                  if (upsertErr) console.warn('[CRED SAVE] upsert error:', JSON.stringify(upsertErr));
+                  else console.log('[CRED SAVE] upserted OK');
+                }
+              }
+              // Expira cache da tela de pendentes
+              if (window.__admExtras?.cred) window.__admExtras.cred.lastFetchAt = 0;
+            } catch(e) {
+              console.warn('Falha ao sincronizar profile_store_credentials:', e);
+            }
+
             await loadData();
             closeModal();
             });
@@ -3138,7 +3250,7 @@ async function renderMarketTab(tab) {
   const btns = Array.from(document.querySelectorAll('#mod-markets .subtab-btn'));
   btns.forEach(b => b.classList.remove('active'));
 
-  const idx = tab === 'stores' ? 0 : tab === 'shifts' ? 1 : tab === 'slots' ? 2 : tab === 'bookings' ? 3 : 4;
+  const idx = tab === 'stores' ? 0 : tab === 'shifts' ? 1 : tab === 'slots' ? 2 : tab === 'bookings' ? 3 : tab === 'bandeiras' ? 4 : 5;
   if (btns[idx]) btns[idx].classList.add('active');
 
   const container = document.getElementById('market-display');
@@ -3156,6 +3268,7 @@ async function renderMarketTab(tab) {
   else if (tab === 'slots') await renderSlotsTab(container);
   else if (tab === 'bookings') await renderBookingsTab(container);
   else if (tab === 'bandeiras') await renderBandeirasTab(container);
+  else if (tab === 'sistemas') await renderSistemasTab(container);
 }
 
 const renderMarketSubTab = renderMarketTab;
@@ -3247,6 +3360,103 @@ async function deleteChain(id) {
     const { error } = await _supabase.from('store_chains').delete().eq('id', id);
     if (error) { alert('Erro: ' + error.message); return; }
     renderMarketTab('bandeiras');
+}
+
+// ABA SISTEMAS
+async function renderSistemasTab(container) {
+    const { data: systems, error } = await _supabase.from('store_systems').select('id,name,icon,url').order('name');
+    if (error) { container.innerHTML = `<div class="text-red-600 p-4">${error.message}</div>`; return; }
+
+    container.innerHTML = `
+        <div class="max-w-xl">
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="text-lg font-bold text-gray-800">Sistemas de acesso</h3>
+                <button onclick="openSistemaModal()" class="px-4 py-2 bg-emerald-600 text-white text-sm font-bold rounded-lg hover:bg-emerald-700">+ Novo sistema</button>
+            </div>
+            <div id="sistemas-list" class="space-y-2">
+                ${(systems || []).length === 0
+                    ? `<div class="border rounded-xl p-6 text-center text-gray-400">Nenhum sistema cadastrado ainda.</div>`
+                    : (systems || []).map(s => `
+                        <div class="border rounded-xl p-4 bg-white flex items-center justify-between gap-3">
+                            <div class="flex items-center gap-3 min-w-0">
+                                <span class="text-2xl">${s.icon || '🔧'}</span>
+                                <div class="min-w-0">
+                                    <div class="font-semibold text-gray-800">${escapeHtml(s.name)}</div>
+                                    ${s.url ? `<div class="text-xs text-blue-500 truncate">${escapeHtml(s.url)}</div>` : '<div class="text-xs text-gray-400">Sem link</div>'}
+                                </div>
+                            </div>
+                            <div class="flex gap-2 shrink-0">
+                                <button onclick="openSistemaModal('${s.id}','${escapeHtml(s.name)}','${escapeHtml(s.icon||'')}','${escapeHtml(s.url||'')}')"
+                                    class="px-3 py-1.5 text-xs font-bold border rounded-lg text-gray-600 hover:bg-gray-50">Editar</button>
+                                <button onclick="deleteSistema('${s.id}')"
+                                    class="px-3 py-1.5 text-xs font-bold border rounded-lg text-red-500 hover:bg-red-50">Excluir</button>
+                            </div>
+                        </div>
+                    `).join('')}
+            </div>
+        </div>
+
+        <!-- Modal sistema -->
+        <div id="sistema-modal" class="hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+            <div class="bg-white rounded-2xl w-full max-w-sm shadow-xl p-6">
+                <h3 id="sistema-modal-title" class="font-bold text-gray-800 uppercase mb-4">Novo Sistema</h3>
+                <input type="hidden" id="sistema-id">
+                <div class="mb-3">
+                    <label class="text-[10px] font-bold text-gray-400 uppercase">Nome do sistema</label>
+                    <input type="text" id="sistema-name" placeholder="Ex: iFood" class="w-full border p-2 rounded-lg text-sm mt-1">
+                </div>
+                <div class="mb-3">
+                    <label class="text-[10px] font-bold text-gray-400 uppercase">Ícone (emoji)</label>
+                    <input type="text" id="sistema-icon" placeholder="Ex: 🛵" class="w-full border p-2 rounded-lg text-sm mt-1">
+                </div>
+                <div class="mb-5">
+                    <label class="text-[10px] font-bold text-gray-400 uppercase">Link de acesso (opcional)</label>
+                    <input type="url" id="sistema-url" placeholder="https://..." class="w-full border p-2 rounded-lg text-sm mt-1">
+                    <p class="text-[10px] text-gray-400 mt-1">Será pré-preenchido ao cadastrar credenciais desta loja.</p>
+                </div>
+                <div class="flex gap-3">
+                    <button onclick="document.getElementById('sistema-modal').classList.add('hidden')"
+                        class="flex-1 py-2 text-sm font-bold text-gray-500 uppercase">Cancelar</button>
+                    <button onclick="saveSistema()"
+                        class="flex-1 py-2 bg-emerald-600 text-white rounded-lg text-sm font-bold uppercase">Salvar</button>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function openSistemaModal(id='', name='', icon='', url='') {
+    document.getElementById('sistema-modal').classList.remove('hidden');
+    document.getElementById('sistema-modal-title').textContent = id ? 'Editar Sistema' : 'Novo Sistema';
+    document.getElementById('sistema-id').value = id;
+    document.getElementById('sistema-name').value = name;
+    document.getElementById('sistema-icon').value = icon;
+    document.getElementById('sistema-url').value = url;
+}
+
+async function saveSistema() {
+    const id = document.getElementById('sistema-id').value;
+    const name = document.getElementById('sistema-name').value.trim();
+    const icon = document.getElementById('sistema-icon').value.trim() || null;
+    const url = document.getElementById('sistema-url').value.trim() || null;
+    if (!name) { alert('Informe o nome do sistema.'); return; }
+
+    let error;
+    if (id) {
+        ({ error } = await _supabase.from('store_systems').update({ name, icon, url }).eq('id', id));
+    } else {
+        ({ error } = await _supabase.from('store_systems').insert([{ name, icon, url }]));
+    }
+    if (error) { alert('Erro: ' + error.message); return; }
+    document.getElementById('sistema-modal').classList.add('hidden');
+    renderMarketTab('sistemas');
+}
+
+async function deleteSistema(id) {
+    if (!confirm('Excluir este sistema? As lojas que o utilizam perderão a referência.')) return;
+    const { error } = await _supabase.from('store_systems').delete().eq('id', id);
+    if (error) { alert('Erro: ' + error.message); return; }
+    renderMarketTab('sistemas');
 }
 
 // 1. ABA MERCADOS
@@ -6531,15 +6741,20 @@ async function renderPendingCredentials(){
     });
 
 
-    // Dedup: manter apenas a reserva mais próxima por (autônomo + loja)
-    const seen = new Set();
-    const deduped = [];
+    // Dedup: por (autônomo + loja), mantém apenas se ainda há sistemas faltando
+    const seen = new Map(); // key -> row com mais sistemas faltando
     for(const x of rows){
       const k = `${x.profile.id}|${x.storeId}`;
-      if(seen.has(k)) continue;
-      seen.add(k);
-      deduped.push(x);
+      if(!seen.has(k)){
+        seen.set(k, x);
+      } else {
+        // Mantém o que tiver mais sistemas pendentes
+        if(x.missingSystems.length > seen.get(k).missingSystems.length){
+          seen.set(k, x);
+        }
+      }
     }
+    const deduped = [...seen.values()];
 
     __admExtras.cred.rows = deduped;
     __admExtras.cred.lastFetchAt = now;
@@ -6562,6 +6777,131 @@ function profileMissingCredLegacy(profile, storeId, credMap){
   return { needs: !((ifUser && ifPass) || (jaUser && jaPass)) };
 }
 
+
+// ── Download planilha de credenciais pendentes ──────────────────────
+function downloadCredsPlanilha() {
+  const rows = __admExtras?.cred?.rows || [];
+  if (!rows.length) { alert('Nenhuma credencial pendente para exportar.'); return; }
+
+  // Monta linhas: uma por (autônomo + sistema pendente)
+  const data = [['Bandeira', 'Loja', 'Autônomo', 'Usuário', 'Senha', 'Sistema', 'profile_id', 'store_id', 'system_id']];
+
+  rows.forEach(x => {
+    const storeName = (window.__admExtras?.stores || []).find(s => s.id === x.storeId)?.name || x.storeId;
+    const chainId = (window.__admExtras?.stores || []).find(s => s.id === x.storeId)?.chain_id || '';
+    const chainName = (window.__allChains || []).find(c => c.id === chainId)?.name || '';
+    const systems = x.missingSystems?.length ? x.missingSystems : [{ id: '', name: 'Sem sistema', icon: '' }];
+    systems.forEach(sys => {
+      data.push([
+        chainName,
+        storeName,
+        x.profile.full_name || x.profile.email || '',
+        '', // usuário — em branco para preencher
+        '', // senha — em branco para preencher
+        sys.name || '',
+        x.profile.id,
+        x.storeId,
+        sys.id || ''
+      ]);
+    });
+  });
+
+  const ws = XLSX.utils.aoa_to_sheet(data);
+
+  // Larguras de coluna
+  ws['!cols'] = [
+    { wch: 18 }, { wch: 25 }, { wch: 30 },
+    { wch: 22 }, { wch: 22 }, { wch: 16 },
+    { wch: 38 }, { wch: 38 }, { wch: 38 }
+  ];
+
+  // Protege colunas de ID (G, H, I) com fundo cinza para sinalizar que não devem ser editadas
+  const range = XLSX.utils.decode_range(ws['!ref']);
+  for (let R = 1; R <= range.e.r; R++) {
+    ['G','H','I'].forEach(col => {
+      const cell = ws[`${col}${R+1}`];
+      if (cell) cell.s = { fill: { fgColor: { rgb: 'F0F0F0' } }, font: { color: { rgb: '999999' } } };
+    });
+  }
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Credenciais pendentes');
+  XLSX.writeFile(wb, `credenciais_pendentes_${new Date().toISOString().slice(0,10)}.xlsx`);
+}
+
+// ── Importar planilha de credenciais preenchidas ──────────────────────
+async function importCredsPlanilha(input) {
+  const file = input.files[0];
+  if (!file) return;
+  input.value = '';
+
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    try {
+      const wb = XLSX.read(e.target.result, { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+
+      if (rows.length < 2) { alert('Planilha vazia ou sem dados.'); return; }
+
+      // Cabeçalho esperado: Bandeira, Loja, Autônomo, Usuário, Senha, Sistema, profile_id, store_id, system_id
+      const dataRows = rows.slice(1).filter(r => r[3] || r[4]); // tem usuário ou senha
+      if (!dataRows.length) { alert('Nenhuma linha com usuário/senha preenchida.'); return; }
+
+      let ok = 0, errs = 0;
+      const errors = [];
+
+      for (const row of dataRows) {
+        const [bandeira, loja, autonomo, username, password, sistema, profileId, storeId, systemId] = row;
+
+        if (!profileId || !storeId) {
+          errors.push(`Linha sem profile_id/store_id: ${autonomo}`);
+          errs++; continue;
+        }
+        if (!username && !password) continue;
+
+        try {
+          const payload = {
+            profile_id: String(profileId).trim(),
+            store_id: String(storeId).trim(),
+            platform: String(sistema || '').trim(),
+            username: String(username || '').trim(),
+            password: String(password || '').trim() || null,
+            is_active: true,
+            updated_at: new Date().toISOString()
+          };
+          if (systemId && String(systemId).trim()) {
+            payload.system_id = String(systemId).trim();
+          }
+
+          const conflictCols = payload.system_id ? 'profile_id,store_id,system_id' : 'profile_id,store_id,platform';
+          const { error } = await _supabase
+            .from('profile_store_credentials')
+            .upsert(payload, { onConflict: conflictCols });
+
+          if (error) { errors.push(`${autonomo} / ${sistema}: ${error.message}`); errs++; }
+          else ok++;
+        } catch(e) {
+          errors.push(`${autonomo}: ${e.message}`); errs++;
+        }
+      }
+
+      // Expira cache
+      if (window.__admExtras?.cred) window.__admExtras.cred.lastFetchAt = 0;
+
+      let msg = `✅ ${ok} credencial(is) importada(s) com sucesso.`;
+      if (errs) msg += `\n⚠️ ${errs} erro(s):\n${errors.slice(0,5).join('\n')}`;
+      alert(msg);
+
+      // Recarrega tela
+      if (typeof renderPendingCredentials === 'function') await renderPendingCredentials();
+
+    } catch(e) {
+      alert('Erro ao ler planilha: ' + e.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
 
 function applyCredFilters(){
   const rows = __admExtras.cred.rows || [];

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'voxyr-cache-v34';
+const CACHE_NAME = 'voxyr-cache-v35';
 const STATIC_ASSETS = [
   '/',
   '/index.html',  
