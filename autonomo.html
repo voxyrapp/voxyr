@@ -4230,7 +4230,7 @@ function openScreenFromUrl() {
             return st === 'check-in' || st === 'pausa';
         }
 
-        function openCredsModal(resId) {
+        async function openCredsModal(resId) {
             const r = (window.__reservationsById || {})[resId];
             if (!r || !_isCheckinActive(r)) {
                 alert('As credenciais só ficam disponíveis após o CHECK-IN estar ativo.');
@@ -4238,7 +4238,40 @@ function openScreenFromUrl() {
             }
 
             const p = window.__profile || {};
-            const creds = getCredsFromProfile(p);
+
+            // Busca credenciais da tabela nova com url do sistema
+            let creds = [];
+            try {
+                const slotId = r.slot_id || r.vacancy_id;
+                let storeId = r.store_id;
+                if (!storeId && slotId) {
+                    try {
+                        const { data: slotData } = await _supabase.from('slots').select('store_id').eq('id', slotId).maybeSingle();
+                        storeId = slotData?.store_id;
+                    } catch(e) {}
+                }
+                if (storeId && p.id) {
+                    const { data } = await _supabase
+                        .from('profile_store_credentials')
+                        .select('platform, username, password, url, store_systems(name, icon, url)')
+                        .eq('profile_id', p.id)
+                        .eq('store_id', storeId)
+                        .eq('is_active', true);
+                    if (data?.length) {
+                        creds = data.map(c => ({
+                            platform: c.store_systems?.name || c.platform || '',
+                            icon: c.store_systems?.icon || '',
+                            username: c.username || '',
+                            password: c.password || '',
+                            url: c.url || c.store_systems?.url || ''
+                        }));
+                    }
+                }
+            } catch(e) {}
+
+            // Fallback para credenciais legadas do profile
+            if (!creds.length) creds = getCredsFromProfile(p);
+
             if (!creds.length) {
                 alert('Nenhuma credencial cadastrada para este usuário.');
                 return;
@@ -4248,33 +4281,37 @@ function openScreenFromUrl() {
             const escape = (s) => String(s ?? '').replace(/[&<>"']/g, (m) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
             body.innerHTML = creds.map((c, i) => {
                 const hasLink = (c.url || '').trim();
-                const linkBtn = hasLink ? `<a href="${escape(c.url)}" target="_blank" rel="noopener" class="px-3 py-2 rounded-xl bg-blue-600 text-white font-black text-[10px] uppercase">Abrir plataforma</a>` : '';
+                const linkBtn = hasLink
+                    ? `<a href="${escape(c.url)}" target="_blank" rel="noopener"
+                        style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:12px;background:#2563eb;color:#fff;font-size:11px;font-weight:900;text-transform:uppercase;text-decoration:none;">
+                        🔗 Acessar sistema
+                       </a>`
+                    : '';
                 const u = escape(c.username || '—');
-                const p = escape(c.password || '—');
+                const pw = escape(c.password || '—');
                 const plat = escape(c.platform || `Plataforma ${i+1}`);
+                const icon = escape(c.icon || '');
 
                 return `
                     <div class="p-4 rounded-2xl border bg-slate-50">
                         <div class="flex items-start justify-between gap-3">
                             <div>
                                 <p class="text-[10px] font-black text-slate-400 uppercase">Plataforma</p>
-                                <h4 class="text-lg font-black text-slate-900 uppercase leading-tight">${plat}</h4>
+                                <h4 class="text-lg font-black text-slate-900 uppercase leading-tight">${icon} ${plat}</h4>
                             </div>
                             ${linkBtn}
                         </div>
-
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
                             <div class="p-3 rounded-xl bg-white border">
                                 <p class="text-[10px] font-black text-slate-400 uppercase mb-1">Usuário</p>
                                 <p class="font-mono text-sm font-black text-slate-800 break-all">${u}</p>
                             </div>
-
                             <div class="p-3 rounded-xl bg-white border">
                                 <div class="flex items-center justify-between">
                                     <p class="text-[10px] font-black text-slate-400 uppercase mb-1">Senha</p>
                                     <button class="text-[10px] font-black uppercase text-slate-500" onclick="toggleCredPass(this)">Mostrar</button>
                                 </div>
-                                <p class="font-mono text-sm font-black text-slate-800 break-all" data-pass="${p}">••••••••</p>
+                                <p class="font-mono text-sm font-black text-slate-800 break-all" data-pass="${pw}">••••••••</p>
                             </div>
                         </div>
                     </div>

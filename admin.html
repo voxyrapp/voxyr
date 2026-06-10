@@ -218,12 +218,12 @@ nav::-webkit-scrollbar-thumb:hover {
         </header>
 
         <div class="px-8 py-6 flex gap-3 overflow-x-auto shrink-0">
+            <button onclick="renderMarketTab('sistemas')" class="subtab-btn">⚙️ Sistemas</button>
+            <button onclick="renderMarketTab('bandeiras')" class="subtab-btn">🏷️ Bandeiras</button>
             <button onclick="renderMarketTab('stores')" class="subtab-btn active">🏪 Mercados</button>
             <button onclick="renderMarketTab('shifts')" class="subtab-btn">⏰ Turnos</button>
             <button onclick="renderMarketTab('slots')" class="subtab-btn">📅 Vagas (CSV)</button>
-            <button onclick="renderMarketTab('bookings')" class="subtab-btn">📝 Reservas</button>
-            <button onclick="renderMarketTab('bandeiras')" class="subtab-btn">🏷️ Bandeiras</button>
-            <button onclick="renderMarketTab('sistemas')" class="subtab-btn">⚙️ Sistemas</button>
+            <button onclick="renderMarketTab('bookings')" class="subtab-btn">📝 Reservas</button>  
         </div>
 
         <div id="market-display" class="flex-1 overflow-y-auto px-8 pb-8"></div>
@@ -3248,10 +3248,10 @@ if (tab === 'profiles') {
 // Esta função garante que a gestão de mercados funcione sem depender do HTML antigo.
 async function renderMarketTab(tab) {
   const btns = Array.from(document.querySelectorAll('#mod-markets .subtab-btn'));
-  btns.forEach(b => b.classList.remove('active'));
-
-  const idx = tab === 'stores' ? 0 : tab === 'shifts' ? 1 : tab === 'slots' ? 2 : tab === 'bookings' ? 3 : tab === 'bandeiras' ? 4 : 5;
-  if (btns[idx]) btns[idx].classList.add('active');
+  btns.forEach(b => {
+    b.classList.remove('active');
+    if (b.getAttribute('onclick')?.includes(`'${tab}'`)) b.classList.add('active');
+  });
 
   const container = document.getElementById('market-display');
   if (!container) return;
@@ -10939,7 +10939,360 @@ async function renderConfiguracoes() {
       </div>
     </div>
   `;
+
+  // Renderiza seção de alertas
+  renderAlertSettings(container);
 }
+
+// ── CONFIGURAÇÕES DE ALERTAS ──────────────────────────────────
+const ALERT_DEFAULTS = {
+  credenciais: { enabled: true,  interval: 5,  sound: true,  onOpen: true  },
+  atrasos:     { enabled: true,  interval: 0,  sound: true,  onOpen: true  },
+  suporte:     { enabled: true,  interval: 10, sound: false, onOpen: true  },
+  pendentes:   { enabled: true,  interval: 0,  sound: false, onOpen: true  },
+  financeiro:  { enabled: false, interval: 0,  sound: false, onOpen: true  },
+};
+
+const ALERT_META = {
+  credenciais: { label: '🔐 Credenciais pendentes',       desc: 'Autônomos com reserva hoje sem acesso cadastrado' },
+  atrasos:     { label: '⏰ Atrasos aguardando aprovação', desc: 'Solicitações de atraso sem resposta' },
+  suporte:     { label: '🎧 Chamados de suporte abertos', desc: 'Tickets sem resposta' },
+  pendentes:   { label: '👥 Cadastros em análise',        desc: 'Perfis aguardando aprovação' },
+  financeiro:  { label: '💸 Pagamentos pendentes',        desc: 'Valores ainda não confirmados' },
+};
+
+function getAlertSettings() {
+  try {
+    const saved = JSON.parse(localStorage.getItem('voxyr_alert_settings') || '{}');
+    const result = {};
+    Object.keys(ALERT_DEFAULTS).forEach(k => {
+      result[k] = { ...ALERT_DEFAULTS[k], ...(saved[k] || {}) };
+    });
+    return result;
+  } catch(e) { return { ...ALERT_DEFAULTS }; }
+}
+
+function saveAlertSettings(settings) {
+  localStorage.setItem('voxyr_alert_settings', JSON.stringify(settings));
+}
+
+function renderAlertSettings(container) {
+  const settings = getAlertSettings();
+  const existing = container.querySelector('#alerts-config-section');
+  if (existing) existing.remove();
+
+  const section = document.createElement('div');
+  section.id = 'alerts-config-section';
+  section.style.cssText = 'max-width:512px;margin-top:24px;';
+  section.innerHTML = `
+    <div style="background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:24px;box-shadow:0 1px 8px rgba(0,0,0,.06);">
+      <h3 style="font-size:14px;font-weight:900;text-transform:uppercase;color:#1e293b;margin-bottom:4px;">🔔 Alertas & Notificações</h3>
+      <p style="font-size:12px;color:#64748b;margin-bottom:20px;">Configure quais alertas aparecem, com que frequência e se tocam som.</p>
+      <div id="alert-rows" style="display:flex;flex-direction:column;gap:12px;"></div>
+      <div style="margin-top:16px;padding-top:16px;border-top:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between;">
+        <button onclick="testAlertSound()" style="padding:8px 14px;font-size:12px;font-weight:700;border:1px solid #e2e8f0;border-radius:8px;background:#fff;cursor:pointer;">🔊 Testar som</button>
+        <button onclick="saveAlertSettingsUI()" style="padding:8px 16px;font-size:12px;font-weight:700;background:#059669;color:#fff;border:none;border-radius:8px;cursor:pointer;">Salvar configurações</button>
+      </div>
+      <div id="alert-save-status" style="display:none;margin-top:8px;font-size:12px;font-weight:600;text-align:center;color:#059669;"></div>
+    </div>
+  `;
+
+  container.appendChild(section);
+
+  const rows = section.querySelector('#alert-rows');
+  Object.keys(ALERT_META).forEach(key => {
+    const s = settings[key];
+    const m = ALERT_META[key];
+    const row = document.createElement('div');
+    row.style.cssText = 'border:1px solid #e2e8f0;border-radius:12px;padding:16px;';
+    row.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+        <div>
+          <div style="font-size:13px;font-weight:700;color:#1e293b;">${m.label}</div>
+          <div style="font-size:11px;color:#64748b;">${m.desc}</div>
+        </div>
+        <label style="position:relative;display:inline-flex;align-items:center;cursor:pointer;">
+          <input type="checkbox" class="alert-enabled" data-key="${key}" ${s.enabled?'checked':''} style="opacity:0;width:0;height:0;position:absolute;">
+          <div class="alert-toggle-track" id="track-${key}" style="width:44px;height:24px;border-radius:99px;background:${s.enabled?'#059669':'#cbd5e1'};position:relative;transition:background .2s;cursor:pointer;">
+            <div style="position:absolute;top:2px;left:${s.enabled?'22px':'2px'};width:20px;height:20px;border-radius:50%;background:#fff;transition:left .2s;" id="thumb-${key}"></div>
+          </div>
+        </label>
+      </div>
+      <div id="alert-opts-${key}" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;${s.enabled?'':'opacity:0.4;pointer-events:none;'}">
+        <div>
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#94a3b8;margin-bottom:4px;">Intervalo</div>
+          <select class="alert-interval" data-key="${key}" style="width:100%;border:1px solid #e2e8f0;border-radius:8px;padding:6px 8px;font-size:12px;">
+            <option value="0" ${s.interval===0?'selected':''}>Só ao abrir</option>
+            <option value="5" ${s.interval===5?'selected':''}>5 min</option>
+            <option value="10" ${s.interval===10?'selected':''}>10 min</option>
+            <option value="15" ${s.interval===15?'selected':''}>15 min</option>
+            <option value="30" ${s.interval===30?'selected':''}>30 min</option>
+          </select>
+        </div>
+        <div style="display:flex;align-items:flex-end;padding-bottom:2px;">
+          <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;">
+            <input type="checkbox" class="alert-sound" data-key="${key}" ${s.sound?'checked':''}>
+            <span style="color:#374151;">🔊 Som</span>
+          </label>
+        </div>
+        <div style="display:flex;align-items:flex-end;padding-bottom:2px;">
+          <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;">
+            <input type="checkbox" class="alert-onopen" data-key="${key}" ${s.onOpen?'checked':''}>
+            <span style="color:#374151;">Ao abrir</span>
+          </label>
+        </div>
+      </div>
+    `;
+    rows.appendChild(row);
+
+    // Clique no track ativa o toggle
+    const track = section.querySelector('#track-' + key);
+    if (track) {
+      track.addEventListener('click', function() {
+        const s = getAlertSettings();
+        s[key].enabled = !s[key].enabled;
+        saveAlertSettings(s);
+        renderAlertSettings(container);
+      });
+    }
+  });
+
+  // Salvar
+  section.querySelector('button[onclick="saveAlertSettingsUI()"]')?.removeAttribute('onclick');
+  section.querySelector('button:last-of-type')?.addEventListener('click', function() {
+    const settings = {};
+    section.querySelectorAll('.alert-enabled').forEach(el => {
+      const k = el.dataset.key;
+      settings[k] = {
+        enabled:  el.checked,
+        interval: parseInt(section.querySelector(`.alert-interval[data-key="${k}"]`)?.value || '0'),
+        sound:    section.querySelector(`.alert-sound[data-key="${k}"]`)?.checked || false,
+        onOpen:   section.querySelector(`.alert-onopen[data-key="${k}"]`)?.checked || false,
+      };
+    });
+    saveAlertSettings(settings);
+    const st = section.querySelector('#alert-save-status');
+    if (st) { st.style.display = 'block'; st.textContent = '✓ Configurações salvas!'; setTimeout(() => st.style.display = 'none', 3000); }
+    startAlertPolling();
+  });
+}
+
+window.saveAlertSettingsUI = function() {
+  const settings = {};
+  document.querySelectorAll('.alert-enabled').forEach(el => {
+    const key = el.dataset.key;
+    settings[key] = {
+      enabled:  el.checked,
+      interval: parseInt(document.querySelector(`.alert-interval[data-key="${key}"]`)?.value || '0'),
+      sound:    document.querySelector(`.alert-sound[data-key="${key}"]`)?.checked || false,
+      onOpen:   document.querySelector(`.alert-onopen[data-key="${key}"]`)?.checked || false,
+    };
+  });
+  saveAlertSettings(settings);
+  const st = document.getElementById('alert-save-status');
+  if (st) { st.classList.remove('hidden'); st.textContent = '✓ Configurações de alertas salvas!'; setTimeout(() => st.classList.add('hidden'), 3000); }
+  // Reinicia polling com novas configurações
+  startAlertPolling();
+};
+
+// ── SISTEMA DE ALERTAS ─────────────────────────────────────────
+let _alertIntervals = {};
+let _alertLastCounts = {};
+
+async function checkAlerts(keys) {
+  const settings = getAlertSettings();
+  const toCheck = keys || Object.keys(ALERT_META).filter(k => settings[k]?.enabled);
+  const results = {};
+
+  try {
+    // 1. Credenciais pendentes hoje
+    if (toCheck.includes('credenciais')) {
+      const today = new Date().toISOString().slice(0,10);
+      const { data: slots } = await _supabase.from('slots').select('id,store_id').eq('date', today);
+      const slotIds = (slots||[]).map(s=>s.id);
+      let missing = 0;
+      if (slotIds.length) {
+        const { data: reservations } = await _supabase.from('reservations').select('profile_id,slot_id,vacancy_id').in('slot_id', slotIds).in('status', ['confirmada','check-in','pausa']);
+        const storeIds = [...new Set((slots||[]).map(s=>s.store_id))];
+        const { data: scs } = await _supabase.from('store_chain_systems').select('store_id,system_id').in('store_id', storeIds);
+        const profileIds = [...new Set((reservations||[]).map(r=>r.profile_id))];
+        const { data: creds } = profileIds.length ? await _supabase.from('profile_store_credentials').select('profile_id,store_id,system_id').in('profile_id', profileIds) : { data: [] };
+        const credSet = new Set((creds||[]).map(c=>`${c.profile_id}|${c.store_id}|${c.system_id}`));
+        (reservations||[]).forEach(r => {
+          const slot = (slots||[]).find(s=>s.id===(r.slot_id||r.vacancy_id));
+          if (!slot) return;
+          const systems = (scs||[]).filter(s=>s.store_id===slot.store_id);
+          const hasMissing = systems.some(s => !credSet.has(`${r.profile_id}|${slot.store_id}|${s.system_id}`));
+          if (hasMissing) missing++;
+        });
+      }
+      results.credenciais = missing;
+    }
+
+    // 2. Atrasos pendentes
+    if (toCheck.includes('atrasos')) {
+      const { count } = await _supabase.from('reservations').select('id', { count: 'exact', head: true }).eq('delay_status', 'pendente');
+      results.atrasos = count || 0;
+    }
+
+    // 3. Suporte abertos
+    if (toCheck.includes('suporte')) {
+      const { count } = await _supabase.from('support_tickets').select('id', { count: 'exact', head: true }).eq('status', 'open');
+      results.suporte = count || 0;
+    }
+
+    // 4. Cadastros pendentes
+    if (toCheck.includes('pendentes')) {
+      const { count } = await _supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('status', 'pendente');
+      results.pendentes = count || 0;
+    }
+
+    // 5. Financeiro pendente
+    if (toCheck.includes('financeiro')) {
+      const { count } = await _supabase.from('reservations').select('id', { count: 'exact', head: true }).eq('status', 'check-out').is('paid_at', null);
+      results.financeiro = count || 0;
+    }
+  } catch(e) { console.warn('[ALERTS] check error:', e.message); }
+
+  return results;
+}
+
+function updateBadges(counts) {
+  const map = {
+    credenciais: 'nav-credenciais',
+    atrasos:     'nav-atrasos',
+    suporte:     'nav-suporte',
+    pendentes:   'nav-profiles',
+    financeiro:  'nav-finance',
+  };
+
+  Object.entries(counts).forEach(([key, count]) => {
+    const navId = map[key];
+    if (!navId) return;
+    const btn = document.getElementById(navId);
+    if (!btn) return;
+
+    let badge = btn.querySelector('.alert-badge');
+    if (count > 0) {
+      if (!badge) {
+        badge = document.createElement('span');
+        badge.className = 'alert-badge';
+        badge.style.cssText = 'display:inline-flex;align-items:center;justify-content:center;background:#ef4444;color:#fff;font-size:10px;font-weight:900;border-radius:99px;min-width:18px;height:18px;padding:0 4px;margin-left:auto;';
+        btn.style.display = 'flex';
+        btn.style.alignItems = 'center';
+        btn.appendChild(badge);
+      }
+      badge.textContent = count > 99 ? '99+' : count;
+    } else if (badge) {
+      badge.remove();
+    }
+  });
+}
+
+function showAlertToasts(counts, settings) {
+  const alerts = Object.entries(counts).filter(([k, v]) => v > 0 && settings[k]?.enabled);
+  if (!alerts.length) return;
+
+  let hasSound = alerts.some(([k]) => settings[k]?.sound);
+  if (hasSound) playAlertSound();
+
+  alerts.forEach(([key, count], idx) => {
+    setTimeout(() => {
+      const m = ALERT_META[key];
+      showToast(`${m.label}: ${count} pendente${count>1?'s':''}`, key);
+    }, idx * 400);
+  });
+}
+
+function showToast(msg, key) {
+  const colors = {
+    credenciais: '#ef4444', atrasos: '#f59e0b',
+    suporte: '#3b82f6', pendentes: '#8b5cf6', financeiro: '#10b981'
+  };
+  const color = colors[key] || '#0d9488';
+
+  const toast = document.createElement('div');
+  toast.style.cssText = `
+    position:fixed; bottom:${20 + document.querySelectorAll('.voxyr-toast').length * 64}px; right:20px;
+    background:#fff; border-left:4px solid ${color}; border-radius:12px;
+    box-shadow:0 4px 20px rgba(0,0,0,.15); padding:12px 16px;
+    font-size:13px; font-weight:600; color:#0f172a;
+    display:flex; align-items:center; gap:10px;
+    z-index:9999; max-width:320px; cursor:pointer;
+    animation: slideIn .3s ease;
+  `;
+  toast.className = 'voxyr-toast';
+  toast.innerHTML = `<span>${msg}</span><span style="margin-left:auto;color:#94a3b8;font-size:16px;">✕</span>`;
+  toast.onclick = () => toast.remove();
+  document.body.appendChild(toast);
+
+  const style = document.getElementById('toast-style');
+  if (!style) {
+    const s = document.createElement('style');
+    s.id = 'toast-style';
+    s.textContent = '@keyframes slideIn{from{transform:translateX(120%);opacity:0}to{transform:translateX(0);opacity:1}}';
+    document.head.appendChild(s);
+  }
+
+  setTimeout(() => { if (toast.parentNode) { toast.style.opacity='0'; toast.style.transition='opacity .3s'; setTimeout(()=>toast.remove(),300); } }, 6000);
+}
+
+function playAlertSound() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    [0, 150, 300].forEach((delay, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.frequency.value = [880, 1100, 880][i];
+      osc.type = 'sine';
+      gain.gain.setValueAtTime(0, ctx.currentTime + delay/1000);
+      gain.gain.linearRampToValueAtTime(0.3, ctx.currentTime + delay/1000 + 0.05);
+      gain.gain.linearRampToValueAtTime(0, ctx.currentTime + delay/1000 + 0.2);
+      osc.start(ctx.currentTime + delay/1000);
+      osc.stop(ctx.currentTime + delay/1000 + 0.25);
+    });
+  } catch(e) {}
+}
+
+window.testAlertSound = function() { playAlertSound(); };
+
+async function runAlertCheck(keys, showToasts) {
+  const settings = getAlertSettings();
+  const counts = await checkAlerts(keys);
+  updateBadges(counts);
+  _alertLastCounts = { ..._alertLastCounts, ...counts };
+  if (showToasts) showAlertToasts(counts, settings);
+}
+
+function startAlertPolling() {
+  // Para intervalos anteriores
+  Object.values(_alertIntervals).forEach(id => clearInterval(id));
+  _alertIntervals = {};
+
+  const settings = getAlertSettings();
+
+  // Verifica ao abrir
+  const onOpenKeys = Object.keys(settings).filter(k => settings[k]?.enabled && settings[k]?.onOpen);
+  if (onOpenKeys.length) runAlertCheck(onOpenKeys, true);
+
+  // Configura polling por intervalo
+  const byInterval = {};
+  Object.entries(settings).forEach(([key, s]) => {
+    if (!s.enabled || !s.interval) return;
+    if (!byInterval[s.interval]) byInterval[s.interval] = [];
+    byInterval[s.interval].push(key);
+  });
+
+  Object.entries(byInterval).forEach(([mins, keys]) => {
+    _alertIntervals[mins] = setInterval(() => runAlertCheck(keys, true), parseInt(mins) * 60000);
+  });
+}
+
+// Inicia quando o painel carrega
+document.addEventListener('DOMContentLoaded', () => { setTimeout(startAlertPolling, 2000); });
+
+// ── FIM SISTEMA DE ALERTAS ─────────────────────────────────────
 
 async function saveJobFunctionSettings() {
   const separador = document.getElementById('cfg-separador')?.checked || false;
