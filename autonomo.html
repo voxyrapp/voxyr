@@ -1251,7 +1251,7 @@ if (r.status === 'confirmada') {
                     Pausar Missão
                 </button>
                 <button onclick="openCredsModal('${r.id}')" class="btn-action bg-emerald-100 text-emerald-700 mb-2 font-black">VER CREDENCIAIS</button>
-                <button onclick="fluxo('${r.id}', 'check-out')" class="btn-action bg-slate-900 text-white font-black italic">
+                <button onclick="confirmarCheckout('${r.id}')" class="btn-action bg-slate-900 text-white font-black italic">
                     Finalizar missão
                 </button>`;
                 
@@ -2219,6 +2219,34 @@ function calcularTempo(inicio) {
             } catch(e) {
                 alert('Erro ao salvar: ' + (e.message || e));
             }
+        }
+
+        function confirmarCheckout(rid) {
+            const modal = document.createElement('div');
+            modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;display:flex;align-items:flex-end;justify-content:center;padding:0;';
+            modal.innerHTML = `
+                <div style="background:#fff;width:100%;max-width:480px;border-radius:24px 24px 0 0;padding:28px 24px 40px;box-shadow:0 -4px 32px rgba(0,0,0,.15);">
+                    <div style="text-align:center;margin-bottom:16px;">
+                        <span style="font-size:36px;">🏁</span>
+                    </div>
+                    <h3 style="font-size:18px;font-weight:900;color:#0f172a;text-align:center;margin:0 0 8px;">Finalizar missão?</h3>
+                    <p style="font-size:14px;color:#64748b;text-align:center;margin:0 0 24px;line-height:1.5;">
+                        Tem certeza que deseja fazer o check-out agora?<br>Esta ação não pode ser desfeita.
+                    </p>
+                    <div style="display:flex;gap:12px;">
+                        <button id="btn-cancel-checkout" style="flex:1;padding:14px;border-radius:14px;border:1.5px solid #e2e8f0;background:#fff;font-size:14px;font-weight:700;color:#475569;cursor:pointer;">
+                            Cancelar
+                        </button>
+                        <button id="btn-confirm-checkout" style="flex:1;padding:14px;border-radius:14px;border:none;background:#0f172a;color:#fff;font-size:14px;font-weight:900;cursor:pointer;">
+                            Sim, finalizar
+                        </button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            modal.querySelector('#btn-cancel-checkout').addEventListener('click', () => modal.remove());
+            modal.querySelector('#btn-confirm-checkout').addEventListener('click', () => { modal.remove(); fluxo(rid, 'check-out'); });
+            modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
         }
 
         async function aceitarVaga(sid, qtd) {
