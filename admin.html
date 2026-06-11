@@ -132,7 +132,10 @@ nav::-webkit-scrollbar-thumb:hover {
 </head>
 <body class="h-screen flex overflow-hidden">
 
-    <aside class="w-64 bg-gray-900 text-white flex flex-col shrink-0 overflow-hidden">
+    <!-- Overlay mobile -->
+    <div id="sidebar-overlay" class="fixed inset-0 bg-black/50 z-40 hidden lg:hidden" onclick="toggleSidebar()"></div>
+
+    <aside id="sidebar" class="fixed lg:relative z-50 lg:z-auto w-64 h-full bg-gray-900 text-white flex flex-col shrink-0 overflow-hidden -translate-x-full lg:translate-x-0 transition-transform duration-300">
         <div class="p-6 text-xl font-bold border-b border-gray-800 text-emerald-400 shrink-0">Voxyr</div>
         <nav class="flex-1 p-4 space-y-2 overflow-y-auto">
     <button onclick="switchTab('profiles')" id="nav-profiles" class="w-full text-left px-4 py-3 rounded bg-gray-800 text-emerald-400 border-l-4 border-emerald-400 font-bold">👥 Autônomos</button>
@@ -164,11 +167,11 @@ nav::-webkit-scrollbar-thumb:hover {
     <main class="flex-1 flex flex-col overflow-hidden">
     <div id="mod-profiles" class="module-container active">
         <div id="autonomos-section" class="flex flex-col flex-1 overflow-hidden">
-        <header class="h-16 bg-white border-b flex items-center px-8 justify-between shrink-0">
-            <h2 class="text-xl font-semibold text-gray-800">Análise de Perfis</h2>
+        <header class="h-16 bg-white border-b flex items-center px-4 lg:px-8 justify-between shrink-0">
+            <div class="flex items-center gap-3"><button onclick="toggleSidebar()" class="lg:hidden p-2 rounded-lg bg-gray-100 text-gray-700 font-black">☰</button><h2 class="text-xl font-semibold text-gray-800">Análise de Perfis</h2></div>
         </header>
 
-        <div class="bg-white border-b px-8 py-3 flex items-center justify-between">
+        <div class="bg-white border-b px-4 lg:px-8 py-3 flex items-center justify-between">
             <!-- Campos isca para enganar o autofill do Chrome -->
             <input type="text" style="position:absolute;opacity:0;height:0;width:0;pointer-events:none;" tabindex="-1" aria-hidden="true">
             <input type="email" style="position:absolute;opacity:0;height:0;width:0;pointer-events:none;" tabindex="-1" aria-hidden="true">
@@ -200,7 +203,7 @@ nav::-webkit-scrollbar-thumb:hover {
             <button onclick="setStatusTab('bloqueado')" id="tab-bloqueado" class="status-tab pb-4 px-2 uppercase font-bold">Bloqueados</button>
         </div>
 
-        <section id="profiles-list-section" class="flex-1 overflow-y-auto p-8">
+        <section id="profiles-list-section" class="flex-1 overflow-y-auto p-4 lg:p-8">
             <div id="list-container" class="grid grid-cols-1 gap-3"></div>
         </section>
 
@@ -213,11 +216,11 @@ nav::-webkit-scrollbar-thumb:hover {
     </div>
 
     <div id="mod-markets" class="module-container bg-gray-50">
-        <header class="h-16 bg-white border-b flex items-center px-8 shrink-0">
+        <header class="h-16 bg-white border-b flex items-center px-4 lg:px-8 shrink-0">
             <h2 class="text-xl font-semibold text-gray-800">Gestão Operacional</h2>
         </header>
 
-        <div class="px-8 py-6 flex gap-3 overflow-x-auto shrink-0">
+        <div class="px-4 lg:px-8 py-4 lg:py-6 flex gap-3 overflow-x-auto shrink-0">
             <button onclick="renderMarketTab('stores')" class="subtab-btn active">🏪 Mercados</button>
             <button onclick="renderMarketTab('shifts')" class="subtab-btn">⏰ Turnos</button>
             <button onclick="renderMarketTab('slots')" class="subtab-btn">📅 Vagas (CSV)</button>
@@ -226,11 +229,11 @@ nav::-webkit-scrollbar-thumb:hover {
             <button onclick="renderMarketTab('sistemas')" class="subtab-btn">⚙️ Sistemas</button>
         </div>
 
-        <div id="market-display" class="flex-1 overflow-y-auto px-8 pb-8"></div>
+        <div id="market-display" class="flex-1 overflow-y-auto px-4 lg:px-8 pb-8"></div>
     </div>
 
     <div id="mod-metrics" class="module-container bg-white">
-        <header class="h-16 border-b flex items-center px-8 justify-between shrink-0">
+        <header class="h-16 border-b flex items-center px-4 lg:px-8 justify-between shrink-0">
             <h2 class="text-xl font-semibold text-gray-800">Dashboard de Performance</h2>
         </header>
         <div class="bg-gray-50 border-b px-8 py-3 flex items-center gap-3 flex-wrap shrink-0">
@@ -261,7 +264,7 @@ nav::-webkit-scrollbar-thumb:hover {
 
 
     <div id="mod-managers" class="module-container bg-white">
-        <header class="h-16 border-b flex items-center px-8 justify-between shrink-0">
+        <header class="h-16 border-b flex items-center px-4 lg:px-8 justify-between shrink-0">
             <div>
                 <h2 class="text-xl font-semibold text-gray-800">Gestão de Gerentes</h2>
                 <p class="text-xs text-gray-500">Crie acessos, defina senha, selecione lojas e permissões</p>
@@ -271,7 +274,7 @@ nav::-webkit-scrollbar-thumb:hover {
     </div>
 
     <div id="mod-credenciais" class="module-container bg-white">
-        <header class="h-16 border-b flex items-center px-8 justify-between shrink-0">
+        <header class="h-16 border-b flex items-center px-4 lg:px-8 justify-between shrink-0">
             <div>
                 <h2 class="text-xl font-semibold text-gray-800">Reservas sem credenciais</h2>
             </div>
@@ -331,7 +334,7 @@ nav::-webkit-scrollbar-thumb:hover {
     </div>
 
     <div id="mod-pontuacao" class="module-container bg-white">
-        <header class="h-16 border-b flex items-center px-8 justify-between shrink-0">
+        <header class="h-16 border-b flex items-center px-4 lg:px-8 justify-between shrink-0">
             <div>
                 <h2 class="text-xl font-semibold text-gray-800">Pontuação dos autônomos</h2>
             </div>
@@ -354,7 +357,7 @@ nav::-webkit-scrollbar-thumb:hover {
 
     
     <div id="mod-subadmins" class="module-container bg-gray-50">
-        <header class="h-16 border-b bg-white flex items-center px-8 justify-between shrink-0">
+        <header class="h-16 border-b bg-white flex items-center px-4 lg:px-8 justify-between shrink-0">
             <div>
                 <h2 class="text-xl font-semibold text-gray-800">🔑 Sub-admins</h2>
                 <p class="text-xs text-gray-500">Gerencie acessos administrativos com permissões personalizadas</p>
@@ -365,7 +368,7 @@ nav::-webkit-scrollbar-thumb:hover {
     </div>
 
     <div id="mod-suporte" class="module-container bg-gray-50">
-        <header class="h-16 border-b bg-white flex items-center px-8 justify-between shrink-0">
+        <header class="h-16 border-b bg-white flex items-center px-4 lg:px-8 justify-between shrink-0">
             <div>
                 <h2 class="text-xl font-semibold text-gray-800">🎧 Suporte</h2>
                 <p class="text-xs text-gray-500">Chamados abertos pelos autônomos e gestão de FAQ</p>
@@ -376,7 +379,7 @@ nav::-webkit-scrollbar-thumb:hover {
     </div>
 
     <div id="mod-academia" class="module-container bg-gray-50">
-        <header class="h-16 border-b bg-white flex items-center px-8 justify-between shrink-0">
+        <header class="h-16 border-b bg-white flex items-center px-4 lg:px-8 justify-between shrink-0">
             <div>
                 <h2 class="text-xl font-semibold text-gray-800">🎓 Academia Voxyr</h2>
                 <p class="text-xs text-gray-500">Gerencie as etapas de treinamento por função</p>
@@ -391,7 +394,7 @@ nav::-webkit-scrollbar-thumb:hover {
     </div>
 
     <div id="mod-configuracoes" class="module-container bg-white">
-        <header class="h-16 border-b flex items-center px-8 justify-between shrink-0">
+        <header class="h-16 border-b flex items-center px-4 lg:px-8 justify-between shrink-0">
             <div>
                 <h2 class="text-xl font-semibold text-gray-800">Configurações da Plataforma</h2>
                 <p class="text-xs text-gray-500">Controle quais funções aparecem para novos cadastros</p>
@@ -402,7 +405,7 @@ nav::-webkit-scrollbar-thumb:hover {
 
     <div id="mod-pedidos" class="module-container bg-gray-50">
   <header class="bg-white border-b shrink-0">
-    <div class="h-16 flex items-center px-8 justify-between">
+    <div class="h-16 flex items-center px-4 lg:px-8 justify-between">
       <div>
         <h2 class="text-xl font-semibold text-gray-800">Gestão Operacional</h2>
         <p id="adm-orders-subtitle" class="text-xs text-gray-500">ADM • todas as lojas</p>
@@ -415,7 +418,7 @@ nav::-webkit-scrollbar-thumb:hover {
       </div>
     </div>
 
-    <div class="px-8 pb-4">
+    <div class="px-4 lg:px-8 pb-4">
       <div class="bg-gray-50 border rounded-2xl p-4">
         <div class="flex flex-col lg:flex-row lg:items-end gap-4">
           <div class="lg:w-52">
@@ -465,11 +468,11 @@ nav::-webkit-scrollbar-thumb:hover {
   <button class="tab-btn subtab-btn" data-tab="pedidos">🧾 Pedidos</button>
 </div>
 
-<div id="view" class="flex-1 overflow-y-auto p-8"></div>
+<div id="view" class="flex-1 overflow-y-auto p-4 lg:p-8"></div>
 </div>
 
     <div id="mod-atrasos" class="module-container bg-white">
-    <header class="h-16 border-b flex items-center px-8 justify-between shrink-0">
+    <header class="h-16 border-b flex items-center px-4 lg:px-8 justify-between shrink-0">
         <div>
             <h2 class="text-xl font-semibold text-gray-800">Solicitações de atraso</h2>
             <p class="text-xs text-gray-500">Aprove ou recuse atrasos e defina o horário-limite sem perda</p>
@@ -481,7 +484,7 @@ nav::-webkit-scrollbar-thumb:hover {
 </div>
 
     <div id="mod-comunicados" class="module-container bg-white">
-      <header class="h-16 border-b flex items-center px-8 justify-between shrink-0">
+      <header class="h-16 border-b flex items-center px-4 lg:px-8 justify-between shrink-0">
         <div>
           <h2 class="text-xl font-semibold text-gray-800">Comunicados</h2>
           <p class="text-xs text-gray-500">Envie comunicados e acompanhe leituras e confirmações</p>
@@ -3187,6 +3190,19 @@ async function _showMetricsSummary() {
                 </div>`;
             }).join('') : '<div class="p-8 text-center text-gray-400">Nenhuma atividade registrada.</div>';
         }
+function toggleSidebar() {
+  const sidebar = document.getElementById("sidebar");
+  const overlay = document.getElementById("sidebar-overlay");
+  const isOpen = !sidebar.classList.contains("-translate-x-full");
+  if (isOpen) {
+    sidebar.classList.add("-translate-x-full");
+    overlay.classList.add("hidden");
+  } else {
+    sidebar.classList.remove("-translate-x-full");
+    overlay.classList.remove("hidden");
+  }
+}
+
 async function switchTab(tab) {
     const menuItems = ['profiles', 'markets', 'metrics', 'credenciais', 'pontuacao', 'pedidos', 'atrasos', 'managers', 'finance', 'comunicados', 'configuracoes', 'academia', 'suporte', 'subadmins'];
     menuItems.forEach(item => {
@@ -3200,6 +3216,11 @@ async function switchTab(tab) {
         }
     });
 
+    // Fecha sidebar no mobile ao trocar de aba
+    if (window.innerWidth < 1024) {
+      document.getElementById('sidebar')?.classList.add('-translate-x-full');
+      document.getElementById('sidebar-overlay')?.classList.add('hidden');
+    }
     document.querySelectorAll('.module-container').forEach(div => div.classList.remove('active'));
 
     if (tab === 'managers') {
