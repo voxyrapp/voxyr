@@ -1726,15 +1726,21 @@ if (curS === 'pausa' && nextS === 'check-in') {
 
 
     // Se estiveres a passar de "trabalho" para "pausa" ou "check-out", somamos o tempo
-    if (normStatus(currentRes.status) === 'check-in' && currentRes.started_at) {
-        const inicio = new Date(currentRes.started_at);
-        const segundosTrabalhados = Math.floor((agora - inicio) / 1000);
-        updateData.accumulated_seconds = acumuladoAtual + segundosTrabalhados;
+    if (normStatus(currentRes.status) === 'check-in') {
+        const ref = currentRes.checking_last_at || currentRes.started_at;
+        if (ref) {
+            const inicio = new Date(ref);
+            const segundosTrabalhados = Math.floor((agora - inicio) / 1000);
+            updateData.accumulated_seconds = acumuladoAtual + segundosTrabalhados;
+        }
     }
 
     // Se estiveres a iniciar/retomar o trabalho
 if (normStatus(status) === 'check-in') {
-    updateData.started_at = agora.toISOString();
+    updateData.checking_last_at = agora.toISOString(); // marca início do trecho atual
+    if (!currentRes.started_at) {
+        updateData.started_at = agora.toISOString();   // só no primeiro check-in
+    }
     
     // Regra de atraso (apenas no primeiro Check-in)
     if (!currentRes.started_at && horaEsperada && horaEsperada !== 'undefined') {
