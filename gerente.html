@@ -186,12 +186,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       } else {
         b.className = 'nav-btn w-full text-left px-4 py-3 rounded text-gray-400 hover:bg-gray-800 hover:text-white transition-colors font-bold border-l-4 border-transparent';
       }
-    }
+     })
     // Fecha sidebar no mobile ao trocar de aba
     if (window.innerWidth < 1024) {
       document.getElementById("sidebar")?.classList.add("-translate-x-full");
       document.getElementById("sidebar-overlay")?.classList.add("hidden");
-    });
+    }
   }
 
   function parseTime(dateISO, hhmm){
