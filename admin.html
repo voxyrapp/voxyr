@@ -209,14 +209,8 @@ nav::-webkit-scrollbar-thumb:hover {
 
 </div>
 
-<section id="finance-section" class="hidden flex-1 flex flex-col overflow-hidden">
-    <header class="h-16 border-b bg-white flex items-center px-4 lg:px-8 justify-between shrink-0">
-        <div class="flex items-center gap-3 min-w-0">
-            <button onclick="toggleSidebar()" class="lg:hidden p-2 rounded-lg bg-gray-100 text-gray-700 font-black shrink-0">☰</button>
-            <h2 class="text-xl font-semibold text-gray-800">💰 Financeiro</h2>
-        </div>
-    </header>
-    <div id="admin-finance-container" class="flex-1 overflow-y-auto p-4 lg:p-8"></div>
+<section id="finance-section" class="hidden flex-1 overflow-y-auto p-8">
+    <div id="admin-finance-container"></div>
 </section>
 
     </div>
@@ -364,10 +358,10 @@ nav::-webkit-scrollbar-thumb:hover {
     
     <div id="mod-subadmins" class="module-container bg-gray-50">
         <header class="h-16 border-b bg-white flex items-center px-4 lg:px-8 justify-between shrink-0">
-            <div class="flex items-center gap-3 min-w-0"><button onclick="toggleSidebar()" class="lg:hidden p-2 rounded-lg bg-gray-100 text-gray-700 font-black shrink-0">☰</button><div class="min-w-0">
+            <div class="flex items-center gap-3"><button onclick="toggleSidebar()" class="lg:hidden p-2 rounded-lg bg-gray-100 text-gray-700 font-black">☰</button><div>
                 <h2 class="text-xl font-semibold text-gray-800">🔑 Sub-admins</h2>
                 <p class="text-xs text-gray-500">Gerencie acessos administrativos com permissões personalizadas</p>
-            </div></div>
+            </div>
             <button onclick="openSubAdminModal()" class="bg-gray-900 text-white px-3 py-1.5 lg:px-5 lg:py-2 rounded-xl text-xs font-bold uppercase hover:bg-emerald-600 transition whitespace-nowrap">+ Novo Sub-admin</button>
         </header>
         <div id="subadmins-content" class="p-8 overflow-y-auto flex-1"></div>
@@ -375,21 +369,21 @@ nav::-webkit-scrollbar-thumb:hover {
 
     <div id="mod-suporte" class="module-container bg-gray-50">
         <header class="h-16 border-b bg-white flex items-center px-4 lg:px-8 justify-between shrink-0">
-            <div class="flex items-center gap-3 min-w-0"><button onclick="toggleSidebar()" class="lg:hidden p-2 rounded-lg bg-gray-100 text-gray-700 font-black shrink-0">☰</button><div class="min-w-0">
+            <div class="flex items-center gap-3"><button onclick="toggleSidebar()" class="lg:hidden p-2 rounded-lg bg-gray-100 text-gray-700 font-black">☰</button><div>
                 <h2 class="text-xl font-semibold text-gray-800">🎧 Suporte</h2>
                 <p class="text-xs text-gray-500">Chamados abertos pelos autônomos e gestão de FAQ</p>
-            </div></div>
+            </div>
             <button onclick="openFaqModal()" class="bg-gray-900 text-white px-3 py-1.5 lg:px-5 lg:py-2 rounded-xl text-xs font-bold uppercase hover:bg-emerald-600 transition whitespace-nowrap">+ Nova pergunta FAQ</button>
         </header>
         <div id="suporte-content" class="p-8 overflow-y-auto flex-1"></div>
     </div>
 
     <div id="mod-academia" class="module-container bg-gray-50">
-        <header class="min-h-[64px] h-auto border-b bg-white flex flex-wrap items-center px-4 lg:px-8 justify-between gap-2 py-2 shrink-0">
-            <div class="flex items-center gap-3 min-w-0"><button onclick="toggleSidebar()" class="lg:hidden p-2 rounded-lg bg-gray-100 text-gray-700 font-black shrink-0">☰</button><div class="min-w-0">
+        <header class="h-16 border-b bg-white flex items-center px-4 lg:px-8 justify-between shrink-0">
+            <div class="flex items-center gap-3"><button onclick="toggleSidebar()" class="lg:hidden p-2 rounded-lg bg-gray-100 text-gray-700 font-black">☰</button><div>
                 <h2 class="text-xl font-semibold text-gray-800">🎓 Academia Voxyr</h2>
                 <p class="text-xs text-gray-500">Gerencie as etapas de treinamento por função</p>
-            </div></div>
+            </div>
             <div class="flex gap-2">
                 <button onclick="renderAcademiaRelatorio()" class="border border-gray-300 text-gray-700 px-3 py-1.5 lg:px-5 lg:py-2 rounded-xl text-xs font-bold uppercase hover:bg-gray-100 transition whitespace-nowrap">📊 Relatório</button>
                 <button onclick="renderAcademia()" class="border border-gray-300 text-gray-700 px-3 py-1.5 lg:px-5 lg:py-2 rounded-xl text-xs font-bold uppercase hover:bg-gray-100 transition whitespace-nowrap">📋 Etapas</button>
@@ -667,7 +661,7 @@ nav::-webkit-scrollbar-thumb:hover {
 
             <div id="modal-body" class="p-8 overflow-y-auto flex-1 bg-white"></div>
 
-            <div class="p-4 border-t bg-gray-100 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 shrink-0">
+            <div class="p-6 border-t bg-gray-100 flex justify-between items-center shrink-0">
                 <div class="flex gap-2">
                     <button onclick="openDecisionModal('bloqueado')" class="bg-red-600 text-white px-6 py-2 rounded-lg font-bold uppercase text-xs">Bloquear</button>
                     <button onclick="openDecisionModal('reprovado')" class="bg-orange-500 text-white px-6 py-2 rounded-lg font-bold uppercase text-xs">Reprovar Etapa</button>
@@ -1199,6 +1193,10 @@ const isPaid = (r) => {
 
   // UI
   container.innerHTML = `
+    <div class="h-14 flex items-center px-2 gap-3 mb-2">
+      <button onclick="toggleSidebar()" class="lg:hidden p-2 rounded-lg bg-gray-100 text-gray-700 font-black">☰</button>
+      <h2 class="text-xl font-semibold text-gray-800">💰 Financeiro</h2>
+    </div>
     <div class="flex flex-col gap-4">
       <div class="flex flex-col gap-3 p-4 bg-white rounded-xl border">
         <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Filtros</p>
@@ -7450,7 +7448,7 @@ function renderPointsTable(rows){
   const host = document.getElementById('points-results');
   if(!host) return;
   const thead = `
-    <div class="hidden sm:grid grid-cols-12 bg-gray-100 text-xs font-bold text-gray-600 px-4 py-3">
+    <div class="grid grid-cols-12 bg-gray-100 text-xs font-bold text-gray-600 px-4 py-3 min-w-[600px]">
       <div class="col-span-4">Nome</div>
       <div class="col-span-3">E-mail</div>
       <div class="col-span-3">Loja</div>
@@ -7460,31 +7458,16 @@ function renderPointsTable(rows){
   const body = (rows||[]).map(r=>{
     const storeName = (__admExtras.stores.find(s=>s.id===r.store_id)?.name) || '';
     return `
-      <div class="border-t px-4 py-3">
-        <!-- Mobile: card -->
-        <div class="sm:hidden flex items-center justify-between gap-3">
-          <div class="min-w-0">
-            <p class="font-semibold text-gray-800 truncate text-sm">${escapeHtml(r.full_name||'')}</p>
-            <p class="text-xs text-gray-400 truncate">${escapeHtml(storeName)}</p>
-          </div>
-          <div class="flex items-center gap-2 shrink-0">
-            <input type="number" min="0" class="w-16 border rounded-lg px-2 py-1 text-sm text-center font-bold" value="${Number.isFinite(r.points)?r.points:0}"
-                   oninput="__admExtras.points.dirty.set('${r.id}', parseInt(this.value||'0',10))">
-            <button class="px-3 py-1 rounded-lg bg-gray-900 text-white text-xs font-bold" onclick="savePointsLine('${r.id}')">Salvar</button>
-          </div>
+      <div class="grid grid-cols-12 items-center px-4 py-3 border-t min-w-[600px]">
+        <div class="col-span-4 font-semibold text-gray-800 truncate">${escapeHtml(r.full_name||'')}</div>
+        <div class="col-span-3 text-sm text-gray-600 truncate">${escapeHtml(r.email||'')}</div>
+        <div class="col-span-3 text-sm text-gray-600 truncate">${escapeHtml(storeName)}</div>
+        <div class="col-span-1 flex justify-center">
+          <input type="number" min="0" class="w-20 border rounded-lg px-2 py-1 text-sm text-center" value="${Number.isFinite(r.points)?r.points:0}"
+                 oninput="__admExtras.points.dirty.set('${r.id}', parseInt(this.value||'0',10))">
         </div>
-        <!-- Desktop: grid -->
-        <div class="hidden sm:grid grid-cols-12 items-center">
-          <div class="col-span-4 font-semibold text-gray-800 truncate">${escapeHtml(r.full_name||'')}</div>
-          <div class="col-span-3 text-sm text-gray-600 truncate">${escapeHtml(r.email||'')}</div>
-          <div class="col-span-3 text-sm text-gray-600 truncate">${escapeHtml(storeName)}</div>
-          <div class="col-span-1 flex justify-center">
-            <input type="number" min="0" class="w-20 border rounded-lg px-2 py-1 text-sm text-center" value="${Number.isFinite(r.points)?r.points:0}"
-                   oninput="__admExtras.points.dirty.set('${r.id}', parseInt(this.value||'0',10))">
-          </div>
-          <div class="col-span-1 flex justify-end">
-            <button class="px-3 py-1 rounded-lg bg-gray-900 text-white text-xs font-bold" onclick="savePointsLine('${r.id}')">Salvar</button>
-          </div>
+        <div class="col-span-1 flex justify-end">
+          <button class="px-3 py-1 rounded-lg bg-gray-900 text-white text-xs font-bold" onclick="savePointsLine('${r.id}')">Salvar</button>
         </div>
       </div>
     `;
@@ -11511,7 +11494,7 @@ async function renderAcademia() {
       <p class="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-3">${fnLabel[fn] || fn}</p>
       <div class="space-y-2">
         ${fnSteps.map(step => `
-          <div class="bg-white rounded-2xl border border-gray-200 px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 hover:border-emerald-400 transition">
+          <div class="bg-white rounded-2xl border border-gray-200 px-5 py-4 flex items-center justify-between gap-4 hover:border-emerald-400 transition">
             <div class="flex items-center gap-4">
               <span class="w-7 h-7 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-xs font-black flex-shrink-0">${step.order_index}</span>
               <div>
@@ -11856,7 +11839,7 @@ async function renderAcademiaRelatorio() {
       </div>
 
       <!-- Cards resumo -->
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+      <div class="grid grid-cols-3 gap-4 mb-8">
         <div class="bg-white rounded-2xl border p-5 text-center">
           <p class="text-3xl font-black text-emerald-600">${finished.length}</p>
           <p class="text-xs font-bold text-gray-400 uppercase mt-1">Concluíram</p>
@@ -11949,8 +11932,8 @@ async function renderAcademiaRelatorio() {
           <span id="rel-count" class="text-xs text-gray-400 ml-auto">${rows.length} resultados</span>
         </div>
 
-        <div class="overflow-x-auto -mx-0">
-          <table class="w-full text-sm min-w-[600px]" id="rel-table">
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm" id="rel-table">
             <thead class="bg-gray-50 text-[10px] uppercase text-gray-500 font-black">
               <tr>
                 <th class="p-4 text-left">Autônomo</th>
@@ -11980,8 +11963,8 @@ async function renderAcademiaRelatorio() {
                   </td>
                   <td class="p-4">
                     ${r.allDone
-                      ? '<span class="px-2 py-1 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-700">✅ Concluído</span>'
-                      : '<span class="px-2 py-1 rounded-full text-[10px] font-black bg-amber-100 text-amber-700">⏳ Pendente</span>'}
+                      ? '<span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-black bg-emerald-100 text-emerald-700 whitespace-nowrap"><span>✅</span> Concluído</span>'
+                      : '<span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-black bg-amber-100 text-amber-700 whitespace-nowrap"><span>⏳</span> Pendente</span>'}
                   </td>
                   <td class="p-4 text-xs text-gray-500">${r.allDone ? fmt(r.lastDate) : '—'}</td>
                 </tr>`).join('')}
