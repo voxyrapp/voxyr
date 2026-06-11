@@ -1962,9 +1962,12 @@ document.getElementById('analysis-created').innerText = 'Cadastro em: ' + (creat
         }
 
         function _ensureCredDraft(u) {
-            window.__credsDraft = _normalizeCredsFromProfile(u || {});
-            const storeId = window.__credCurrentStoreId;
-            if (storeId) {
+    window.__credsDraft = _normalizeCredsFromProfile(u || {});
+    const storeId = window.__credCurrentStoreId
+        || document.getElementById('edit-store-id')?.value
+        || u?.store_id
+        || null;
+    if (storeId) {
                 // Carrega sistemas da loja E credenciais já salvas simultaneamente
                 Promise.all([
                     _supabase.from('store_chain_systems')
@@ -2278,10 +2281,12 @@ mensagem_corpo: 'Seus dados foram atualizados pelo administrador:\n\n' + changes
 
             // Grava também em profile_store_credentials para sincronizar com tela de pendentes
             try {
-              const storeId = window.__credCurrentStoreId || null;
-              const storeSystems = window.__credStoreSystems || [];
+  const storeId = window.__credCurrentStoreId
+      || document.getElementById('edit-store-id')?.value
+      || null;
+  const storeSystems = window.__credStoreSystems || [];
 
-              if (storeId) {
+  if (storeId) {
                 const activePlatforms = creds
                   .filter(c => c.platform && c.username)
                   .map(c => c.platform.toLowerCase());
@@ -6731,7 +6736,8 @@ async function renderPendingCredentials(){
       const { data: rData, error: rErr } = await _supabase
         .from('reservations')
         .select('id,profile_id,slot_id,status,expected_checkin,started_at,created_at')
-        .in('slot_id', chunk);
+        .in('slot_id', chunk)
+        .in('status', ['confirmada','check-in','pausa']);
       if(rErr) throw rErr;
       (rData||[]).forEach(r => reservations.push(r));
     }
@@ -9220,9 +9226,27 @@ function toggleAssignBox(resId, forceClose=false){
 async function admDoCheckin(reservationId){
   try{
     const nowIso = new Date().toISOString();
-    // tenta também salvar status
+
+    // Busca slot/turno para calcular expected_checkin com fuso correto (Brasília)
+    let expectedCheckin = null;
+    try {
+      const { data: res } = await _supabase
+        .from('reservations')
+        .select('slot_id, slots(date, shifts(start_time))')
+        .eq('id', reservationId)
+        .maybeSingle();
+      const date = res?.slots?.date;
+      const startTime = res?.slots?.shifts?.start_time;
+      if (date && startTime) {
+        expectedCheckin = makeBRDateTimeISO(date, startTime);
+      }
+    } catch(e2) { /* ignora erro secundário */ }
+
+    const payload = { status:'check-in', started_at: nowIso };
+    if (expectedCheckin) payload.expected_checkin = expectedCheckin;
+
     let { error } = await _supabase.from('reservations')
-      .update({ status:'check-in', started_at: nowIso })
+      .update(payload)
       .eq('id', reservationId);
     if(error) throw error;
     await renderAdminOrders();

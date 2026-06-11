@@ -25,7 +25,10 @@
     .subtab-btn.active { background:#10b981; color:white; border-color:#10b981; }
   </style>
 
-  <aside class="w-64 bg-gray-900 text-white flex flex-col shrink-0">
+  <!-- Overlay mobile -->
+  <div id="sidebar-overlay" class="fixed inset-0 bg-black/50 z-40 hidden lg:hidden" onclick="toggleSidebar()"></div>
+
+  <aside id="sidebar" class="fixed lg:relative z-50 lg:z-auto w-64 h-full bg-gray-900 text-white flex flex-col shrink-0 -translate-x-full lg:translate-x-0 transition-transform duration-300">
     <div class="p-6 text-xl font-bold border-b border-gray-800 text-emerald-400">Voxyr Tecnologia</div>
     <nav class="flex-1 p-4 space-y-2">
       <button class="nav-btn w-full text-left px-4 py-3 rounded bg-gray-800 text-emerald-400 border-l-4 border-emerald-400 font-bold" data-tab="reservas">📋 Reservas do dia</button>
@@ -40,17 +43,20 @@
   <main class="flex-1 flex flex-col overflow-hidden">
     <div class="module-container bg-gray-50">
       <header class="bg-white border-b shrink-0">
-        <div class="h-16 flex items-center px-8 justify-between">
-          <div>
+        <div class="h-16 flex items-center px-4 lg:px-8 justify-between gap-3">
+          <div class="flex items-center gap-3">
+            <button onclick="toggleSidebar()" class="lg:hidden p-2 rounded-lg bg-gray-100 text-gray-700 font-black">☰</button>
+            <div>
             <h2 class="text-xl font-semibold text-gray-800">Gestão Operacional</h2>
             <p id="mgr-subtitle" class="text-xs text-gray-500">Carregando...</p>
+            </div>
           </div>
           <div class="flex gap-2">
             <button id="btn-refresh" class="px-4 py-2 rounded-lg bg-gray-200 text-gray-800 text-sm font-bold hover:bg-gray-300">Atualizar</button>
           </div>
         </div>
 
-        <div class="px-8 pb-4">
+        <div class="px-4 lg:px-8 pb-4">
           <div class="bg-gray-50 border rounded-2xl p-4">
             <div class="flex flex-col lg:flex-row lg:items-end gap-4">
               <div class="flex-1 min-w-0">
@@ -87,7 +93,7 @@
         </div>
       </header>
 
-      <div class="px-8 py-6 flex gap-3 overflow-x-auto shrink-0 bg-white border-b">
+      <div class="px-4 lg:px-8 py-4 lg:py-6 flex gap-3 overflow-x-auto shrink-0 bg-white border-b">
         <button class="tab-btn subtab-btn active" data-tab="reservas">📋 Reservas do dia</button>
         <button class="tab-btn subtab-btn" data-tab="atribuir">📦 Atribuir pedidos</button>
         <button class="tab-btn subtab-btn" data-tab="pedidos">🧾 Pedidos</button>
@@ -95,7 +101,7 @@
         <button class="tab-btn subtab-btn" data-tab="caixas">💳 Caixas</button>
       </div>
 
-      <div id="view" class="flex-1 overflow-y-auto p-8"></div>
+      <div id="view" class="flex-1 overflow-y-auto p-4 lg:p-8"></div>
     </div>
   </main>
 
@@ -110,6 +116,19 @@
   </div>
 
 <script>
+function toggleSidebar() {
+  const sidebar = document.getElementById("sidebar");
+  const overlay = document.getElementById("sidebar-overlay");
+  const isOpen = !sidebar.classList.contains("-translate-x-full");
+  if (isOpen) {
+    sidebar.classList.add("-translate-x-full");
+    overlay.classList.add("hidden");
+  } else {
+    sidebar.classList.remove("-translate-x-full");
+    overlay.classList.remove("hidden");
+  }
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
   const SUPABASE_URL = 'https://peluzcmwjbqodtjjxddy.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_TUX4DzHCvQkMJHNaoTfCTQ_GIHApIAC';
@@ -167,6 +186,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       } else {
         b.className = 'nav-btn w-full text-left px-4 py-3 rounded text-gray-400 hover:bg-gray-800 hover:text-white transition-colors font-bold border-l-4 border-transparent';
       }
+    }
+    // Fecha sidebar no mobile ao trocar de aba
+    if (window.innerWidth < 1024) {
+      document.getElementById("sidebar")?.classList.add("-translate-x-full");
+      document.getElementById("sidebar-overlay")?.classList.add("hidden");
     });
   }
 
