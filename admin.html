@@ -171,13 +171,13 @@ nav::-webkit-scrollbar-thumb:hover {
             <div class="flex items-center gap-3"><button onclick="toggleSidebar()" class="lg:hidden p-2 rounded-lg bg-gray-100 text-gray-700 font-black">☰</button><h2 class="text-xl font-semibold text-gray-800">Análise de Perfis</h2></div>
         </header>
 
-        <div class="bg-white border-b px-4 lg:px-8 py-3 flex items-center justify-between">
+        <div class="bg-white border-b px-4 lg:px-8 py-3 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-2">
             <!-- Campos isca para enganar o autofill do Chrome -->
             <input type="text" style="position:absolute;opacity:0;height:0;width:0;pointer-events:none;" tabindex="-1" aria-hidden="true">
             <input type="email" style="position:absolute;opacity:0;height:0;width:0;pointer-events:none;" tabindex="-1" aria-hidden="true">
-            <div class="flex gap-4 flex-wrap">
-                <input type="text" id="filter-name" oninput="applyFilters()" placeholder="Nome ou CPF..." readonly onfocus="this.removeAttribute('readonly')" class="border rounded-lg px-4 py-2 text-sm w-64 outline-none focus:ring-2 focus:ring-emerald-500">
-                <input type="text" id="store-search" oninput="applyFilters()" placeholder="Filtrar por nome da loja..." readonly onfocus="this.removeAttribute('readonly')" class="border rounded-lg px-4 py-2 text-sm w-64 outline-none focus:ring-2 focus:ring-emerald-500">
+            <div class="flex gap-2 flex-wrap">
+                <input type="text" id="filter-name" oninput="applyFilters()" placeholder="Nome ou CPF..." readonly onfocus="this.removeAttribute('readonly')" class="border rounded-lg px-3 py-2 text-sm w-full lg:w-48 outline-none focus:ring-2 focus:ring-emerald-500">
+                <input type="text" id="store-search" oninput="applyFilters()" placeholder="Filtrar por nome da loja..." readonly onfocus="this.removeAttribute('readonly')" class="border rounded-lg px-3 py-2 text-sm w-full lg:w-48 outline-none focus:ring-2 focus:ring-emerald-500">
                 <div class="relative">
                     <input type="text" id="profile-chain-picker" data-onchange="_onProfileChainChange"
                         placeholder="Bandeira..." autocomplete="off"
@@ -196,7 +196,7 @@ nav::-webkit-scrollbar-thumb:hover {
             </div>
         </div>
 
-        <div class="bg-white px-8 pt-4 flex gap-8 border-b text-sm">
+        <div class="bg-white px-4 lg:px-8 pt-4 flex gap-4 lg:gap-8 border-b text-sm overflow-x-auto shrink-0">
           <button onclick="setStatusTab('aprovado')" id="tab-aprovado" class="status-tab active pb-4 px-2 uppercase font-bold">Aprovados</button>
 <button onclick="setStatusTab('pendente')" id="tab-pendente" class="status-tab pb-4 px-2 uppercase font-bold">Em Análise</button>
             <button onclick="setStatusTab('reprovado')" id="tab-reprovado" class="status-tab pb-4 px-2 uppercase font-bold">Reprovados</button>
@@ -351,7 +351,7 @@ nav::-webkit-scrollbar-thumb:hover {
                     </div>
                 </div>
             </div>
-            <div id="points-results" class="bg-white border rounded-xl overflow-hidden"></div>
+            <div id="points-results" class="bg-white border rounded-xl overflow-x-auto"></div>
         </div>
     </div>
 
@@ -362,7 +362,7 @@ nav::-webkit-scrollbar-thumb:hover {
                 <h2 class="text-xl font-semibold text-gray-800">🔑 Sub-admins</h2>
                 <p class="text-xs text-gray-500">Gerencie acessos administrativos com permissões personalizadas</p>
             </div>
-            <button onclick="openSubAdminModal()" class="bg-gray-900 text-white px-5 py-2 rounded-xl text-xs font-bold uppercase hover:bg-emerald-600 transition">+ Novo Sub-admin</button>
+            <button onclick="openSubAdminModal()" class="bg-gray-900 text-white px-3 py-1.5 lg:px-5 lg:py-2 rounded-xl text-xs font-bold uppercase hover:bg-emerald-600 transition whitespace-nowrap">+ Novo Sub-admin</button>
         </header>
         <div id="subadmins-content" class="p-8 overflow-y-auto flex-1"></div>
     </div>
@@ -373,7 +373,7 @@ nav::-webkit-scrollbar-thumb:hover {
                 <h2 class="text-xl font-semibold text-gray-800">🎧 Suporte</h2>
                 <p class="text-xs text-gray-500">Chamados abertos pelos autônomos e gestão de FAQ</p>
             </div>
-            <button onclick="openFaqModal()" class="bg-gray-900 text-white px-5 py-2 rounded-xl text-xs font-bold uppercase hover:bg-emerald-600 transition">+ Nova pergunta FAQ</button>
+            <button onclick="openFaqModal()" class="bg-gray-900 text-white px-3 py-1.5 lg:px-5 lg:py-2 rounded-xl text-xs font-bold uppercase hover:bg-emerald-600 transition whitespace-nowrap">+ Nova pergunta FAQ</button>
         </header>
         <div id="suporte-content" class="p-8 overflow-y-auto flex-1"></div>
     </div>
@@ -385,9 +385,9 @@ nav::-webkit-scrollbar-thumb:hover {
                 <p class="text-xs text-gray-500">Gerencie as etapas de treinamento por função</p>
             </div>
             <div class="flex gap-2">
-                <button onclick="renderAcademiaRelatorio()" class="border border-gray-300 text-gray-700 px-5 py-2 rounded-xl text-xs font-bold uppercase hover:bg-gray-100 transition">📊 Relatório</button>
-                <button onclick="renderAcademia()" class="border border-gray-300 text-gray-700 px-5 py-2 rounded-xl text-xs font-bold uppercase hover:bg-gray-100 transition">📋 Etapas</button>
-                <button onclick="openAcademiaStepModal()" class="bg-gray-900 text-white px-5 py-2 rounded-xl text-xs font-bold uppercase hover:bg-emerald-600 transition">+ Nova Etapa</button>
+                <button onclick="renderAcademiaRelatorio()" class="border border-gray-300 text-gray-700 px-3 py-1.5 lg:px-5 lg:py-2 rounded-xl text-xs font-bold uppercase hover:bg-gray-100 transition whitespace-nowrap">📊 Relatório</button>
+                <button onclick="renderAcademia()" class="border border-gray-300 text-gray-700 px-3 py-1.5 lg:px-5 lg:py-2 rounded-xl text-xs font-bold uppercase hover:bg-gray-100 transition whitespace-nowrap">📋 Etapas</button>
+                <button onclick="openAcademiaStepModal()" class="bg-gray-900 text-white px-3 py-1.5 lg:px-5 lg:py-2 rounded-xl text-xs font-bold uppercase hover:bg-emerald-600 transition whitespace-nowrap">+ Nova Etapa</button>
             </div>
         </header>
         <div id="academia-content" class="p-8 overflow-y-auto flex-1"></div>
@@ -485,14 +485,14 @@ nav::-webkit-scrollbar-thumb:hover {
 
     <div id="mod-comunicados" class="module-container bg-white">
       <header class="h-16 border-b flex items-center px-4 lg:px-8 justify-between shrink-0">
-        <div>
+        <div class="flex items-center gap-3"><button onclick="toggleSidebar()" class="lg:hidden p-2 rounded-lg bg-gray-100 text-gray-700 font-black">☰</button><div>
           <h2 class="text-xl font-semibold text-gray-800">Comunicados</h2>
           <p class="text-xs text-gray-500">Envie comunicados e acompanhe leituras e confirmações</p>
         </div>
       </header>
 
       <!-- Sub-abas -->
-      <div class="flex gap-1 px-8 border-b shrink-0">
+      <div class="flex gap-1 px-4 lg:px-8 border-b shrink-0 overflow-x-auto">
         <button id="ann-tab-send" onclick="annSwitchTab('send')"
           class="px-5 py-3 text-sm font-bold border-b-2 border-emerald-500 text-emerald-600 -mb-px">
           📢 Enviar
@@ -1059,7 +1059,7 @@ if (currentStatusTab !== 'pendente') {
                 }[u.job_function || 'separador'] || { label: '📦 Separador', cls: 'bg-emerald-100 text-emerald-700' };
 
                 return `
-                    <div class="bg-white p-4 rounded-xl border flex items-center justify-between hover:shadow-md transition-shadow">
+                    <div class="bg-white p-4 rounded-xl border flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 hover:shadow-md transition-shadow">
                         <div>
                             <div class="flex items-center gap-2 mb-1">
                                 <h4 class="font-bold text-gray-800">${u.full_name}</h4>
@@ -1067,7 +1067,7 @@ if (currentStatusTab !== 'pendente') {
                             </div>
                             <p class="text-xs text-gray-500">${u.cpf} • <span class="text-emerald-600 font-bold uppercase">${allStores.find(s => s.id === u.store_id)?.name || 'Sem Loja'}</span></p>
                         </div>
-                        <div class="flex items-center gap-6">
+                        <div class="flex items-center gap-3 sm:gap-6 justify-between sm:justify-end">
                             <div class="text-right">
                                 <p class="text-[10px] font-bold text-gray-400 uppercase leading-none">${rotulo}</p>
                                 <p class="text-xs font-black text-emerald-600">${calculateTime(dataRef)}</p>
@@ -1193,6 +1193,10 @@ const isPaid = (r) => {
 
   // UI
   container.innerHTML = `
+    <div class="h-14 flex items-center px-2 gap-3 mb-2">
+      <button onclick="toggleSidebar()" class="lg:hidden p-2 rounded-lg bg-gray-100 text-gray-700 font-black">☰</button>
+      <h2 class="text-xl font-semibold text-gray-800">💰 Financeiro</h2>
+    </div>
     <div class="flex flex-col gap-4">
       <div class="flex flex-col gap-3 p-4 bg-white rounded-xl border">
         <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Filtros</p>
@@ -7444,7 +7448,7 @@ function renderPointsTable(rows){
   const host = document.getElementById('points-results');
   if(!host) return;
   const thead = `
-    <div class="grid grid-cols-12 bg-gray-100 text-xs font-bold text-gray-600 px-4 py-3">
+    <div class="grid grid-cols-12 bg-gray-100 text-xs font-bold text-gray-600 px-4 py-3 min-w-[600px]">
       <div class="col-span-4">Nome</div>
       <div class="col-span-3">E-mail</div>
       <div class="col-span-3">Loja</div>
@@ -7454,7 +7458,7 @@ function renderPointsTable(rows){
   const body = (rows||[]).map(r=>{
     const storeName = (__admExtras.stores.find(s=>s.id===r.store_id)?.name) || '';
     return `
-      <div class="grid grid-cols-12 items-center px-4 py-3 border-t">
+      <div class="grid grid-cols-12 items-center px-4 py-3 border-t min-w-[600px]">
         <div class="col-span-4 font-semibold text-gray-800 truncate">${escapeHtml(r.full_name||'')}</div>
         <div class="col-span-3 text-sm text-gray-600 truncate">${escapeHtml(r.email||'')}</div>
         <div class="col-span-3 text-sm text-gray-600 truncate">${escapeHtml(storeName)}</div>
