@@ -217,7 +217,7 @@ nav::-webkit-scrollbar-thumb:hover {
 
     <div id="mod-markets" class="module-container bg-gray-50">
         <header class="h-16 bg-white border-b flex items-center px-4 lg:px-8 shrink-0">
-            <h2 class="text-xl font-semibold text-gray-800">Gestão Operacional</h2>
+            <div class="flex items-center gap-3"><button onclick="toggleSidebar()" class="lg:hidden p-2 rounded-lg bg-gray-100 text-gray-700 font-black">☰</button><h2 class="text-xl font-semibold text-gray-800">Gestão Operacional</h2></div>
         </header>
 
         <div class="px-4 lg:px-8 py-4 lg:py-6 flex gap-3 overflow-x-auto shrink-0">
@@ -234,7 +234,7 @@ nav::-webkit-scrollbar-thumb:hover {
 
     <div id="mod-metrics" class="module-container bg-white">
         <header class="h-16 border-b flex items-center px-4 lg:px-8 justify-between shrink-0">
-            <h2 class="text-xl font-semibold text-gray-800">Dashboard de Performance</h2>
+            <div class="flex items-center gap-3"><button onclick="toggleSidebar()" class="lg:hidden p-2 rounded-lg bg-gray-100 text-gray-700 font-black">☰</button><h2 class="text-xl font-semibold text-gray-800">Dashboard de Performance</h2></div>
         </header>
         <div class="bg-gray-50 border-b px-8 py-3 flex items-center gap-3 flex-wrap shrink-0">
             <div>
@@ -265,7 +265,7 @@ nav::-webkit-scrollbar-thumb:hover {
 
     <div id="mod-managers" class="module-container bg-white">
         <header class="h-16 border-b flex items-center px-4 lg:px-8 justify-between shrink-0">
-            <div>
+            <div class="flex items-center gap-3"><button onclick="toggleSidebar()" class="lg:hidden p-2 rounded-lg bg-gray-100 text-gray-700 font-black">☰</button><div>
                 <h2 class="text-xl font-semibold text-gray-800">Gestão de Gerentes</h2>
                 <p class="text-xs text-gray-500">Crie acessos, defina senha, selecione lojas e permissões</p>
             </div>
@@ -275,10 +275,10 @@ nav::-webkit-scrollbar-thumb:hover {
 
     <div id="mod-credenciais" class="module-container bg-white">
         <header class="h-16 border-b flex items-center px-4 lg:px-8 justify-between shrink-0">
-            <div>
+            <div class="flex items-center gap-3"><button onclick="toggleSidebar()" class="lg:hidden p-2 rounded-lg bg-gray-100 text-gray-700 font-black">☰</button><div>
                 <h2 class="text-xl font-semibold text-gray-800">Reservas sem credenciais</h2>
-            </div>
-            <div class="flex gap-2">
+            </div></div>
+            <div class="hidden sm:flex gap-2">
                 <button onclick="downloadCredsPlanilha()" class="px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-bold hover:bg-emerald-700 flex items-center gap-2">
                     ⬇️ Baixar planilha
                 </button>
@@ -335,7 +335,7 @@ nav::-webkit-scrollbar-thumb:hover {
 
     <div id="mod-pontuacao" class="module-container bg-white">
         <header class="h-16 border-b flex items-center px-4 lg:px-8 justify-between shrink-0">
-            <div>
+            <div class="flex items-center gap-3"><button onclick="toggleSidebar()" class="lg:hidden p-2 rounded-lg bg-gray-100 text-gray-700 font-black">☰</button><div>
                 <h2 class="text-xl font-semibold text-gray-800">Pontuação dos autônomos</h2>
             </div>
         </header>
@@ -358,7 +358,7 @@ nav::-webkit-scrollbar-thumb:hover {
     
     <div id="mod-subadmins" class="module-container bg-gray-50">
         <header class="h-16 border-b bg-white flex items-center px-4 lg:px-8 justify-between shrink-0">
-            <div>
+            <div class="flex items-center gap-3"><button onclick="toggleSidebar()" class="lg:hidden p-2 rounded-lg bg-gray-100 text-gray-700 font-black">☰</button><div>
                 <h2 class="text-xl font-semibold text-gray-800">🔑 Sub-admins</h2>
                 <p class="text-xs text-gray-500">Gerencie acessos administrativos com permissões personalizadas</p>
             </div>
@@ -369,7 +369,7 @@ nav::-webkit-scrollbar-thumb:hover {
 
     <div id="mod-suporte" class="module-container bg-gray-50">
         <header class="h-16 border-b bg-white flex items-center px-4 lg:px-8 justify-between shrink-0">
-            <div>
+            <div class="flex items-center gap-3"><button onclick="toggleSidebar()" class="lg:hidden p-2 rounded-lg bg-gray-100 text-gray-700 font-black">☰</button><div>
                 <h2 class="text-xl font-semibold text-gray-800">🎧 Suporte</h2>
                 <p class="text-xs text-gray-500">Chamados abertos pelos autônomos e gestão de FAQ</p>
             </div>
@@ -380,7 +380,7 @@ nav::-webkit-scrollbar-thumb:hover {
 
     <div id="mod-academia" class="module-container bg-gray-50">
         <header class="h-16 border-b bg-white flex items-center px-4 lg:px-8 justify-between shrink-0">
-            <div>
+            <div class="flex items-center gap-3"><button onclick="toggleSidebar()" class="lg:hidden p-2 rounded-lg bg-gray-100 text-gray-700 font-black">☰</button><div>
                 <h2 class="text-xl font-semibold text-gray-800">🎓 Academia Voxyr</h2>
                 <p class="text-xs text-gray-500">Gerencie as etapas de treinamento por função</p>
             </div>
@@ -395,7 +395,7 @@ nav::-webkit-scrollbar-thumb:hover {
 
     <div id="mod-configuracoes" class="module-container bg-white">
         <header class="h-16 border-b flex items-center px-4 lg:px-8 justify-between shrink-0">
-            <div>
+            <div class="flex items-center gap-3"><button onclick="toggleSidebar()" class="lg:hidden p-2 rounded-lg bg-gray-100 text-gray-700 font-black">☰</button><div>
                 <h2 class="text-xl font-semibold text-gray-800">Configurações da Plataforma</h2>
                 <p class="text-xs text-gray-500">Controle quais funções aparecem para novos cadastros</p>
             </div>
@@ -406,11 +406,11 @@ nav::-webkit-scrollbar-thumb:hover {
     <div id="mod-pedidos" class="module-container bg-gray-50">
   <header class="bg-white border-b shrink-0">
     <div class="h-16 flex items-center px-4 lg:px-8 justify-between">
-      <div>
+      <div class="flex items-center gap-3"><button onclick="toggleSidebar()" class="lg:hidden p-2 rounded-lg bg-gray-100 text-gray-700 font-black">☰</button><div>
         <h2 class="text-xl font-semibold text-gray-800">Gestão Operacional</h2>
         <p id="adm-orders-subtitle" class="text-xs text-gray-500">ADM • todas as lojas</p>
-      </div>
-      <div class="flex gap-2">
+      </div></div>
+      <div class="hidden sm:flex gap-2">
         <button onclick="renderProdutividadePanel()" class="px-4 py-2 rounded-lg bg-indigo-50 text-indigo-700 text-xs font-bold hover:bg-indigo-100 transition border border-indigo-200">📊 Produtividade</button>
         <button onclick="document.getElementById('ifood-csv-input').click()" class="px-4 py-2 rounded-lg bg-emerald-50 text-emerald-700 text-xs font-bold hover:bg-emerald-100 transition border border-emerald-200">📥 Importar iFood CSV</button>
         <input type="file" id="ifood-csv-input" accept=".csv" class="hidden" onchange="importIfoodFile(this)">
@@ -473,10 +473,10 @@ nav::-webkit-scrollbar-thumb:hover {
 
     <div id="mod-atrasos" class="module-container bg-white">
     <header class="h-16 border-b flex items-center px-4 lg:px-8 justify-between shrink-0">
-        <div>
+        <div class="flex items-center gap-3"><button onclick="toggleSidebar()" class="lg:hidden p-2 rounded-lg bg-gray-100 text-gray-700 font-black">☰</button><div>
             <h2 class="text-xl font-semibold text-gray-800">Solicitações de atraso</h2>
             <p class="text-xs text-gray-500">Aprove ou recuse atrasos e defina o horário-limite sem perda</p>
-        </div>
+        </div></div>
     </header>
     <div class="p-6 overflow-y-auto flex-1">
         <div id="delay-requests-results" class="space-y-3"></div>
@@ -7202,7 +7202,7 @@ async function renderDelayRequests() {
         html += `<h4 class="text-xs font-black text-slate-500 uppercase tracking-widest mb-3">⏰ Atrasos pendentes</h4>`;
         html += data.map(r => `
         <div class="border rounded-xl p-4 bg-white mb-3">
-            <div class="flex items-start justify-between gap-4">
+            <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                 <div>
                     <p class="text-xs font-black uppercase text-slate-400">Autônomo</p>
                     <h4 class="text-lg font-black text-slate-800">${r.profiles?.full_name || 'Sem nome'}</h4>
@@ -7218,7 +7218,7 @@ async function renderDelayRequests() {
                 <div><span class="font-bold">Data:</span> ${r.slots?.date || '-'}</div>
                 <div><span class="font-bold">Turno:</span> ${r.slots?.shifts?.start_time || ''} - ${r.slots?.shifts?.end_time || ''}</div>
             </div>
-            <div class="mt-4 flex gap-2">
+            <div class="mt-4 flex flex-wrap gap-2">
                 <input id="approved-until-${r.id}" type="time" class="border rounded-lg px-3 py-2 text-sm" />
                 <button onclick="aprovarAtraso('${r.id}')" class="px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-bold">Aprovar</button>
                 <button onclick="recusarAtraso('${r.id}')" class="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-bold">Recusar</button>
@@ -7249,7 +7249,7 @@ async function renderDelayRequests() {
 
             return `
             <div class="border border-amber-200 rounded-xl p-4 bg-amber-50 mb-3">
-                <div class="flex items-start justify-between gap-4">
+                <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                     <div>
                         <p class="text-xs font-black uppercase text-slate-400">Autônomo</p>
                         <h4 class="text-base font-black text-slate-800">${r.profiles?.full_name || 'Sem nome'}</h4>
@@ -7264,7 +7264,7 @@ async function renderDelayRequests() {
                 <div class="mt-3 text-sm text-slate-600">
                     Turno: ${r.slots?.shifts?.start_time || ''} — ${endHHMM || ''} · Saída real: ${finishedAt.toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'})}
                 </div>
-                <div class="mt-3 flex gap-2 items-center">
+                <div class="mt-3 flex flex-wrap gap-2 items-center">
                     <span class="text-sm font-bold text-slate-600">Bônus: R$</span>
                     <input id="overtime-bonus-${r.id}" type="number" step="0.01" min="0" value="${bonusSugerido}" class="border rounded-lg px-3 py-2 text-sm w-28" />
                     <button onclick="aprovarHoraExtra('${r.id}')" class="px-4 py-2 rounded-lg bg-amber-600 text-white text-sm font-bold">Aprovar bônus</button>
