@@ -1789,7 +1789,7 @@ if (normStatus(status) === 'check-in') {
                     .update({ points: Math.max(0, pts - perda) })
                     .eq('id', currentUser.id);
 
-                alert(`Atraso de ${diffMinutos}min! -${perda} pontos.`);
+                alert(`Atente-se ao horário de início de cada missão para não perder pontos.`);
             }
         }
     }
