@@ -11541,6 +11541,32 @@ function startAlertPolling() {
 // Inicia quando o painel carrega
 document.addEventListener('DOMContentLoaded', () => { setTimeout(startAlertPolling, 2000); });
 
+// Realtime para atualizar badge urgente sem recarregar
+(function startSupportRealtime() {
+  const checkAndUpdateBadge = async () => {
+    const { count: urgentCount } = await _supabase
+      .from('support_tickets')
+      .select('id', { count: 'exact', head: true })
+      .eq('is_urgent', true)
+      .neq('status', 'resolved');
+    const { count: openCount } = await _supabase
+      .from('support_tickets')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'open');
+    updateBadges({ suporte: openCount || 0, suporte_urgent: urgentCount || 0 });
+  };
+
+  document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => {
+      _supabase.channel('support-tickets-realtime')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'support_tickets' }, () => {
+          checkAndUpdateBadge();
+        })
+        .subscribe();
+    }, 3000);
+  });
+})();
+
 // ── FIM SISTEMA DE ALERTAS ─────────────────────────────────────
 
 async function saveJobFunctionSettings() {
@@ -12636,6 +12662,8 @@ async function openAdminChat(ticketId) {
 
   scrollChatToBottom('admin-chat-messages');
 
+  const isUrgentTicket = ticket.is_urgent || false;
+
   _adminChatSub = _supabase.channel(`ticket-admin-${ticketId}`)
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'support_messages', filter: `ticket_id=eq.${ticketId}` },
       (payload) => {
@@ -12643,6 +12671,10 @@ async function openAdminChat(ticketId) {
         if (!el) return;
         el.insertAdjacentHTML('beforeend', renderChatMessages([payload.new], 'admin'));
         scrollChatToBottom('admin-chat-messages');
+        // Toca som apenas se for mensagem do autônomo em ticket urgente
+        if (payload.new.sender === 'autonomo' && isUrgentTicket) {
+          playUrgentChatSound();
+        }
         // Atualiza lastMsgMap
         if (window.__adminSuporteLastMsgMap) window.__adminSuporteLastMsgMap[ticketId] = payload.new;
         _renderSuporteLayout(window.__adminCurrentFilter||'todos');
@@ -12650,6 +12682,25 @@ async function openAdminChat(ticketId) {
         openAdminChat(ticketId);
       })
     .subscribe();
+}
+
+function playUrgentChatSound() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    // Som diferente do alerta normal — mais grave e urgente
+    [[440, 0], [550, 0.15], [440, 0.3], [660, 0.45]].forEach(([freq, delay]) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.frequency.value = freq;
+      osc.type = 'triangle';
+      gain.gain.setValueAtTime(0, ctx.currentTime + delay);
+      gain.gain.linearRampToValueAtTime(0.4, ctx.currentTime + delay + 0.05);
+      gain.gain.linearRampToValueAtTime(0, ctx.currentTime + delay + 0.18);
+      osc.start(ctx.currentTime + delay);
+      osc.stop(ctx.currentTime + delay + 0.2);
+    });
+  } catch(e) {}
 }
 
 async function adminSendMessage(ticketId) {
