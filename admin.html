@@ -11362,10 +11362,12 @@ async function checkAlerts(keys) {
       results.atrasos = count || 0;
     }
 
-    // 3. Suporte abertos
+    // 3. Suporte — urgentes primeiro, depois abertos normais
     if (toCheck.includes('suporte')) {
-      const { count } = await _supabase.from('support_tickets').select('id', { count: 'exact', head: true }).eq('status', 'open');
-      results.suporte = count || 0;
+      const { count: urgentCount } = await _supabase.from('support_tickets').select('id', { count: 'exact', head: true }).eq('is_urgent', true).neq('status', 'resolved');
+      const { count: openCount } = await _supabase.from('support_tickets').select('id', { count: 'exact', head: true }).eq('status', 'open');
+      results.suporte = openCount || 0;
+      results.suporte_urgent = urgentCount || 0;
     }
 
     // 4. Cadastros pendentes
@@ -11394,6 +11396,26 @@ function updateBadges(counts) {
   };
 
   Object.entries(counts).forEach(([key, count]) => {
+    if (key === 'suporte_urgent') {
+      // Badge urgente separado no botão de suporte
+      const btn = document.getElementById('nav-suporte');
+      if (!btn) return;
+      let urgBadge = btn.querySelector('.urgent-badge');
+      if (count > 0) {
+        if (!urgBadge) {
+          urgBadge = document.createElement('span');
+          urgBadge.className = 'urgent-badge';
+          urgBadge.style.cssText = 'display:inline-flex;align-items:center;justify-content:center;background:#fef2f2;color:#991b1b;border:1px solid #fca5a5;font-size:9px;font-weight:900;border-radius:99px;min-width:18px;height:18px;padding:0 4px;margin-left:2px;';
+          btn.style.display = 'flex';
+          btn.style.alignItems = 'center';
+          btn.appendChild(urgBadge);
+        }
+        urgBadge.textContent = '🚨' + count;
+      } else if (urgBadge) {
+        urgBadge.remove();
+      }
+      return;
+    }
     const navId = map[key];
     if (!navId) return;
     const btn = document.getElementById(navId);

@@ -131,16 +131,16 @@
     </aside>
 
     <main class="flex-1 overflow-y-auto">
-        <header class="p-6 md:p-10 pb-2 flex justify-between items-center gap-4">
+        <header class="px-4 md:px-10 py-4 md:py-6 pb-2 flex justify-between items-center gap-4">
     <div class="flex items-center gap-3">
         <button class="mobile-menu-btn md:hidden" onclick="openMobileMenu()">
             <i class="fas fa-bars"></i>
         </button>
-        <h2 id="page-title" class="text-3xl font-black text-slate-800 uppercase italic tracking-tighter">Dashboard</h2>
+        <h2 id="page-title" class="text-xl md:text-3xl font-black text-slate-800 uppercase italic tracking-tighter">Dashboard</h2>
     </div>
     <div id="loader" class="hidden text-emerald-500"><i class="fas fa-circle-notch fa-spin text-xl"></i></div>
 </header>
-        <div class="px-6 md:px-10 py-6" id="view-container"></div>
+        <div class="px-4 md:px-10 py-4 md:py-6" id="view-container"></div>
     </main>
 
     <script>
@@ -3084,7 +3084,13 @@ async function renderSuporteAutonomo() {
             </div>
         </div>`).join('');
 
-    const resolvedTickets = (tickets||[]).filter(t => t.status === 'resolved');
+    const now = Date.now();
+    const resolvedTickets = (tickets||[]).filter(t => {
+        if (t.status !== 'resolved') return false;
+        if (!t.resolved_at) return true;
+        const resolvedMs = now - new Date(t.resolved_at).getTime();
+        return resolvedMs < 24 * 60 * 60 * 1000; // oculta após 24h
+    });
     const ticketItems = resolvedTickets.map(t => `
         <div class="bg-white rounded-2xl border border-slate-200 px-5 py-4 flex items-center justify-between gap-3 cursor-pointer hover:border-emerald-400 transition" onclick="openAutonomoChat('${t.id}')">
             <div class="min-w-0">
@@ -3131,12 +3137,16 @@ async function renderSuporteAutonomo() {
                     <h4 class="font-black text-slate-800 mb-1">Não encontrou o que precisava?</h4>
                     <p class="text-sm text-slate-500 mb-4">Abra um chamado e responderemos em breve.</p>
                     <div class="space-y-3">
-                        <select id="new-ticket-category" class="w-full border rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-emerald-500 bg-white">
-                            <option value="">Selecione o motivo do chamado...</option>
-                        </select>
-                        <p id="urgent-warning" class="hidden text-xs text-red-600 font-bold bg-red-50 rounded-xl px-3 py-2">
-                            🚨 Este é um chamado urgente — descreva abaixo com detalhes o que está acontecendo agora.
-                        </p>
+                        <div style="position:relative;">
+                            <select id="new-ticket-category" style="width:100%;border:2px solid #e2e8f0;border-radius:14px;padding:14px 16px;font-size:14px;outline:none;background:white;appearance:none;-webkit-appearance:none;color:#1e293b;cursor:pointer;" onfocus="this.style.borderColor='#10b981'" onblur="this.style.borderColor='#e2e8f0'">
+                                <option value="">Selecione o motivo do chamado...</option>
+                            </select>
+                            <span style="position:absolute;right:14px;top:50%;transform:translateY(-50%);pointer-events:none;font-size:12px;color:#94a3b8;">▼</span>
+                        </div>
+                        <div id="urgent-warning" class="hidden" style="background:#fef2f2;border:1px solid #fca5a5;border-radius:12px;padding:12px 14px;display:flex;align-items:flex-start;gap:8px;">
+                            <span style="font-size:18px;flex-shrink:0;">🚨</span>
+                            <p style="font-size:13px;color:#991b1b;font-weight:700;margin:0;line-height:1.4;">Chamado urgente — descreva com detalhes o que está acontecendo agora para agilizar o atendimento.</p>
+                        </div>
                         <textarea id="new-ticket-desc" rows="3" placeholder="Descreva com detalhes..."
                             class="w-full border rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-emerald-500 resize-none"></textarea>
                     </div>
@@ -3242,7 +3252,7 @@ async function openAutonomoChat(ticketId) {
                     <p class="text-xs text-amber-700 font-bold">⏳ Aguardando resposta do suporte</p>
                     <p class="text-xs text-amber-600 mt-1">Você já enviou uma mensagem. Assim que respondermos você poderá enviar outra.</p>
                 </div>` : `
-                <div class="flex-shrink-0">
+                <div class="flex-shrink-0 autonomo-chat-input-area">
                     <p class="text-xs text-slate-400 mb-2 px-1">💡 Descreva tudo em uma única mensagem para agilizar o atendimento.</p>
                     <div class="flex gap-3 items-end">
                         <textarea id="autonomo-chat-input" rows="2" placeholder="Digite sua mensagem..."
@@ -3286,8 +3296,16 @@ async function autonomoSendMessage(ticketId) {
     if (el) { el.insertAdjacentHTML('beforeend', renderChatMessages([tempMsg], 'autonomo')); scrollChatToBottom('autonomo-chat-messages'); }
     input.value = '';
     const { error } = await _sb.from('support_messages').insert({ ticket_id: ticketId, sender: 'autonomo', message: text });
-    if (error) { if(input) input.value = text; alert('Erro ao enviar: ' + error.message); }
+    if (error) { if(input) input.value = text; alert('Erro ao enviar: ' + error.message); return; }
     await _sb.from('support_tickets').update({ last_message_at: new Date().toISOString() }).eq('id', ticketId);
+    // Substitui input por aviso de aguardando
+    const inputArea = document.querySelector('.autonomo-chat-input-area');
+    if (inputArea) {
+        inputArea.innerHTML = `<div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:16px;padding:12px 16px;text-align:center;">
+            <p style="font-size:13px;font-weight:700;color:#92400e;margin:0;">⏳ Aguardando resposta do suporte</p>
+            <p style="font-size:12px;color:#b45309;margin:4px 0 0;">Assim que respondermos você poderá enviar outra mensagem.</p>
+        </div>`;
+    }
 }
 
 async function submitTicket() {
