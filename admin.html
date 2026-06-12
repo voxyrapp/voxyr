@@ -11549,7 +11549,11 @@ _supabase.auth.onAuthStateChange((event, session) => {
       _supabase.removeChannel(_supportRealtimeChannel);
     }
     _supportRealtimeChannel = _supabase.channel('support-urgente-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'support_tickets' }, async () => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'support_tickets' }, async (payload) => {
+        // Toca som se novo chamado urgente foi criado
+        if (payload.eventType === 'INSERT' && payload.new?.is_urgent) {
+          playUrgentChatSound();
+        }
         const { count: urgentCount } = await _supabase
           .from('support_tickets')
           .select('id', { count: 'exact', head: true })
@@ -11560,6 +11564,10 @@ _supabase.auth.onAuthStateChange((event, session) => {
           .select('id', { count: 'exact', head: true })
           .eq('status', 'open');
         updateBadges({ suporte: openCount || 0, suporte_urgent: urgentCount || 0 });
+        // Atualiza lista de chamados se suporte estiver aberto
+        if (document.getElementById('suporte-content')) {
+          renderAdminSuporte();
+        }
       })
       .subscribe();
   }
@@ -11571,31 +11579,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (session) setTimeout(startAlertPolling, 2000);
 });
 
-// Realtime para atualizar badge urgente sem recarregar
-(function startSupportRealtime() {
-  const checkAndUpdateBadge = async () => {
-    const { count: urgentCount } = await _supabase
-      .from('support_tickets')
-      .select('id', { count: 'exact', head: true })
-      .eq('is_urgent', true)
-      .neq('status', 'resolved');
-    const { count: openCount } = await _supabase
-      .from('support_tickets')
-      .select('id', { count: 'exact', head: true })
-      .eq('status', 'open');
-    updateBadges({ suporte: openCount || 0, suporte_urgent: urgentCount || 0 });
-  };
 
-  document.addEventListener('DOMContentLoaded', () => {
-    setTimeout(() => {
-      _supabase.channel('support-tickets-realtime')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'support_tickets' }, () => {
-          checkAndUpdateBadge();
-        })
-        .subscribe();
-    }, 3000);
-  });
-})();
 
 // ── FIM SISTEMA DE ALERTAS ─────────────────────────────────────
 
