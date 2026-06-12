@@ -11093,11 +11093,82 @@ async function renderConfiguracoes() {
         </button>
         <div id="cfg-save-status" class="mt-3 text-sm font-semibold text-center hidden"></div>
       </div>
+
+      <div class="bg-white border rounded-2xl p-6 shadow-sm">
+        <div class="flex items-center justify-between mb-1">
+          <h3 class="text-base font-black uppercase text-slate-800">Categorias de chamado</h3>
+          <button onclick="openCategoryModal()" class="bg-gray-900 text-white px-3 py-1.5 rounded-xl text-xs font-bold hover:bg-emerald-600 transition">+ Nova categoria</button>
+        </div>
+        <p class="text-xs text-gray-500 mb-4">Categorias marcadas como urgente geram notificação imediata para o admin.</p>
+        <div id="cfg-categories-list" class="space-y-2">
+          <div class="text-xs text-gray-400">Carregando...</div>
+        </div>
+      </div>
     </div>
   `;
 
-  // Renderiza seção de alertas
   renderAlertSettings(container);
+  renderCategorySettings();
+}
+
+async function renderCategorySettings() {
+  const list = document.getElementById('cfg-categories-list');
+  if (!list) return;
+  const { data: cats } = await _supabase.from('support_categories').select('*').order('is_urgent', { ascending: false }).order('name');
+  if (!cats?.length) { list.innerHTML = '<p class="text-xs text-gray-400 italic">Nenhuma categoria cadastrada.</p>'; return; }
+  list.innerHTML = cats.map(c => `
+    <div class="flex items-center justify-between p-3 border rounded-xl">
+      <div class="flex items-center gap-3 min-w-0">
+        <span style="font-size:11px;">${c.is_urgent ? '🚨' : '💬'}</span>
+        <p class="text-sm text-gray-800 truncate">${escapeHtml(c.name)}</p>
+      </div>
+      <div class="flex items-center gap-2 flex-shrink-0">
+        <label class="relative inline-flex items-center cursor-pointer" title="Urgente">
+          <input type="checkbox" ${c.is_urgent ? 'checked' : ''} onchange="toggleCategoryUrgent('${c.id}', this.checked)" class="sr-only peer">
+          <div class="w-9 h-5 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-red-500"></div>
+        </label>
+        <button onclick="deleteCategoryConfirm('${c.id}')" class="text-red-400 hover:text-red-600 font-bold text-xs px-2 py-1">🗑️</button>
+      </div>
+    </div>`).join('');
+}
+
+async function toggleCategoryUrgent(id, isUrgent) {
+  await _supabase.from('support_categories').update({ is_urgent: isUrgent }).eq('id', id);
+}
+
+async function deleteCategoryConfirm(id) {
+  if (!confirm('Remover esta categoria?')) return;
+  await _supabase.from('support_categories').delete().eq('id', id);
+  renderCategorySettings();
+}
+
+function openCategoryModal(id = null) {
+  const name = id ? '' : '';
+  const html = `<div class="fixed inset-0 bg-black/60 flex items-center justify-center z-[70] p-4" id="modal-category">
+    <div class="bg-white rounded-2xl w-full max-w-sm p-6">
+      <h3 class="text-base font-black uppercase text-gray-800 mb-4">Nova categoria</h3>
+      <input type="text" id="cat-name" placeholder="Nome da categoria..." class="w-full border rounded-xl px-3 py-2 text-sm mb-3 outline-none focus:ring-2 focus:ring-emerald-500">
+      <label class="flex items-center gap-3 mb-4 cursor-pointer">
+        <input type="checkbox" id="cat-urgent" class="rounded">
+        <span class="text-sm text-gray-700">🚨 Marcar como urgente</span>
+      </label>
+      <div class="flex gap-2">
+        <button onclick="document.getElementById('modal-category').remove()" class="flex-1 border border-gray-300 rounded-xl py-2 text-sm font-bold text-gray-700 hover:bg-gray-50">Cancelar</button>
+        <button onclick="saveCategoryModal()" class="flex-1 bg-gray-900 text-white rounded-xl py-2 text-sm font-bold hover:bg-emerald-600">Salvar</button>
+      </div>
+    </div>
+  </div>`;
+  document.body.insertAdjacentHTML('beforeend', html);
+}
+
+async function saveCategoryModal() {
+  const name = document.getElementById('cat-name')?.value.trim();
+  const isUrgent = document.getElementById('cat-urgent')?.checked || false;
+  if (!name) return alert('Digite o nome da categoria.');
+  const { error } = await _supabase.from('support_categories').insert({ name, is_urgent: isUrgent });
+  if (error) return alert('Erro: ' + error.message);
+  document.getElementById('modal-category')?.remove();
+  renderCategorySettings();
 }
 
 // ── CONFIGURAÇÕES DE ALERTAS ──────────────────────────────────
@@ -12329,55 +12400,95 @@ async function updateProfileJobFunction(newFn) {
 let _adminChatSub = null;
 let _adminCurrentTicketId = null;
 
+function _timeAgo(dateStr) {
+  if (!dateStr) return '';
+  const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
+  if (diff < 60) return 'agora';
+  if (diff < 3600) return `há ${Math.floor(diff/60)} min`;
+  if (diff < 86400) return `há ${Math.floor(diff/3600)}h`;
+  return `há ${Math.floor(diff/86400)} dias`;
+}
+
 async function renderAdminSuporte() {
   const container = document.getElementById('suporte-content');
   if (!container) return;
   container.innerHTML = '<div class="text-gray-400 text-sm p-4">Carregando...</div>';
 
-  const [{ data: tickets }, { data: faqs }] = await Promise.all([
+  const [{ data: tickets }, { data: faqs }, { data: allMsgs }] = await Promise.all([
     _supabase.from('support_tickets')
       .select('*, profile:profile_id(full_name)')
-      .order('last_message_at', { ascending: false, nullsFirst: false })
-      .order('created_at', { ascending: false })
+      .order('is_urgent', { ascending: false })
+      .order('created_at', { ascending: true })
       .limit(100),
     _supabase.from('support_faqs').select('*').order('category').order('created_at'),
+    _supabase.from('support_messages').select('ticket_id, sender, created_at').order('created_at', { ascending: false }),
   ]);
 
-  const statusBadge = (s) => ({
-    open:        '<span class="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-amber-100 text-amber-700">Aberto</span>',
-    in_progress: '<span class="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-blue-100 text-blue-700">Em atendimento</span>',
-    resolved:    '<span class="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-100 text-emerald-700">Resolvido</span>',
-  }[s] || s);
+  // Determina se autônomo respondeu depois do admin
+  const lastMsgMap = {};
+  (allMsgs||[]).forEach(m => { if (!lastMsgMap[m.ticket_id]) lastMsgMap[m.ticket_id] = m; });
+  const hasAutonomoReply = (tid) => lastMsgMap[tid]?.sender === 'autonomo';
 
-  const openTickets     = (tickets||[]).filter(t => t.status === 'open');
-  const inProgTickets   = (tickets||[]).filter(t => t.status === 'in_progress');
-  const resolvedTickets = (tickets||[]).filter(t => t.status === 'resolved');
+  window.__adminSuporteTickets = tickets || [];
+  window.__adminSuporteFaqs = faqs || [];
+  window.__adminSuporteLastMsgMap = lastMsgMap;
 
-  const ticketRow = (t) => `
-    <div class="bg-white rounded-2xl border border-gray-200 px-5 py-4 flex items-center justify-between gap-4 hover:border-emerald-400 transition cursor-pointer" onclick="openAdminChat('${t.id}')">
-      <div class="flex items-center gap-3 min-w-0">
-        <div class="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center text-base flex-shrink-0">🎧</div>
-        <div class="min-w-0">
-          <p class="font-bold text-gray-800 text-sm truncate">${escapeHtml(t.subject || 'Sem assunto')}</p>
-          <p class="text-xs text-gray-400 mt-0.5">${escapeHtml(t.profile?.full_name || '—')} · ${new Date(t.created_at).toLocaleDateString('pt-BR')}</p>
-        </div>
+  _renderSuporteLayout();
+}
+
+function _renderSuporteLayout(filter = 'todos') {
+  const container = document.getElementById('suporte-content');
+  const tickets = window.__adminSuporteTickets || [];
+  const faqs = window.__adminSuporteFaqs || [];
+  const lastMsgMap = window.__adminSuporteLastMsgMap || {};
+  const hasAutonomoReply = (tid) => lastMsgMap[tid]?.sender === 'autonomo';
+
+  const urgentTickets  = tickets.filter(t => t.is_urgent && t.status !== 'resolved');
+  const inProgTickets  = tickets.filter(t => !t.is_urgent && t.status === 'in_progress');
+  const openTickets    = tickets.filter(t => !t.is_urgent && t.status === 'open');
+  const resolvedTickets = tickets.filter(t => t.status === 'resolved');
+
+  const applyFilter = (list) => {
+    if (filter === 'com_resposta') return list.filter(t => hasAutonomoReply(t.id));
+    if (filter === 'sem_resposta') return list.filter(t => !hasAutonomoReply(t.id));
+    return list;
+  };
+
+  const timeColor = (dateStr) => {
+    const days = (Date.now() - new Date(dateStr).getTime()) / 86400000;
+    if (days > 1) return 'color:#854F0B;font-weight:500;';
+    return 'color:var(--color-text-secondary);';
+  };
+
+  const ticketCard = (t, isUrgent = false) => {
+    const hasReply = hasAutonomoReply(t.id);
+    const urgentStyle = isUrgent ? 'border-left:3px solid #E24B4A;border-radius:0 12px 12px 0;background:#FCEBEB;' : hasReply ? 'border-left:3px solid #1D9E75;border-radius:0 12px 12px 0;' : '';
+    const badge = isUrgent
+      ? '<span style="background:#FCEBEB;color:#A32D2D;padding:2px 8px;border-radius:99px;font-size:10px;font-weight:500;">Urgente</span>'
+      : t.status === 'in_progress'
+        ? '<span style="background:#E6F1FB;color:#185FA5;padding:2px 8px;border-radius:99px;font-size:10px;font-weight:500;">Atend.</span>'
+        : '<span style="background:#FAEEDA;color:#854F0B;padding:2px 8px;border-radius:99px;font-size:10px;font-weight:500;">Aguard.</span>';
+    const replyBadge = hasReply ? '<span style="background:#E1F5EE;color:#0F6E56;padding:2px 8px;border-radius:99px;font-size:10px;font-weight:500;display:inline-flex;align-items:center;gap:3px;">💬 Respondeu</span>' : '';
+    const dot = hasReply || isUrgent ? `<span style="width:7px;height:7px;border-radius:50%;background:${isUrgent?'#E24B4A':'#1D9E75'};display:inline-block;flex-shrink:0;${isUrgent?'animation:adm-pulse 1s infinite;':''}"></span>` : '';
+    return `<div onclick="openAdminChat('${t.id}')" style="background:var(--color-bg,white);border-radius:12px;border:0.5px solid #e5e7eb;padding:12px 14px;display:flex;align-items:center;gap:10px;cursor:pointer;margin-bottom:6px;${urgentStyle}" onmouseover="this.style.borderColor='#9ca3af'" onmouseout="this.style.borderColor='${isUrgent?'':hasReply?'':'#e5e7eb'}'">
+      <div style="width:32px;height:32px;border-radius:8px;background:${isUrgent?'#F7C1C1':'#f1f5f9'};display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px;">${isUrgent?'🚨':'🎧'}</div>
+      <div style="flex:1;min-width:0;">
+        <div style="display:flex;align-items:center;gap:5px;margin-bottom:2px;">${dot}<p style="font-size:12px;font-weight:500;margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:${isUrgent?'#501313':'var(--color-text-primary,#111)'}">${escapeHtml(t.subject||'Sem assunto')}</p></div>
+        <p style="font-size:11px;margin:0;${timeColor(t.created_at)}">${escapeHtml(t.profile?.full_name||'—')} · ${_timeAgo(t.created_at)}</p>
       </div>
-      <div class="flex items-center gap-3 flex-shrink-0">${statusBadge(t.status)}<span class="text-gray-400 text-sm">→</span></div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex-shrink:0;">${badge}${replyBadge}</div>
     </div>`;
+  };
 
   const faqGrouped = {};
   (faqs||[]).forEach(f => { const cat = f.category||'Geral'; if(!faqGrouped[cat]) faqGrouped[cat]=[]; faqGrouped[cat].push(f); });
-
   const faqHtml = Object.keys(faqGrouped).length
     ? Object.entries(faqGrouped).map(([cat, items]) => `
         <div class="mb-4">
           <p class="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-2">${escapeHtml(cat)}</p>
           <div class="space-y-2">${items.map(f => `
             <div class="bg-white rounded-2xl border border-gray-200 px-5 py-3 flex items-start justify-between gap-4">
-              <div class="min-w-0">
-                <p class="font-bold text-gray-800 text-sm">${escapeHtml(f.question)}</p>
-                <p class="text-xs text-gray-500 mt-1 line-clamp-2">${escapeHtml(f.answer)}</p>
-              </div>
+              <div class="min-w-0"><p class="font-bold text-gray-800 text-sm">${escapeHtml(f.question)}</p><p class="text-xs text-gray-500 mt-1 line-clamp-2">${escapeHtml(f.answer)}</p></div>
               <div class="flex gap-2 flex-shrink-0">
                 <button onclick="openFaqModal('${f.id}')" class="text-xs text-gray-400 hover:text-gray-700 font-bold px-2 py-1">✏️</button>
                 <button onclick="deleteFaq('${f.id}')" class="text-xs text-red-400 hover:text-red-600 font-bold px-2 py-1">🗑️</button>
@@ -12387,27 +12498,68 @@ async function renderAdminSuporte() {
         </div>`).join('')
     : '<p class="text-sm text-gray-400 italic">Nenhuma pergunta cadastrada ainda.</p>';
 
-  const section = (title, list) => !list.length ? '' : `
-    <div class="mb-6">
-      <p class="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-3">${title} (${list.length})</p>
-      <div class="space-y-2">${list.map(ticketRow).join('')}</div>
-    </div>`;
+  const filteredUrgent = applyFilter(urgentTickets);
+  const filteredInProg = applyFilter(inProgTickets);
+  const filteredOpen   = applyFilter(openTickets);
 
-  const noTickets = !openTickets.length && !inProgTickets.length && !resolvedTickets.length;
+  const noActive = !filteredUrgent.length && !filteredInProg.length && !filteredOpen.length;
 
   container.innerHTML = `
-    <div class="grid grid-cols-1 xl:grid-cols-2 gap-8">
-      <div>
-        <h3 class="text-sm font-black uppercase text-gray-700 mb-4">📋 Chamados</h3>
-        ${noTickets
-          ? `<div class="bg-white rounded-2xl border p-8 text-center"><p class="text-3xl mb-2">🎉</p><p class="text-sm text-gray-400">Nenhum chamado aberto!</p></div>`
-          : `${section('🔴 Abertos', openTickets)}${section('🔵 Em atendimento', inProgTickets)}${section('✅ Resolvidos', resolvedTickets)}`}
+    <style>@keyframes adm-pulse{0%,100%{opacity:1}50%{opacity:0.4}}</style>
+    <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.5fr);gap:16px;height:100%;">
+      <div style="display:flex;flex-direction:column;overflow:hidden;">
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;flex-shrink:0;">
+          <button onclick="_renderSuporteLayout('todos')" style="background:${filter==='todos'?'var(--color-background-tertiary,#f1f5f9)':'white'};border:0.5px solid #d1d5db;border-radius:8px;padding:4px 10px;font-size:11px;font-weight:500;cursor:pointer;">Todos</button>
+          <button onclick="_renderSuporteLayout('com_resposta')" style="background:${filter==='com_resposta'?'var(--color-background-tertiary,#f1f5f9)':'white'};border:0.5px solid #d1d5db;border-radius:8px;padding:4px 10px;font-size:11px;font-weight:500;cursor:pointer;">Com resposta</button>
+          <button onclick="_renderSuporteLayout('sem_resposta')" style="background:${filter==='sem_resposta'?'var(--color-background-tertiary,#f1f5f9)':'white'};border:0.5px solid #d1d5db;border-radius:8px;padding:4px 10px;font-size:11px;font-weight:500;cursor:pointer;">Sem resposta</button>
+        </div>
+        <div style="flex:1;overflow-y:auto;">
+          ${filteredUrgent.length ? `<p style="font-size:10px;font-weight:500;color:#A32D2D;text-transform:uppercase;letter-spacing:0.05em;margin:0 0 6px;display:flex;align-items:center;gap:5px;"><span style="width:7px;height:7px;border-radius:50%;background:#E24B4A;display:inline-block;"></span>Urgente (${filteredUrgent.length})</p>${filteredUrgent.map(t=>ticketCard(t,true)).join('')}` : ''}
+          ${filteredInProg.length ? `<p style="font-size:10px;font-weight:500;color:#888;text-transform:uppercase;letter-spacing:0.05em;margin:${filteredUrgent.length?'10px':'0'} 0 6px;">Em atendimento (${filteredInProg.length})</p>${filteredInProg.map(t=>ticketCard(t,false)).join('')}` : ''}
+          ${filteredOpen.length ? `<p style="font-size:10px;font-weight:500;color:#888;text-transform:uppercase;letter-spacing:0.05em;margin:${(filteredUrgent.length||filteredInProg.length)?'10px':'0'} 0 6px;">Aguardando (${filteredOpen.length})</p>${filteredOpen.map(t=>ticketCard(t,false)).join('')}` : ''}
+          ${noActive ? '<div style="text-align:center;padding:2rem;"><p style="font-size:2rem;margin-bottom:8px;">🎉</p><p style="font-size:13px;color:#9ca3af;">Nenhum chamado aberto!</p></div>' : ''}
+          ${resolvedTickets.length ? `
+            <button onclick="this.nextElementSibling.style.maxHeight=this.nextElementSibling.style.maxHeight?'':'500px';this.querySelector('span').style.transform=this.nextElementSibling.style.maxHeight?'rotate(180deg)':'rotate(0deg)'" style="display:flex;align-items:center;justify-content:space-between;width:100%;background:none;border:none;cursor:pointer;padding:8px 0;margin-top:4px;">
+              <p style="font-size:10px;font-weight:500;color:#888;text-transform:uppercase;letter-spacing:0.05em;margin:0;">Resolvidos (${resolvedTickets.length})</p>
+              <span style="font-size:14px;color:#888;transition:transform 0.2s;">▾</span>
+            </button>
+            <div style="max-height:0;overflow:hidden;transition:max-height 0.2s;">${resolvedTickets.map(t=>`
+              <div onclick="openAdminChat('${t.id}')" style="background:white;border-radius:12px;border:0.5px solid #e5e7eb;padding:12px 14px;display:flex;align-items:center;gap:10px;cursor:pointer;margin-bottom:6px;">
+                <div style="width:32px;height:32px;border-radius:8px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;font-size:14px;">🎧</div>
+                <div style="flex:1;min-width:0;"><p style="font-size:12px;font-weight:500;margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(t.subject||'Sem assunto')}</p><p style="font-size:11px;color:#9ca3af;margin:0;">${escapeHtml(t.profile?.full_name||'—')} · ${_timeAgo(t.created_at)}</p></div>
+                <span style="background:#EAF3DE;color:#3B6D11;padding:2px 8px;border-radius:99px;font-size:10px;font-weight:500;flex-shrink:0;">Resolvido</span>
+              </div>`).join('')}
+            </div>` : ''}
+        </div>
       </div>
-      <div>
-        <h3 class="text-sm font-black uppercase text-gray-700 mb-4">❓ FAQ — Base de conhecimento</h3>
-        ${faqHtml}
+
+      <div id="admin-chat-panel" style="background:white;border-radius:12px;border:0.5px solid #e5e7eb;display:flex;flex-direction:column;overflow:hidden;">
+        <div style="display:flex;border-bottom:0.5px solid #e5e7eb;">
+          <button id="chat-subtab-chamado" onclick="adminChatSubtab('chamado')" style="padding:8px 14px;font-size:12px;font-weight:500;border:none;background:none;cursor:pointer;border-bottom:2px solid #111;color:#111;">💬 Chamado</button>
+          <button id="chat-subtab-faq" onclick="adminChatSubtab('faq')" style="padding:8px 14px;font-size:12px;font-weight:500;border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;color:#9ca3af;">❓ FAQ</button>
+          <div style="margin-left:auto;padding:6px 10px;">
+            <button onclick="openFaqModal()" style="font-size:10px;font-weight:500;background:#EAF3DE;color:#3B6D11;border:none;border-radius:6px;padding:3px 8px;cursor:pointer;">+ Nova FAQ</button>
+          </div>
+        </div>
+        <div id="chat-panel-chamado" style="flex:1;display:flex;flex-direction:column;overflow:hidden;">
+          <div style="flex:1;display:flex;align-items:center;justify-content:center;padding:2rem;">
+            <p style="font-size:13px;color:#9ca3af;text-align:center;">Selecione um chamado ao lado para iniciar o atendimento</p>
+          </div>
+        </div>
+        <div id="chat-panel-faq" style="display:none;flex:1;overflow-y:auto;padding:16px;">${faqHtml}</div>
       </div>
     </div>`;
+
+  window.__adminCurrentFilter = filter;
+}
+
+function adminChatSubtab(tab) {
+  document.getElementById('chat-panel-chamado').style.display = tab==='chamado' ? 'flex' : 'none';
+  document.getElementById('chat-panel-faq').style.display = tab==='faq' ? 'block' : 'none';
+  document.getElementById('chat-subtab-chamado').style.borderBottomColor = tab==='chamado' ? '#111' : 'transparent';
+  document.getElementById('chat-subtab-chamado').style.color = tab==='chamado' ? '#111' : '#9ca3af';
+  document.getElementById('chat-subtab-faq').style.borderBottomColor = tab==='faq' ? '#111' : 'transparent';
+  document.getElementById('chat-subtab-faq').style.color = tab==='faq' ? '#111' : '#9ca3af';
 }
 
 // ── Abre o chat do chamado na tela do admin ──
@@ -12416,8 +12568,10 @@ async function openAdminChat(ticketId) {
   if (_adminChatSub) { _supabase.removeChannel(_adminChatSub); _adminChatSub = null; }
   _adminCurrentTicketId = ticketId;
 
-  const container = document.getElementById('suporte-content');
-  container.innerHTML = '<div class="text-gray-400 text-sm p-4">Carregando...</div>';
+  const chatPanel = document.getElementById('chat-panel-chamado');
+  if (!chatPanel) return;
+  chatPanel.innerHTML = '<div style="flex:1;display:flex;align-items:center;justify-content:center;"><p style="color:#9ca3af;font-size:13px;">Carregando...</p></div>';
+  adminChatSubtab('chamado');
 
   const [{ data: ticket }, { data: msgs }] = await Promise.all([
     _supabase.from('support_tickets').select('*, profile:profile_id(full_name)').eq('id', ticketId).maybeSingle(),
@@ -12425,59 +12579,41 @@ async function openAdminChat(ticketId) {
   ]);
   if (!ticket) return;
 
-  // Marca como in_progress automaticamente
   if (ticket.status === 'open') {
     await _supabase.from('support_tickets').update({ status: 'in_progress' }).eq('id', ticketId);
     ticket.status = 'in_progress';
+    // Atualiza lista
+    const t = (window.__adminSuporteTickets||[]).find(x=>x.id===ticketId);
+    if (t) t.status = 'in_progress';
+    _renderSuporteLayout(window.__adminCurrentFilter||'todos');
+    adminChatSubtab('chamado');
   }
 
-  const statusBadge = { open:'<span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-100 text-amber-700">Aberto</span>', in_progress:'<span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-blue-100 text-blue-700">Em atendimento</span>', resolved:'<span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-700">Resolvido</span>' }[ticket.status] || '';
+  const urgentBadge = ticket.is_urgent ? '<span style="background:#FCEBEB;color:#A32D2D;padding:2px 8px;border-radius:99px;font-size:10px;font-weight:500;">🚨 Urgente</span>' : '';
 
-  container.innerHTML = `
-    <div class="max-w-2xl mx-auto flex flex-col" style="height: calc(100vh - 8rem);">
-
-      <!-- Header -->
-      <div class="flex items-center justify-between mb-4 flex-shrink-0">
-        <button onclick="if(_adminChatSub){_supabase.removeChannel(_adminChatSub);_adminChatSub=null;} renderAdminSuporte();"
-          class="flex items-center gap-2 text-sm text-gray-400 hover:text-gray-700 font-bold transition">
-          ← Voltar
-        </button>
-        <div class="flex items-center gap-3">
-          ${statusBadge}
-          ${ticket.status !== 'resolved' ? `<button onclick="adminCloseTicket('${ticketId}')" class="px-4 py-1.5 bg-emerald-50 text-emerald-700 rounded-xl text-xs font-bold hover:bg-emerald-100 transition">✅ Resolver</button>` : ''}
-        </div>
+  chatPanel.innerHTML = `
+    <div style="padding:10px 12px;border-bottom:0.5px solid #e5e7eb;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+      <div style="min-width:0;">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;">${urgentBadge}<p style="font-size:13px;font-weight:500;margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(ticket.subject||'Sem assunto')}</p></div>
+        <p style="font-size:11px;color:#9ca3af;margin:0;">${escapeHtml(ticket.profile?.full_name||'—')} · ${_timeAgo(ticket.created_at)}</p>
       </div>
-
-      <!-- Info do chamado -->
-      <div class="bg-white rounded-2xl border border-gray-200 p-4 mb-4 flex-shrink-0">
-        <p class="font-black text-gray-800">${escapeHtml(ticket.subject || 'Sem assunto')}</p>
-        <p class="text-xs text-gray-400 mt-0.5">${escapeHtml(ticket.profile?.full_name || '—')} · ${new Date(ticket.created_at).toLocaleDateString('pt-BR')}</p>
-        <div class="mt-3 bg-gray-50 rounded-xl p-3">
-          <p class="text-[10px] font-black uppercase text-gray-400 mb-1">Descrição</p>
-          <p class="text-sm text-gray-700">${escapeHtml(ticket.description || '')}</p>
-        </div>
-      </div>
-
-      <!-- Mensagens -->
-      <div id="admin-chat-messages" class="flex-1 overflow-y-auto space-y-3 mb-4 px-1">
-        ${renderChatMessages(msgs || [], 'admin')}
-      </div>
-
-      <!-- Input (bloqueado se resolvido) -->
-      ${ticket.status !== 'resolved' ? `
-        <div class="flex-shrink-0 flex gap-3 items-end">
-          <textarea id="admin-chat-input" rows="2" placeholder="Digite a resposta..."
-            class="flex-1 border-2 border-gray-200 focus:border-emerald-500 rounded-2xl px-4 py-3 text-sm outline-none transition resize-none"
-            onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();adminSendMessage('${ticketId}');}"></textarea>
-          <button onclick="adminSendMessage('${ticketId}')" class="w-12 h-12 bg-slate-900 text-white rounded-2xl flex items-center justify-center hover:bg-emerald-600 transition flex-shrink-0">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-          </button>
-        </div>` : `<div class="text-center text-sm text-gray-400 py-3 flex-shrink-0">Este chamado foi resolvido.</div>`}
-    </div>`;
+      ${ticket.status !== 'resolved' ? `<button onclick="adminCloseTicket('${ticketId}')" style="font-size:10px;font-weight:500;background:#EAF3DE;color:#3B6D11;border:none;border-radius:6px;padding:4px 8px;cursor:pointer;flex-shrink:0;">✓ Resolver</button>` : '<span style="background:#EAF3DE;color:#3B6D11;padding:2px 8px;border-radius:99px;font-size:10px;font-weight:500;flex-shrink:0;">Resolvido</span>'}
+    </div>
+    ${ticket.description ? `<div style="padding:8px 12px;background:#f9fafb;border-bottom:0.5px solid #e5e7eb;flex-shrink:0;"><p style="font-size:11px;color:#6b7280;margin:0;">${escapeHtml(ticket.description)}</p></div>` : ''}
+    <div id="admin-chat-messages" style="flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:4px;">
+      ${renderChatMessages(msgs||[], 'admin')}
+      ${(!msgs||!msgs.length)?'<p style="text-align:center;font-size:12px;color:#9ca3af;padding:1rem;">Nenhuma mensagem ainda.</p>':''}
+    </div>
+    ${ticket.status !== 'resolved' ? `
+    <div style="padding:8px 12px;border-top:0.5px solid #e5e7eb;display:flex;gap:8px;align-items:flex-end;flex-shrink:0;">
+      <textarea id="admin-chat-input" rows="2" placeholder="Digite a resposta..." style="flex:1;border:1.5px solid #e5e7eb;border-radius:10px;padding:8px 10px;font-size:12px;outline:none;resize:none;" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();adminSendMessage('${ticketId}');}"></textarea>
+      <button onclick="adminSendMessage('${ticketId}')" style="width:38px;height:38px;background:#0f172a;color:white;border:none;border-radius:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+      </button>
+    </div>` : `<div style="text-align:center;font-size:12px;color:#9ca3af;padding:12px;flex-shrink:0;">✅ Chamado resolvido.</div>`}`;
 
   scrollChatToBottom('admin-chat-messages');
 
-  // Realtime subscription
   _adminChatSub = _supabase.channel(`ticket-admin-${ticketId}`)
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'support_messages', filter: `ticket_id=eq.${ticketId}` },
       (payload) => {
@@ -12485,6 +12621,11 @@ async function openAdminChat(ticketId) {
         if (!el) return;
         el.insertAdjacentHTML('beforeend', renderChatMessages([payload.new], 'admin'));
         scrollChatToBottom('admin-chat-messages');
+        // Atualiza lastMsgMap
+        if (window.__adminSuporteLastMsgMap) window.__adminSuporteLastMsgMap[ticketId] = payload.new;
+        _renderSuporteLayout(window.__adminCurrentFilter||'todos');
+        adminChatSubtab('chamado');
+        openAdminChat(ticketId);
       })
     .subscribe();
 }

@@ -3056,10 +3056,11 @@ async function renderSuporteAutonomo() {
     showLoading(true);
     const container = document.getElementById('view-container');
 
-    const [{ data: faqs }, { data: tickets }] = await Promise.all([
+    const [{ data: faqs }, { data: tickets }, { data: categories }] = await Promise.all([
         _sb.from('support_faqs').select('*').order('category').order('created_at'),
         _sb.from('support_tickets').select('*').eq('profile_id', currentUser.id)
             .order('created_at', { ascending: false }),
+        _sb.from('support_categories').select('*').order('is_urgent', { ascending: false }).order('name'),
     ]);
     showLoading(false);
 
@@ -3130,8 +3131,12 @@ async function renderSuporteAutonomo() {
                     <h4 class="font-black text-slate-800 mb-1">Não encontrou o que precisava?</h4>
                     <p class="text-sm text-slate-500 mb-4">Abra um chamado e responderemos em breve.</p>
                     <div class="space-y-3">
-                        <input type="text" id="new-ticket-subject" placeholder="Resumo do problema"
-                            class="w-full border rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-emerald-500">
+                        <select id="new-ticket-category" class="w-full border rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-emerald-500 bg-white">
+                            <option value="">Selecione o motivo do chamado...</option>
+                        </select>
+                        <p id="urgent-warning" class="hidden text-xs text-red-600 font-bold bg-red-50 rounded-xl px-3 py-2">
+                            🚨 Este é um chamado urgente — descreva abaixo com detalhes o que está acontecendo agora.
+                        </p>
                         <textarea id="new-ticket-desc" rows="3" placeholder="Descreva com detalhes..."
                             class="w-full border rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-emerald-500 resize-none"></textarea>
                     </div>
@@ -3148,6 +3153,42 @@ async function renderSuporteAutonomo() {
                     <div class="space-y-2">${ticketItems}</div>
                 </div>` : ''}
         </div>`;
+
+    // Popular select de categorias
+    const categorySelect = document.getElementById('new-ticket-category');
+    if (categorySelect && categories?.length) {
+        const urgentCats = categories.filter(c => c.is_urgent);
+        const normalCats = categories.filter(c => !c.is_urgent);
+        if (urgentCats.length) {
+            const og1 = document.createElement('optgroup');
+            og1.label = '🚨 Problema urgente (estou em loja)';
+            urgentCats.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c.id;
+                opt.text = c.name;
+                opt.dataset.urgent = 'true';
+                og1.appendChild(opt);
+            });
+            categorySelect.appendChild(og1);
+        }
+        if (normalCats.length) {
+            const og2 = document.createElement('optgroup');
+            og2.label = 'Outros assuntos';
+            normalCats.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c.id;
+                opt.text = c.name;
+                opt.dataset.urgent = 'false';
+                og2.appendChild(opt);
+            });
+            categorySelect.appendChild(og2);
+        }
+        categorySelect.addEventListener('change', () => {
+            const sel = categorySelect.options[categorySelect.selectedIndex];
+            const warn = document.getElementById('urgent-warning');
+            if (warn) warn.classList.toggle('hidden', sel?.dataset?.urgent !== 'true');
+        });
+    }
 }
 
 // ── Abre o chat de um chamado ──
@@ -3166,6 +3207,8 @@ async function openAutonomoChat(ticketId) {
     if (!ticket) return;
 
     const isResolved = ticket.status === 'resolved';
+    const lastMsg = (msgs || []).slice(-1)[0];
+    const lastSenderIsAutonomo = lastMsg?.sender === 'autonomo';
 
     container.innerHTML = `
         <div class="max-w-2xl mx-auto flex flex-col" style="height: calc(100vh - 8rem);">
@@ -3194,14 +3237,22 @@ async function openAutonomoChat(ticketId) {
 
             <!-- Input -->
             ${!isResolved ? `
-                <div class="flex-shrink-0 flex gap-3 items-end">
-                    <textarea id="autonomo-chat-input" rows="2" placeholder="Digite sua mensagem..."
-                        class="flex-1 border-2 border-slate-200 focus:border-emerald-500 rounded-2xl px-4 py-3 text-sm outline-none transition resize-none"
-                        onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();autonomoSendMessage('${ticketId}');}"></textarea>
-                    <button onclick="autonomoSendMessage('${ticketId}')" class="w-12 h-12 bg-slate-900 text-white rounded-2xl flex items-center justify-center hover:bg-emerald-600 transition flex-shrink-0">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-                    </button>
+                ${lastSenderIsAutonomo ? `
+                <div class="flex-shrink-0 bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 text-center">
+                    <p class="text-xs text-amber-700 font-bold">⏳ Aguardando resposta do suporte</p>
+                    <p class="text-xs text-amber-600 mt-1">Você já enviou uma mensagem. Assim que respondermos você poderá enviar outra.</p>
                 </div>` : `
+                <div class="flex-shrink-0">
+                    <p class="text-xs text-slate-400 mb-2 px-1">💡 Descreva tudo em uma única mensagem para agilizar o atendimento.</p>
+                    <div class="flex gap-3 items-end">
+                        <textarea id="autonomo-chat-input" rows="2" placeholder="Digite sua mensagem..."
+                            class="flex-1 border-2 border-slate-200 focus:border-emerald-500 rounded-2xl px-4 py-3 text-sm outline-none transition resize-none"
+                            onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();autonomoSendMessage('${ticketId}');}"></textarea>
+                        <button onclick="autonomoSendMessage('${ticketId}')" class="w-12 h-12 bg-slate-900 text-white rounded-2xl flex items-center justify-center hover:bg-emerald-600 transition flex-shrink-0">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                        </button>
+                    </div>
+                </div>`}` : `
                 <div class="text-center text-sm text-slate-400 py-3 flex-shrink-0 bg-emerald-50 rounded-2xl">
                     ✅ Este chamado foi resolvido.
                 </div>`}
@@ -3240,21 +3291,41 @@ async function autonomoSendMessage(ticketId) {
 }
 
 async function submitTicket() {
-    const subject = (document.getElementById('new-ticket-subject')?.value||'').trim();
-    const desc    = (document.getElementById('new-ticket-desc')?.value||'').trim();
+    const categoryEl = document.getElementById('new-ticket-category');
+    const categoryId = categoryEl?.value || '';
+    const desc = (document.getElementById('new-ticket-desc')?.value||'').trim();
     const statusEl = document.getElementById('ticket-submit-status');
-    if (!subject||!desc) {
-        if(statusEl){statusEl.className='mt-2 text-xs text-center text-red-500';statusEl.textContent='Preencha o resumo e a descrição.';statusEl.classList.remove('hidden');}
+    if (!categoryId || !desc) {
+        if(statusEl){statusEl.className='mt-2 text-xs text-center text-red-500';statusEl.textContent='Selecione o motivo e descreva o problema.';statusEl.classList.remove('hidden');}
         return;
     }
+    const selectedOption = categoryEl.options[categoryEl.selectedIndex];
+    const isUrgent = selectedOption?.dataset?.urgent === 'true';
+    const subject = selectedOption?.text || '';
     const { data: newTicket, error } = await _sb.from('support_tickets')
-        .insert({ profile_id: currentUser.id, subject, description: desc, status: 'open' })
+        .insert({ profile_id: currentUser.id, subject, description: desc, status: 'open', category_id: categoryId, is_urgent: isUrgent })
         .select('id').maybeSingle();
     if (error) {
         if(statusEl){statusEl.className='mt-2 text-xs text-center text-red-500';statusEl.textContent='Erro: '+error.message;statusEl.classList.remove('hidden');}
         return;
     }
-    // Abre o chat direto
+    // Notifica admins apenas se for urgente
+    if (isUrgent) {
+        try {
+            const { data: admins } = await _sb.from('profiles').select('id').in('role', ['admin', 'subadmin']);
+            for (const adm of admins || []) {
+                await _sb.functions.invoke('send-push', {
+                    body: {
+                        user_id: adm.id,
+                        title: '🚨 Chamado urgente!',
+                        body: `${currentUser.full_name || 'Autônomo'}: ${subject}
+Toque para atender agora.`,
+                        data: { url: '/admin.html', tag: `urgent-ticket-${newTicket.id}` }
+                    }
+                });
+            }
+        } catch(e) { console.error('Erro ao notificar admin:', e); }
+    }
     await openAutonomoChat(newTicket.id);
 }
 
