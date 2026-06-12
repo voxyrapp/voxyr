@@ -3221,10 +3221,10 @@ async function openAutonomoChat(ticketId) {
     const lastSenderIsAutonomo = lastMsg?.sender === 'autonomo';
 
     container.innerHTML = `
-        <div class="flex flex-col" id="autonomo-chat-container" style="max-width:100%;">
+        <div class="flex flex-col" id="autonomo-chat-container" style="flex:1;overflow:hidden;">
             <!-- Header -->
             <div class="flex items-center justify-between mb-4 flex-shrink-0">
-                <button onclick="if(_autonomoChatSub){_sb.removeChannel(_autonomoChatSub);_autonomoChatSub=null;} renderSuporteAutonomo();"
+                <button onclick="if(_autonomoChatSub){_sb.removeChannel(_autonomoChatSub);_autonomoChatSub=null;} const m=document.querySelector('main'); const v=document.getElementById('view-container'); if(m){m.classList.add('overflow-y-auto');m.style.overflow='';m.style.display='';m.style.flexDirection='';} if(v){v.style.padding='';v.style.flex='';v.style.overflow='';v.style.display='';v.style.flexDirection='';} renderSuporteAutonomo();"
                     class="flex items-center gap-2 text-sm text-slate-400 hover:text-slate-700 font-bold transition">
                     ← Voltar
                 </button>
@@ -3270,20 +3270,11 @@ async function openAutonomoChat(ticketId) {
 
     scrollChatToBottom('autonomo-chat-messages');
 
-    // Calcular altura real do chat descontando header
-    const chatContainer = document.getElementById('autonomo-chat-container');
-    if (chatContainer) {
-        const setHeight = () => {
-            const headerH = document.querySelector('header')?.offsetHeight || 60;
-            const vph = window.visualViewport ? window.visualViewport.height : window.innerHeight;
-            chatContainer.style.height = (vph - headerH - 16) + 'px';
-        };
-        setHeight();
-        if (window.visualViewport) {
-            window.visualViewport.addEventListener('resize', setHeight);
-        }
-        window.addEventListener('resize', setHeight);
-    }
+    // Modo chat: main não faz scroll, view-container sem padding
+    const mainEl = document.querySelector('main');
+    const viewEl = document.getElementById('view-container');
+    if (mainEl) { mainEl.classList.remove('overflow-y-auto'); mainEl.style.overflow = 'hidden'; mainEl.style.display = 'flex'; mainEl.style.flexDirection = 'column'; }
+    if (viewEl) { viewEl.style.padding = '0'; viewEl.style.flex = '1'; viewEl.style.overflow = 'hidden'; viewEl.style.display = 'flex'; viewEl.style.flexDirection = 'column'; }
 
     // Realtime
     if (!isResolved) {

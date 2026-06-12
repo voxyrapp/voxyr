@@ -11550,7 +11550,6 @@ _supabase.auth.onAuthStateChange((event, session) => {
     }
     _supportRealtimeChannel = _supabase.channel('support-urgente-realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'support_tickets' }, async (payload) => {
-        // Toca som se novo chamado urgente foi criado
         if (payload.eventType === 'INSERT' && payload.new?.is_urgent) {
           playUrgentChatSound();
         }
@@ -11564,12 +11563,25 @@ _supabase.auth.onAuthStateChange((event, session) => {
           .select('id', { count: 'exact', head: true })
           .eq('status', 'open');
         updateBadges({ suporte: openCount || 0, suporte_urgent: urgentCount || 0 });
-        // Atualiza lista de chamados se suporte estiver aberto
-        if (document.getElementById('suporte-content')) {
+        if (document.getElementById('suporte-content') && window.__adminSuporteTickets) {
           renderAdminSuporte();
         }
       })
-      .subscribe();
+      .subscribe(async (status) => {
+        // Assim que canal conectar, faz check inicial
+        if (status === 'SUBSCRIBED') {
+          const { count: urgentCount } = await _supabase
+            .from('support_tickets')
+            .select('id', { count: 'exact', head: true })
+            .eq('is_urgent', true)
+            .neq('status', 'resolved');
+          const { count: openCount } = await _supabase
+            .from('support_tickets')
+            .select('id', { count: 'exact', head: true })
+            .eq('status', 'open');
+          updateBadges({ suporte: openCount || 0, suporte_urgent: urgentCount || 0 });
+        }
+      });
   }
 });
 
