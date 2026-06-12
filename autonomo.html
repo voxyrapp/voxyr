@@ -808,6 +808,9 @@ async function init() {
         started_at,
         finished_at,
         final_value,
+        paid_amount,
+        overtime_bonus,
+        overtime_approved_at,
         slots:vacancy_id(
             value,
             shifts(start_time, end_time)
@@ -925,7 +928,9 @@ const aReceber = pendentes.reduce((acc, r) => {
         ? (Number(frozenNetRaw) || 0)
         : calc.net;
 
-    return acc + netFinal;
+    const bonusFinal = (r.overtime_approved_at && Number(r.overtime_bonus) > 0) ? Number(r.overtime_bonus) : 0;
+
+    return acc + netFinal + bonusFinal;
 }, 0);
             const agendadas = res?.filter(r => ['confirmada','check-in','pausa'].includes(normStatus(r.status))).length || 0;
 
@@ -1909,7 +1914,7 @@ function calcularTempo(inicio) {
         // Busca reservas finalizadas
         const { data: reservations } = await _sb
             .from('reservations')
-            .select('id,status,final_value,paid_at,paid_amount,vacancy_id,slot_id,started_at,finished_at')
+            .select('id,status,final_value,paid_at,paid_amount,vacancy_id,slot_id,started_at,finished_at,overtime_bonus,overtime_approved_at')
             .eq('profile_id', profileId)
             .in('status', ['check-out'])
             .order('created_at', { ascending: false })
@@ -1993,14 +1998,16 @@ function calcularTempo(inicio) {
             const cycleInfo = getCycleKey(slot.date, chain);
             const payDate = getPaymentDate(cycleInfo, chain);
             const isPaid = !!r.paid_at;
-            const value = parseFloat(r.final_value || r.paid_amount || 0);
+            const bonus = (r.overtime_approved_at && Number(r.overtime_bonus) > 0) ? Number(r.overtime_bonus) : 0;
+            const value = parseFloat(r.final_value || r.paid_amount || 0) + bonus;
 
             if (!grouped[chainId]) grouped[chainId] = { chain, chainName, cycles: {} };
             if (!grouped[chainId].cycles[cycleInfo.key]) {
                 grouped[chainId].cycles[cycleInfo.key] = { info: cycleInfo, payDate, isPaid: true, items: [], total: 0 };
             }
             const cyc = grouped[chainId].cycles[cycleInfo.key];
-            cyc.items.push({ store: store?.name || '—', date: slot.date, value, isPaid });
+            const itemBonus = (r.overtime_approved_at && Number(r.overtime_bonus) > 0) ? Number(r.overtime_bonus) : 0;
+            cyc.items.push({ store: store?.name || '—', date: slot.date, value, bonus: itemBonus, isPaid });
             cyc.total += value;
             if (!isPaid) cyc.isPaid = false;
         });
@@ -2015,7 +2022,8 @@ function calcularTempo(inicio) {
             const d = new Date(slot.date + 'T12:00:00');
             if (d.getMonth() !== thisMonth || d.getFullYear() !== thisYear) return;
             totalMissoes++;
-            const v = parseFloat(r.final_value || r.paid_amount || 0);
+            const bonusV = (r.overtime_approved_at && Number(r.overtime_bonus) > 0) ? Number(r.overtime_bonus) : 0;
+            const v = parseFloat(r.final_value || r.paid_amount || 0) + bonusV;
             if (r.paid_at) totalRecebido += v; else totalAReceber += v;
         });
 
@@ -2085,7 +2093,10 @@ function calcularTempo(inicio) {
                             <p class="text-sm font-semibold text-gray-800">${item.store}</p>
                             <p class="text-xs text-gray-400">${new Date(item.date+'T12:00:00').toLocaleDateString('pt-BR',{weekday:'short',day:'2-digit',month:'2-digit'})}</p>
                           </div>
-                          <p class="text-sm font-bold text-gray-800">${fmtBRL(item.value)}</p>
+                          <div class="text-right">
+                            ${item.bonus > 0 ? `<p class="text-[11px] text-amber-600 font-bold">+${fmtBRL(item.bonus)} bônus</p>` : ''}
+                            <p class="text-sm font-bold text-gray-800">${fmtBRL(item.value - item.bonus)}</p>
+                          </div>
                         </div>
                       `).join('')}
                     </div>

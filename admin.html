@@ -284,7 +284,7 @@ nav::-webkit-scrollbar-thumb:hover {
             <div class="flex items-center gap-3"><button onclick="toggleSidebar()" class="lg:hidden p-2 rounded-lg bg-gray-100 text-gray-700 font-black">☰</button><div>
                 <h2 class="text-xl font-semibold text-gray-800">Reservas sem credenciais</h2>
             </div></div>
-            <div class="hidden sm:flex gap-2">
+            <div class="flex flex-wrap gap-2">
                 <button onclick="downloadCredsPlanilha()" class="px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-bold hover:bg-emerald-700 flex items-center gap-2">
                     ⬇️ Baixar planilha
                 </button>
@@ -1261,12 +1261,14 @@ const isPaid = (r) => {
               <th class="text-right p-3 font-extrabold">Bruto</th>
               <th class="text-right p-3 font-extrabold">Desconto</th>
               <th class="text-right p-3 font-extrabold">Líquido</th>
+              <th class="text-right p-3 font-extrabold text-amber-600">Bônus</th>
+              <th class="text-right p-3 font-extrabold text-emerald-700">Total</th>
               <th class="text-left p-3 font-extrabold">Período</th>
               <th class="text-right p-3 font-extrabold">Ação</th>
             </tr>
           </thead>
           <tbody id="finance-tbody">
-            <tr><td class="p-6 text-center text-gray-400 font-bold" colspan="7">Carregando...</td></tr>
+            <tr><td class="p-6 text-center text-gray-400 font-bold" colspan="9">Carregando...</td></tr>
           </tbody>
           <tfoot class="bg-gray-50">
             <tr>
@@ -1274,6 +1276,8 @@ const isPaid = (r) => {
               <td id="finance-foot-bruto" class="p-3 text-right font-extrabold">0,00</td>
               <td id="finance-foot-desconto" class="p-3 text-right font-extrabold">0,00</td>
               <td id="finance-foot-liquido" class="p-3 text-right font-extrabold">0,00</td>
+              <td id="finance-foot-bonus" class="p-3 text-right font-extrabold text-amber-600">0,00</td>
+              <td id="finance-foot-total" class="p-3 text-right font-extrabold text-emerald-700">0,00</td>
               <td class="p-3" colspan="2"></td>
             </tr>
           </tfoot>
@@ -1325,7 +1329,7 @@ if (financeClearBtn) {
 
     // Step 1: reservations
     let resData = null, resError = null;
-    const baseSelect = 'id, profile_id, slot_id, vacancy_id, status, created_at, confirmed_at, pix_key, pix_type, payment_key_confirmed, payment_key_confirmed_at, penalty_seconds, accumulated_seconds, pause_total_seconds, paid, paid_at, paid_amount, paid_pix_key, paid_reference_days, finished_at, final_value, shift_minutes_snapshot, payable_minutes_snapshot';
+    const baseSelect = 'id, profile_id, slot_id, vacancy_id, status, created_at, confirmed_at, pix_key, pix_type, payment_key_confirmed, payment_key_confirmed_at, penalty_seconds, accumulated_seconds, pause_total_seconds, paid, paid_at, paid_amount, paid_pix_key, paid_reference_days, finished_at, final_value, shift_minutes_snapshot, payable_minutes_snapshot, overtime_bonus, overtime_approved_at';
     let q = _supabase.from('reservations')
       .select(baseSelect)
       .eq('status', 'check-out');
@@ -1484,7 +1488,7 @@ if (financeClearBtn) {
           email: prof.email || '',
           pix: prof.pix_key || '',
           pix_type: prof.pix_type || '',
-          bruto: 0, desconto: 0, liquido: 0,
+          bruto: 0, desconto: 0, liquido: 0, bonus: 0,
           reservaIds: [],
           periodoMin: String(slot?.date || ''),
           periodoMax: String(slot?.date || ''),
@@ -1494,6 +1498,7 @@ if (financeClearBtn) {
       a.bruto += gross;
       a.desconto += discount;
       a.liquido += net;
+      a.bonus += Number(r.overtime_bonus || 0);
       a.reservaIds.push({ id: r.id, net, date: String(slot?.date||''), paid });
 
       if (a.periodoMin === '' || String(slot.date) < a.periodoMin) a.periodoMin = String(slot.date);
@@ -1521,6 +1526,8 @@ if (financeClearBtn) {
 <td class="p-3 text-right">R$ ${formatBRL(e.bruto)}</td>
             <td class="p-3 text-right">R$ ${formatBRL(e.desconto)}</td>
             <td class="p-3 text-right font-extrabold">R$ ${formatBRL(e.liquido)}</td>
+            <td class="p-3 text-right text-amber-600 font-bold">${e.bonus > 0 ? 'R$ ' + formatBRL(e.bonus) : '-'}</td>
+            <td class="p-3 text-right font-extrabold text-emerald-700">R$ ${formatBRL(e.liquido + (e.bonus || 0))}</td>
             <td class="p-3 text-xs">${periodo}</td>
             
             <td class="p-3 text-right">
@@ -1558,10 +1565,10 @@ if (financeClearBtn) {
 
     // Export CSV
     document.getElementById('finance-export').onclick = () => {
-      const rows = [['Nome', 'Email', 'PIX', 'Bruto', 'Desconto', 'Liquido', 'Periodo']];
+      const rows = [['Nome', 'Email', 'PIX', 'Bruto', 'Desconto', 'Liquido', 'Bonus', 'Total', 'Periodo']];
       entries.forEach(e => {
         const periodo = (filters.start || filters.end) ? `${filters.start || e.periodoMin} até ${filters.end || e.periodoMax}` : `${e.periodoMin} até ${e.periodoMax}`;
-        rows.push([e.name, e.email, e.pix, e.bruto.toFixed(2), e.desconto.toFixed(2), e.liquido.toFixed(2), periodo]);
+        rows.push([e.name, e.email, e.pix, e.bruto.toFixed(2), e.desconto.toFixed(2), e.liquido.toFixed(2), (e.bonus||0).toFixed(2), (e.liquido+(e.bonus||0)).toFixed(2), periodo]);
       });
       const csv = rows.map(r => r.map(v => `"${String(v??'').replace(/"/g,'""')}"`).join(';')).join('\n');
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -1577,7 +1584,7 @@ if (financeClearBtn) {
     document.getElementById('finance-export-cnab').onclick = () => {
       const pagamentos = entries
         .filter(e => e.pix && e.liquido > 0)
-        .map(e => ({ nome: e.name, email: e.email, pix: e.pix, pix_type: e.pix_type||'', valor: e.liquido }));
+        .map(e => ({ nome: e.name, email: e.email, pix: e.pix, pix_type: e.pix_type||'', valor: e.liquido + (e.bonus || 0) }));
 
       if (!pagamentos.length) { alert('Nenhum autônomo com chave Pix e valor positivo.'); return; }
       abrirRevisaoCNAB(pagamentos);
@@ -7194,7 +7201,7 @@ async function renderDelayRequests() {
         const endHHMM = r.slots?.shifts?.end_time;
         if (!slotDate || !endHHMM || !r.finished_at) return false;
         const [eh, em] = endHHMM.split(':').map(Number);
-        const shiftEnd = new Date(`${slotDate}T${String(eh).padStart(2,'0')}:${String(em).padStart(2,'0')}:00`);
+        const shiftEnd = new Date(`${slotDate}T${String(eh).padStart(2,'0')}:${String(em).padStart(2,'0')}:00-03:00`);
         const finishedAt = new Date(r.finished_at);
         return finishedAt > shiftEnd && (finishedAt - shiftEnd) > 5 * 60 * 1000; // mais de 5min depois
     });
@@ -7240,7 +7247,7 @@ async function renderDelayRequests() {
             const slotDate = r.slots?.date;
             const endHHMM = r.slots?.shifts?.end_time;
             const [eh, em] = (endHHMM || '00:00').split(':').map(Number);
-            const shiftEnd = new Date(`${slotDate}T${String(eh).padStart(2,'0')}:${String(em).padStart(2,'0')}:00`);
+            const shiftEnd = new Date(`${slotDate}T${String(eh).padStart(2,'0')}:${String(em).padStart(2,'0')}:00-03:00`);
             const finishedAt = new Date(r.finished_at);
             const extraMin = Math.round((finishedAt - shiftEnd) / 60000);
             const gross = Number(r.slots?.value || 0);
