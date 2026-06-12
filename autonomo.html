@@ -3989,17 +3989,34 @@ function openScreenFromUrl() {
         const params = new URLSearchParams(window.location.search);
         const screen = (params.get('screen') || '').trim().toLowerCase();
 
-        if (screen !== 'pedidos') return false;
+        if (screen === 'pedidos') {
+            renderPedidos();
+            const titleEl = document.getElementById('page-title');
+            if (titleEl) titleEl.textContent = 'Pedidos';
+            document.querySelectorAll('.nav-link').forEach(el => el.classList.remove('active'));
+            document.getElementById('nav-pedidos')?.classList.add('active');
+            return true;
+        }
 
-        renderPedidos();
+        if (screen === 'mercado') {
+            renderMercado();
+            const titleEl = document.getElementById('page-title');
+            if (titleEl) titleEl.textContent = 'Mercado';
+            document.querySelectorAll('.nav-link').forEach(el => el.classList.remove('active'));
+            document.getElementById('nav-mercado')?.classList.add('active');
+            return true;
+        }
 
-        const titleEl = document.getElementById('page-title');
-        if (titleEl) titleEl.textContent = 'Pedidos';
+        if (screen === 'suporte') {
+            renderSuporteAutonomo();
+            const titleEl = document.getElementById('page-title');
+            if (titleEl) titleEl.textContent = 'Suporte';
+            document.querySelectorAll('.nav-link').forEach(el => el.classList.remove('active'));
+            document.getElementById('nav-suporte')?.classList.add('active');
+            return true;
+}
 
-        document.querySelectorAll('.nav-link').forEach(el => el.classList.remove('active'));
-        document.getElementById('nav-pedidos')?.classList.add('active');
-
-        return true;
+        return false;
     } catch (e) {
         console.error('Erro ao abrir tela pela URL:', e);
         return false;

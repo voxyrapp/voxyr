@@ -7310,8 +7310,8 @@ async function aprovarHoraExtra(rid) {
     await _supabase.functions.invoke('send-push', {
         body: {
             user_id: res?.profile_id,
-            title: '⭐ Bônus de hora extra aprovado!',
-            body: `Você recebeu um bônus de R$ ${bonus.toFixed(2)} pela hora extra. Confira no Financeiro.`,
+            title: '⭐ Sua missão rendeu um bônus!',
+            body: `🎉 R$ ${bonus.toFixed(2)} foi adicionado ao seu pagamento de hoje.\nConfira no Financeiro.`,
             data: { url: '/autonomo.html' }
         }
     });
@@ -8065,8 +8065,8 @@ try {
   const { data: pushData, error: pushErr } = await _supabase.functions.invoke('send-push', {
     body: {
       user_id: insertedAssignment.assignee_profile_id,
-      title: '📦 Novo pedido atribuído',
-      body: 'Você recebeu um novo pedido. Toque para abrir.',
+      title: '📦 Novo pedido para você!',
+      body: 'Um pedido foi adicionado à sua missão de hoje.\nToque para ver os detalhes.',
       data: {
         url: 'https://www.voxyr.com.br/autonomo.html?screen=pedidos',
         type: 'order_assigned',
@@ -10295,8 +10295,8 @@ console.log('COMUNICADO targetUsers =>', {
   targetUsers
 });
 
-const pushTitle = '📣 Atenção: novo comunicado';
-const pushBody = 'Tem uma nova mensagem para você no app. Toque para visualizar.';
+const pushTitle = '📣 Novo comunicado da Voxyr';
+const pushBody = 'Você tem uma mensagem importante. Toque para ler agora.';
 
   for (const uid of targetUsers) {
     try {
@@ -12499,9 +12499,23 @@ async function adminSendMessage(ticketId) {
     sender: 'admin',
     message: text,
   });
-  if (error) { input.value = text; alert('Erro: ' + error.message); }
-  // Atualiza last_message_at
+  if (error) { input.value = text; alert('Erro: ' + error.message); return; }
   await _supabase.from('support_tickets').update({ last_message_at: new Date().toISOString() }).eq('id', ticketId);
+
+  // Notifica o autônomo
+  try {
+    const { data: ticket } = await _supabase.from('support_tickets').select('profile_id').eq('id', ticketId).maybeSingle();
+    if (ticket?.profile_id) {
+      await _supabase.functions.invoke('send-push', {
+        body: {
+          user_id: ticket.profile_id,
+          title: '🎧 Resposta no seu chamado',
+          body: `A equipe Voxyr respondeu seu chamado.\nToque para ver a resposta.`,
+          data: { url: '/autonomo.html?screen=suporte', tag: `ticket-${ticketId}` }
+        }
+      });
+    }
+  } catch(e) { console.error('Erro ao notificar suporte:', e); }
 }
 
 async function adminCloseTicket(ticketId) {
