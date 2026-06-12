@@ -11538,8 +11538,38 @@ function startAlertPolling() {
   });
 }
 
-// Inicia quando o painel carrega
-document.addEventListener('DOMContentLoaded', () => { setTimeout(startAlertPolling, 2000); });
+// Inicia após autenticação confirmada
+let _supportRealtimeChannel = null;
+
+_supabase.auth.onAuthStateChange((event, session) => {
+  if (event === 'SIGNED_IN' && session) {
+    setTimeout(startAlertPolling, 1000);
+
+    if (_supportRealtimeChannel) {
+      _supabase.removeChannel(_supportRealtimeChannel);
+    }
+    _supportRealtimeChannel = _supabase.channel('support-urgente-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'support_tickets' }, async () => {
+        const { count: urgentCount } = await _supabase
+          .from('support_tickets')
+          .select('id', { count: 'exact', head: true })
+          .eq('is_urgent', true)
+          .neq('status', 'resolved');
+        const { count: openCount } = await _supabase
+          .from('support_tickets')
+          .select('id', { count: 'exact', head: true })
+          .eq('status', 'open');
+        updateBadges({ suporte: openCount || 0, suporte_urgent: urgentCount || 0 });
+      })
+      .subscribe();
+  }
+});
+
+// Fallback: se já estava logado antes do listener ser registrado
+document.addEventListener('DOMContentLoaded', async () => {
+  const { data: { session } } = await _supabase.auth.getSession();
+  if (session) setTimeout(startAlertPolling, 2000);
+});
 
 // Realtime para atualizar badge urgente sem recarregar
 (function startSupportRealtime() {
