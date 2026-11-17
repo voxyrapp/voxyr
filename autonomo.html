@@ -144,7 +144,7 @@
     </main>
 
     <script>
-        const _sb = supabase.createClient("https://peluzcmwjbqodtjjxddy.supabase.co", "sb_publishable_TUX4DzHCvQkMJHNaoTfCTQ_GIHApIAC");
+        const _sb = supabase.createClient("https://jsskyviisdcsaxtbeavx.supabase.co", "sb_publishable_3mBu0D6pQQy-k-yW6gytsQ_Ju92E1HD");
         emailjs.init("WIcu3KkF0JGDXdg48");
         let currentUser = null;
 
@@ -2770,7 +2770,7 @@ async function notifyIssueGerente(issueId, preview) {
         const orderCode = issue?.order_assignments?.order_assignment_groups?.order_code||'';
         if (!storeId) return;
         const { data: gerentes } = await _sb.from('profiles').select('id').eq('store_id',storeId).in('role',['gerente','manager']);
-        for (const g of gerentes||[]) { await _sb.functions.invoke('send-push',{body:{user_id:g.id,title:'⚠️ Pendência no pedido #'+orderCode,body:preview,data:{url:'/gerente.html',tag:'issue-'+issueId}}}); }
+        for (const g of gerentes||[]) { await _sb.functions.invoke('send-push',{body:{user_id:g.id,title:'⚠️ Pendência no pedido #'+orderCode,body:preview,data:{url:'/gerente.html',tag:'issue-'+issueId,issue_id:issueId}}}); }
     } catch(e) { console.error('Erro notif gerente:',e); }
 }
 
@@ -3483,7 +3483,7 @@ async function submitTicket() {
                         title: '🚨 Chamado urgente!',
                         body: `${currentUser.full_name || 'Autônomo'}: ${subject}
 Toque para atender agora.`,
-                        data: { url: '/admin.html', tag: `urgent-ticket-${newTicket.id}` }
+                        data: { url: '/admin.html', tag: `urgent-ticket-${newTicket.id}`, ticket_id: newTicket.id }
                     }
                 });
             }

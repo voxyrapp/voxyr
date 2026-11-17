@@ -770,8 +770,8 @@ nav::-webkit-scrollbar-thumb:hover {
     </div>
 
     <script>
-        const SB_URL = 'https://peluzcmwjbqodtjjxddy.supabase.co';
-        const SB_KEY = 'sb_publishable_TUX4DzHCvQkMJHNaoTfCTQ_GIHApIAC'; 
+        const SB_URL = 'https://jsskyviisdcsaxtbeavx.supabase.co';
+        const SB_KEY = 'sb_publishable_3mBu0D6pQQy-k-yW6gytsQ_Ju92E1HD'; 
 
 
 // Escape HTML para evitar injeção
@@ -4919,11 +4919,10 @@ if (!error && res.data && res.data[0]?.id) {
     console.log("CHAMANDO notify-new-slot", res.data[0].id);
 
     try {
-        await fetch('https://peluzcmwjbqodtjjxddy.supabase.co/functions/v1/notify-new-slot', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ slot_id: res.data[0].id })
+        const { error: pushError } = await _supabase.functions.invoke('notify-new-slot', {
+            body: { slot_id: res.data[0].id }
         });
+        if (pushError) console.error('Erro no push da missão:', pushError);
     } catch (e) {
         console.error('Erro ao enviar push da vaga nova:', e);
     }
@@ -5564,15 +5563,14 @@ if (eEvent) throw eEvent;
     const affectedSlotId = slotId;
 
     if (affectedUserId && affectedSlotId) {
-      await fetch('https://peluzcmwjbqodtjjxddy.supabase.co/functions/v1/notify-reservation-cancelled', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const { error: pushError } = await _supabase.functions.invoke('notify-reservation-cancelled', {
+        body: {
           user_id: affectedUserId,
           slot_id: affectedSlotId,
           reason: 'admin_cancelled'
-        })
+        }
       });
+      if (pushError) console.error('Erro no push de cancelamento:', pushError);
     }
   } catch (err) {
     console.error('Falha ao enviar push de cancelamento:', err);

@@ -1,11 +1,19 @@
-
 [functions.process-expired-reservations]
 enabled = true
 verify_jwt = true
-import_map = "./functions/process-expired-reservations/deno.json"
-# Uncomment to specify a custom file path to the entrypoint.
-# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
 entrypoint = "./functions/process-expired-reservations/index.ts"
-# Specifies static files to be bundled with the function. Supports glob patterns.
-# For example, if you want to serve static HTML pages in your function:
-# static_files = [ "./functions/process-expired-reservations/*.html" ]
+
+[functions.send-push]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/send-push/index.ts"
+
+[functions.notify-new-slot]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/notify-new-slot/index.ts"
+
+[functions.notify-reservation-cancelled]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/notify-reservation-cancelled/index.ts"
