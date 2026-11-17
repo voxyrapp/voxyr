@@ -1350,17 +1350,43 @@ if (!registration || !registration.active) {
   throw new Error('Push service initialization failed');
 }
 
+    const applicationServerKey = urlBase64ToUint8Array(
+      'BIRbsCS-I4jj8_9RsbHSWY_4lEB2QQ8nDk41r9NRbcRUJ0VOqhn0J96q35QSFyBuDcga69oAfuHQsOvrW9c0rAc'
+    );
+
     let subscription = await withTimeout(
       registration.pushManager.getSubscription(),
       8000,
       'A verificação de assinatura push demorou demais.'
     );
 
+    if (subscription) {
+      const currentKey = subscription.options?.applicationServerKey;
+      const currentBytes = currentKey ? new Uint8Array(currentKey) : null;
+      const sameKey = currentBytes &&
+        currentBytes.length === applicationServerKey.length &&
+        currentBytes.every((byte, index) => byte === applicationServerKey[index]);
+
+      if (!sameKey) {
+        const unsubscribed = await withTimeout(
+          subscription.unsubscribe(),
+          8000,
+          'O cancelamento da inscrição antiga demorou demais.'
+        );
+
+        if (!unsubscribed) {
+          throw new Error('Não foi possível renovar a inscrição antiga de notificações.');
+        }
+
+        subscription = null;
+      }
+    }
+
     if (!subscription) {
       subscription = await withTimeout(
         registration.pushManager.subscribe({
           userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array('BIRbsCS-I4jj8_9RsbHSWY_4lEB2QQ8nDk41r9NRbcRUJ0VOqhn0J96q35QSFyBuDcga69oAfuHQsOvrW9c0rAc')
+          applicationServerKey
         }),
         10000,
         'A criação da assinatura push demorou demais.'
