@@ -1,7 +1,7 @@
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import webpush from "npm:web-push";
+import * as webpush from "npm:web-push";
 import { authenticateRequest, jsonError } from "../_shared/auth.ts";
 
 const corsHeaders = {
