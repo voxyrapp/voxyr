@@ -16,41 +16,178 @@
 
 <body class="min-h-screen flex items-center justify-center p-4" style="background:#e8f0f7;">
 
-<!-- SPLASH SCREEN PWA -->
-<div id="pwa-splash" style="
-  position:fixed;inset:0;z-index:9999;
-  background:#ffffff;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;
-  transition:opacity 0.4s ease;
-">
-  <img src="/icon-512.png" style="width:96px;height:96px;border-radius:22px;" alt="Voxyr">
-  <div style="display:flex;flex-direction:column;align-items:center;gap:8px;">
-    <p style="color:#0f172a;font-family:Inter,sans-serif;font-size:28px;font-weight:900;letter-spacing:-1px;margin:0;">
-      Vox<span style="color:#0d9488;">yr</span>
-    </p>
-    <p style="color:#94a3b8;font-family:Inter,sans-serif;font-size:12px;margin:0;font-weight:600;text-transform:uppercase;letter-spacing:1px;">Carregando...</p>
-  </div>
-  <div style="position:absolute;bottom:48px;">
-    <div style="width:40px;height:3px;background:#e2e8f0;border-radius:2px;overflow:hidden;">
-      <div id="splash-bar" style="width:0%;height:100%;background:#0d9488;border-radius:2px;animation:splashload 1.2s ease forwards;"></div>
+
+<!-- SPLASH SCREEN VOXYR -->
+<div id="pwa-splash">
+  <div class="voxyr-splash-content">
+
+    <div class="voxyr-symbol-wrap">
+      <!-- Revelação do símbolo oficial -->
+      <svg class="voxyr-draw" viewBox="0 0 436 372" aria-hidden="true">
+        <defs>
+          <mask id="voxyr-draw-mask">
+            <rect width="436" height="372" fill="black"/>
+            <path
+              class="voxyr-draw-path"
+              d="M 65 55 C 105 120 155 250 200 300 C 260 360 315 150 380 55"
+              fill="none"
+              stroke="white"
+              stroke-width="165"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              pathLength="1000"
+            />
+          </mask>
+        </defs>
+
+        <image
+          href="./icon-512.png"
+          width="436"
+          height="372"
+          preserveAspectRatio="xMidYMid meet"
+          mask="url(#voxyr-draw-mask)"
+        />
+      </svg>
+
+      <!-- Logo oficial completa aparece em seguida -->
+      <img
+        class="voxyr-symbol-full"
+        src="./icon-512.png"
+        alt="Voxyr"
+      >
     </div>
+
+    <img
+      class="voxyr-wordmark"
+      src="./wordmark.png"
+      alt="VOXYR"
+    >
+
   </div>
 </div>
+
 <style>
-  @keyframes splashload { 0%{width:0%} 60%{width:70%} 100%{width:95%} }
+  #pwa-splash {
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+    background: #e8f0f7;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 1;
+    transition: opacity 0.55s ease;
+  }
+
+  .voxyr-splash-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0px;
+  }
+
+  .voxyr-symbol-wrap {
+  position: relative;
+  width: 250px;
+  height: 213px;
+  flex-shrink: 0;
+  overflow: visible;
+}
+
+  .voxyr-draw,
+.voxyr-symbol-full {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  overflow: visible;
+}
+
+  .voxyr-draw-path {
+    stroke-dasharray: 1000;
+    stroke-dashoffset: 1000;
+    animation: voxyrDraw 1.7s cubic-bezier(.65, 0, .35, 1) forwards;
+  }
+
+  .voxyr-symbol-full {
+    opacity: 0;
+    animation: voxyrSymbolFinish 0.4s ease 1.6s forwards;
+  }
+
+  .voxyr-wordmark {
+    width: 380px;
+    height: auto;
+    object-fit: contain;
+    margin-top: -210px;
+    opacity: 0;
+    transform: translateY(9px);
+    animation: voxyrWordmarkEnter 0.65s ease 1.15s forwards;
+  }
+
+  .voxyr-loading {
+    margin: 12px 0 0;
+    color: #94a3b8;
+    font-family: Inter, sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    opacity: 0;
+    animation: voxyrLoadingEnter 0.4s ease 2s forwards;
+  }
+
+  @keyframes voxyrDraw {
+    to { stroke-dashoffset: 0; }
+  }
+
+  @keyframes voxyrSymbolFinish {
+    to { opacity: 1; }
+  }
+
+  @keyframes voxyrWordmarkEnter {
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes voxyrLoadingEnter {
+    to { opacity: 1; }
+  }
+
+  #pwa-splash.splash-hidden {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .voxyr-draw-path,
+    .voxyr-symbol-full,
+    .voxyr-wordmark,
+    .voxyr-loading {
+      animation-duration: 0.01ms;
+      animation-delay: 0ms;
+    }
+  }
 </style>
+
 <script>
-  // Remove splash quando o DOM estiver pronto
   window.addEventListener('load', () => {
     setTimeout(() => {
       const splash = document.getElementById('pwa-splash');
+
       if (splash) {
-        splash.style.opacity = '0';
-        setTimeout(() => splash.remove(), 400);
+        splash.classList.add('splash-hidden');
+
+        setTimeout(() => {
+          splash.remove();
+        }, 600);
       }
-    }, 600);
+    }, 2800);
   });
 </script>
+
 
 <!-- MODAL PWA -->
 <div id="pwaModal" class="fixed inset-0 z-50 hidden">
